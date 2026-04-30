@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Delivery Segment Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2335;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #6b7280;
+  --NDC: #f59e0b;
+  --RDC: #3b82f6;
+  --SDC: #a78bfa;
+  --HUB: #34d399;
+  --NDC-bg: rgba(245,158,11,0.12);
+  --RDC-bg: rgba(59,130,246,0.12);
+  --SDC-bg: rgba(167,139,250,0.12);
+  --HUB-bg: rgba(52,211,153,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif; min-height: 100vh; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; border-bottom: 1px solid var(--border);
+  background: var(--surface); position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #a78bfa); display: flex; align-items: center; justify-content: center; }
+.logo svg { width: 18px; height: 18px; fill: white; }
+.header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+.header-sub { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.last-updated { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; background: var(--surface2); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+/* Layout */
+.layout { display: flex; height: calc(100vh - 61px); }
+.sidebar { width: 320px; min-width: 320px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Sidebar */
+.sidebar-top { padding: 16px; border-bottom: 1px solid var(--border); }
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap input {
+  width: 100%; padding: 9px 12px 9px 36px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); font-size: 13px; font-family: 'Sora', sans-serif;
+  outline: none; transition: border-color 0.2s;
+}
+.search-wrap input:focus { border-color: rgba(59,130,246,0.5); }
+.search-wrap input::placeholder { color: var(--muted); }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--border2); background: transparent; color: var(--muted);
+  transition: all 0.15s; font-family: 'Sora', sans-serif;
+}
+.pill:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.pill.active-ALL { background: rgba(255,255,255,0.08); color: var(--text); border-color: rgba(255,255,255,0.2); }
+.pill.active-NDC { background: var(--NDC-bg); color: var(--NDC); border-color: rgba(245,158,11,0.3); }
+.pill.active-RDC { background: var(--RDC-bg); color: var(--RDC); border-color: rgba(59,130,246,0.3); }
+.pill.active-SDC { background: var(--SDC-bg); color: var(--SDC); border-color: rgba(167,139,250,0.3); }
+.pill.active-HUB { background: var(--HUB-bg); color: var(--HUB); border-color: rgba(52,211,153,0.3); }
+
+/* Summary cards */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.sum-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.sum-card .lbl { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.5px; margin-bottom: 4px; }
+.sum-card .val { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.sum-card .sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+/* DC list */
+.dc-list { flex: 1; overflow-y: auto; }
+.dc-list::-webkit-scrollbar { width: 4px; }
+.dc-list::-webkit-scrollbar-track { background: transparent; }
+.dc-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.dc-item {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.12s; display: flex; gap: 10px; align-items: flex-start;
+}
+.dc-item:hover { background: var(--surface2); }
+.dc-item.selected { background: var(--surface2); border-left: 2px solid; }
+.dc-item.selected.NDC { border-left-color: var(--NDC); }
+.dc-item.selected.RDC { border-left-color: var(--RDC); }
+.dc-item.selected.SDC { border-left-color: var(--SDC); }
+.dc-item.selected.HUB { border-left-color: var(--HUB); }
+.dc-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.dc-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.dc-meta { font-size: 11px; color: var(--muted); }
+.dc-coverage { font-size: 11px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+
+.badge {
+  display: inline-block; padding: 1px 7px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; font-family: 'DM Mono', monospace; letter-spacing: 0.3px;
+}
+.badge-NDC { background: var(--NDC-bg); color: var(--NDC); }
+.badge-RDC { background: var(--RDC-bg); color: var(--RDC); }
+.badge-SDC { background: var(--SDC-bg); color: var(--SDC); }
+.badge-HUB { background: var(--HUB-bg); color: var(--HUB); }
+
+/* Map */
+#map { flex: 1; width: 100%; }
+.leaflet-container { background: #0d1117 !important; }
+
+/* Tab bar */
+.tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 20px; }
+.tab { padding: 12px 18px; font-size: 13px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+.tab.active { color: var(--text); border-bottom-color: #3b82f6; }
+
+/* Table panel */
+.table-panel { flex: 1; overflow: auto; }
+.table-panel::-webkit-scrollbar { width: 6px; height: 6px; }
+.table-panel::-webkit-scrollbar-track { background: transparent; }
+.table-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: var(--surface); padding: 12px 16px; text-align: left;
+  font-size: 11px; font-weight: 500; color: var(--muted);
+  font-family: 'DM Mono', monospace; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1;
+  white-space: nowrap;
+}
+tbody td { padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr { transition: background 0.1s; }
+tbody tr:hover { background: var(--surface2); }
+.coverage-cell { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+.panel-view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.panel-view.active { display: flex; }
+
+/* Popup custom */
+.leaflet-popup-content-wrapper {
+  background: var(--surface2) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  color: var(--text) !important;
+}
+.leaflet-popup-tip { background: var(--surface2) !important; }
+.leaflet-popup-content { margin: 12px 14px !important; }
+.popup-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.popup-sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.popup-divider { height: 1px; background: var(--border); margin: 8px 0; }
+.popup-coverage { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Count badge */
+.count-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-left: auto; }
+
+/* Empty state */
+.empty { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="header h1" style="font-size:15px;font-weight:600">Delivery Segment</div>
+      <div class="header-sub">Coverage Map — NDC · RDC · SDC · HUB</div>
+    </div>
+  </div>
+  <div class="last-updated" id="last-updated">memuat data...</div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-top">
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search" placeholder="Cari DC, kota, area..." oninput="render()"/>
+      </div>
+      <div class="filter-pills">
+        <button class="pill active-ALL" onclick="setFilter('ALL')">Semua</button>
+        <button class="pill" onclick="setFilter('NDC')">NDC</button>
+        <button class="pill" onclick="setFilter('RDC')">RDC</button>
+        <button class="pill" onclick="setFilter('SDC')">SDC</button>
+        <button class="pill" onclick="setFilter('HUB')">HUB</button>
+      </div>
+    </div>
+    <div class="summary-grid" id="sum-grid"></div>
+    <div class="dc-list" id="dc-list"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('map')">Peta</div>
+      <div class="tab" onclick="switchTab('table')">Tabel</div>
+    </div>
+    <div class="panel-view active" id="panel-map">
+      <div id="map"></div>
+    </div>
+    <div class="panel-view" id="panel-table">
+      <div class="table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>TIPE</th><th>NAMA</th><th>LOKASI</th><th>COVERAGE AREA</th><th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── DATA SOURCE ──────────────────────────────────────────────
+// Ganti URL ini dengan raw GitHub URL lo setelah upload
+const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/Astromoon26/Delivery-segment/main/delivery_segment_template.csv';
+
+// ── CONFIG ───────────────────────────────────────────────────
+const COLOR = { NDC:'#f59e0b', RDC:'#3b82f6', SDC:'#a78bfa', HUB:'#34d399' };
+const RADIUS = { NDC:11, RDC:10, SDC:8, HUB:6 };
+
+let DATA = [], curFilter = 'ALL', curSearch = '', selectedIdx = null, markers = [], map;
+
+// ── PARSE CSV ────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = []; let cur = '', inQ = false;
+    for (const c of line) {
+      if (c === '"') inQ = !inQ;
+      else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    return obj;
+  }).filter(d => d.dc_type && d.lat && d.lon);
+}
+
+// ── FETCH ────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(GITHUB_CSV_URL + '?t=' + Date.now());
+    const text = await res.text();
+    DATA = parseCSV(text);
+    document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('id-ID');
+    render();
+  } catch(e) {
+    document.getElementById('last-updated').textContent = 'Gagal memuat data';
+    console.error(e);
+  }
+}
+
+// ── FILTER ───────────────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  return DATA.filter(d => {
+    const okType = curFilter === 'ALL' || d.dc_type === curFilter;
+    const okSearch = !q || d.dc_name.toLowerCase().includes(q) || d.lokasi.toLowerCase().includes(q) || d.coverage_area.toLowerCase().includes(q);
+    return okType && okSearch;
+  });
+}
+
+function setFilter(f) {
+  curFilter = f;
+  document.querySelectorAll('.pill').forEach(b => {
+    b.className = 'pill';
+    const label = b.textContent.trim();
+    if ((f === 'ALL' && label === 'Semua') || label === f) b.classList.add('active-' + f);
+  });
+  render();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i===0&&tab==='map')||(i===1&&tab==='table')));
+  document.getElementById('panel-map').classList.toggle('active', tab === 'map');
+  document.getElementById('panel-table').classList.toggle('active', tab === 'table');
+  if (tab === 'map') setTimeout(() => map && map.invalidateSize(), 50);
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function render() {
+  const f = getFiltered();
+  updateSummary(f);
+  updateList(f);
+  updateMap(f);
+  updateTable(f);
+}
+
+function updateSummary(f) {
+  const tot = {}, fc = {};
+  ['NDC','RDC','SDC','HUB'].forEach(k => { tot[k] = 0; fc[k] = 0; });
+  DATA.forEach(d => tot[d.dc_type] = (tot[d.dc_type]||0) + 1);
+  f.forEach(d => fc[d.dc_type] = (fc[d.dc_type]||0) + 1);
+  document.getElementById('sum-grid').innerHTML = [
+    {k:'NDC', color:'var(--NDC)'}, {k:'RDC', color:'var(--RDC)'},
+    {k:'SDC', color:'var(--SDC)'}, {k:'HUB', color:'var(--HUB)'}
+  ].map(c => `
+    <div class="sum-card">
+      <div class="lbl">${c.k}</div>
+      <div class="val" style="color:${c.color}">${fc[c.k]||0}<span style="font-size:12px;color:var(--muted);font-weight:400"> /${tot[c.k]||0}</span></div>
+      <div class="sub">${c.k === 'NDC' ? 'National DC' : c.k === 'RDC' ? 'Regional DC' : c.k === 'SDC' ? 'Sub DC' : 'Hub'}</div>
+    </div>`).join('');
+}
+
+function updateList(f) {
+  if (f.length === 0) {
+    document.getElementById('dc-list').innerHTML = '<div class="empty">Tidak ada data ditemukan</div>';
+    return;
+  }
+  document.getElementById('dc-list').innerHTML = f.map((d, i) => `
+    <div class="dc-item ${d.dc_type} ${selectedIdx === i ? 'selected' : ''}" onclick="selectItem(${i})">
+      <div class="dc-dot" style="background:${COLOR[d.dc_type]}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span class="dc-name">${d.dc_name}</span>
+          <span class="badge badge-${d.dc_type}">${d.dc_type}</span>
+        </div>
+        <div class="dc-meta">${d.lokasi}</div>
+        <div class="dc-coverage">${d.coverage_area}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectItem(i) {
+  selectedIdx = i;
+  const f = getFiltered();
+  const d = f[i];
+  if (d && map) {
+    map.setView([parseFloat(d.lat), parseFloat(d.lon)], 9, {animate: true});
+    markers[i] && markers[i].openPopup();
+  }
+  updateList(f);
+}
+
+function updateMap(f) {
+  if (!map) return;
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  f.forEach((d, i) => {
+    const lat = parseFloat(d.lat), lon = parseFloat(d.lon);
+    if (isNaN(lat) || isNaN(lon)) return;
+    const r = RADIUS[d.dc_type] || 7;
+    const color = COLOR[d.dc_type] || '#888';
+    const icon = L.divIcon({
+      html: `<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 0 3px ${color}33,0 2px 8px rgba(0,0,0,0.4);transition:transform 0.15s" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'"></div>`,
+      className: '', iconAnchor: [r, r], popupAnchor: [0, -r-4]
+    });
+    const m = L.marker([lat, lon], {icon}).addTo(map);
+    m.bindPopup(`
+      <div class="popup-title">${d.dc_name}</div>
+      <div class="popup-sub"><span class="badge badge-${d.dc_type}">${d.dc_type}</span> &nbsp;${d.lokasi}</div>
+      <div class="popup-divider"></div>
+      <div class="popup-coverage"><b style="color:var(--muted);font-size:10px;letter-spacing:0.5px">COVERAGE</b><br>${d.coverage_area}</div>
+    `, {maxWidth: 280});
+    m.on('click', () => { selectedIdx = i; updateList(getFiltered()); });
+    markers.push(m);
+  });
+}
+
+function updateTable(f) {
+  document.getElementById('tbody').innerHTML = f.length === 0
+    ? `<tr><td colspan="5" class="empty">Tidak ada data</td></tr>`
+    : f.map(d => `
+      <tr>
+        <td><span class="badge badge-${d.dc_type}">${d.dc_type}</span></td>
+        <td style="font-weight:500;font-size:13px">${d.dc_name}</td>
+        <td style="color:var(--muted);font-size:12px">${d.lokasi}</td>
+        <td><div class="coverage-cell" title="${d.coverage_area}">${d.coverage_area}</div></td>
+        <td><span style="color:#34d399;font-size:12px;font-family:'DM Mono',monospace">${d.status}</span></td>
+      </tr>`).join('');
+}
+
+// ── MAP INIT ─────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  map = L.map('map', { zoomControl: false }).setView([-2.5, 118], 5);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  // Dark tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+
+  loadData();
+});
+</script>
+</body>
+</html>
