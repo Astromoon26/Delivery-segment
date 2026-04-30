@@ -232,7 +232,7 @@ let DATA = [], curFilter = 'ALL', curSearch = '', selectedIdx = null, markers = 
 // ── PARSE CSV ────────────────────────────────────────────────
 function parseCSV(text) {
   const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^\uFEFF/, ''));
   return lines.slice(1).map(line => {
     const vals = []; let cur = '', inQ = false;
     for (const c of line) {
@@ -242,9 +242,9 @@ function parseCSV(text) {
     }
     vals.push(cur.trim());
     const obj = {};
-    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
     return obj;
-  }).filter(d => d.dc_type && d.lat && d.lon);
+  }).filter(d => d.dc_type);
 }
 
 // ── FETCH ────────────────────────────────────────────────────
@@ -349,7 +349,7 @@ function updateMap(f) {
   markers = [];
   f.forEach((d, i) => {
     const lat = parseFloat(d.lat), lon = parseFloat(d.lon);
-    if (isNaN(lat) || isNaN(lon)) return;
+    if (isNaN(lat) || isNaN(lon) || d.lat === '' || d.lon === '') return;
     const r = RADIUS[d.dc_type] || 7;
     const color = COLOR[d.dc_type] || '#888';
     const icon = L.divIcon({
