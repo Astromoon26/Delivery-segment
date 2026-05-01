@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Delivery Segment Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0f1117;--surface:#181c27;--surface2:#1e2335;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e8eaf0;--muted:#6b7280;
+  --NDC:#f59e0b;--RDC:#3b82f6;--SDC:#a78bfa;--HUB:#34d399;
+  --NDC-bg:rgba(245,158,11,0.12);--RDC-bg:rgba(59,130,246,0.12);
+  --SDC-bg:rgba(167,139,250,0.12);--HUB-bg:rgba(52,211,153,0.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:200;gap:12px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#a78bfa);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo svg{width:16px;height:16px;fill:none;stroke:white;stroke-width:2}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.token-wrap{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 10px}
+.token-wrap svg{width:13px;height:13px;stroke:var(--muted);flex-shrink:0;fill:none}
+.token-input{background:transparent;border:none;outline:none;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;width:230px}
+.token-input::placeholder{color:var(--muted)}
+.token-status{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background 0.3s}
+.token-status.ok{background:#34d399}
+.btn{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);font-family:'Sora',sans-serif;transition:all 0.15s}
+.btn-ghost{background:transparent;color:var(--muted)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-success{background:#34d399;color:#0f1117;border-color:#34d399}
+.btn-success:hover{background:#10b981}
+.btn-danger{background:transparent;color:#f87171;border-color:rgba(248,113,113,0.3)}
+.btn-danger:hover{background:rgba(248,113,113,0.1)}
+
+/* Layout */
+.layout{display:flex;height:calc(100vh - 57px)}
+.sidebar{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Sidebar */
+.sidebar-top{padding:12px;border-bottom:1px solid var(--border)}
+.search-wrap{position:relative;margin-bottom:10px}
+.search-wrap input{width:100%;padding:8px 10px 8px 32px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:'Sora',sans-serif;outline:none}
+.search-wrap input::placeholder{color:var(--muted)}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--muted);fill:none}
+.filter-pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);transition:all 0.15s;font-family:'Sora',sans-serif}
+.pill.active-ALL{background:rgba(255,255,255,0.08);color:var(--text);border-color:rgba(255,255,255,0.2)}
+.pill.active-NDC{background:var(--NDC-bg);color:var(--NDC);border-color:rgba(245,158,11,0.3)}
+.pill.active-RDC{background:var(--RDC-bg);color:var(--RDC);border-color:rgba(59,130,246,0.3)}
+.pill.active-SDC{background:var(--SDC-bg);color:var(--SDC);border-color:rgba(167,139,250,0.3)}
+.pill.active-HUB{background:var(--HUB-bg);color:var(--HUB);border-color:rgba(52,211,153,0.3)}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.sum-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.sum-card .lbl{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px;margin-bottom:2px}
+.sum-card .val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
+.sum-card .sub{font-size:9px;color:var(--muted)}
+.add-btn-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
+.add-btn-wrap button{width:100%;padding:8px;border-radius:7px;background:rgba(52,211,153,0.1);border:1px dashed rgba(52,211,153,0.3);color:#34d399;font-size:12px;font-weight:500;cursor:pointer;font-family:'Sora',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.add-btn-wrap button:hover{background:rgba(52,211,153,0.18)}
+.dc-list{flex:1;overflow-y:auto}
+.dc-list::-webkit-scrollbar{width:3px}
+.dc-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.dc-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;display:flex;gap:8px;align-items:flex-start}
+.dc-item:hover{background:var(--surface2)}
+.dc-item.selected{background:var(--surface2);border-left:2px solid}
+.dc-item.selected.NDC{border-left-color:var(--NDC)}
+.dc-item.selected.RDC{border-left-color:var(--RDC)}
+.dc-item.selected.SDC{border-left-color:var(--SDC)}
+.dc-item.selected.HUB{border-left-color:var(--HUB)}
+.dc-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.dc-name{font-size:12px;font-weight:500;margin-bottom:2px}
+.dc-meta{font-size:10px;color:var(--muted)}
+.dc-coverage{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.dc-actions{display:flex;gap:4px;margin-left:auto;opacity:0;transition:opacity 0.15s;flex-shrink:0}
+.dc-item:hover .dc-actions{opacity:1}
+.icon-btn{width:24px;height:24px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.icon-btn:hover{background:var(--surface);color:var(--text)}
+.icon-btn.del:hover{border-color:rgba(248,113,113,0.4);color:#f87171;background:rgba(248,113,113,0.08)}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;font-family:'DM Mono',monospace;letter-spacing:0.3px}
+.badge-NDC{background:var(--NDC-bg);color:var(--NDC)}
+.badge-RDC{background:var(--RDC-bg);color:var(--RDC)}
+.badge-SDC{background:var(--SDC-bg);color:var(--SDC)}
+.badge-HUB{background:var(--HUB-bg);color:var(--HUB)}
+
+/* Tabs */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px}
+.tab{padding:10px 16px;font-size:13px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.15s;font-weight:500;white-space:nowrap}
+.tab.active{color:var(--text);border-bottom-color:#3b82f6}
+.panel-view{display:none;flex-direction:column;flex:1;overflow:hidden}
+.panel-view.active{display:flex}
+
+/* Map */
+#map{flex:1;width:100%}
+.leaflet-container{background:#0d1117 !important}
+
+/* Table */
+.table-panel{flex:1;overflow:auto}
+.table-panel::-webkit-scrollbar{width:5px;height:5px}
+.table-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:var(--surface);padding:10px 14px;text-align:left;font-size:10px;font-weight:500;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;white-space:nowrap}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:hover{background:var(--surface2)}
+.coverage-cell{max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+
+/* Route Finder */
+.route-panel{flex:1;display:flex;overflow:hidden}
+.route-left{width:340px;min-width:340px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.route-right{flex:1;position:relative}
+#route-map{width:100%;height:100%}
+.route-search-wrap{padding:14px}
+.route-search-wrap label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px;display:block;margin-bottom:6px}
+.route-input-wrap{position:relative}
+.route-input{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:'Sora',sans-serif;outline:none;transition:border-color 0.2s}
+.route-input:focus{border-color:rgba(59,130,246,0.5)}
+.route-input::placeholder{color:var(--muted)}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;margin-top:4px;z-index:100;max-height:200px;overflow-y:auto;display:none}
+.autocomplete-list.open{display:block}
+.autocomplete-item{padding:8px 12px;font-size:12px;cursor:pointer;transition:background 0.1s;border-bottom:1px solid var(--border)}
+.autocomplete-item:last-child{border-bottom:none}
+.autocomplete-item:hover{background:var(--surface)}
+.autocomplete-item .city-name{font-weight:500}
+.autocomplete-item .city-meta{font-size:10px;color:var(--muted);margin-top:1px}
+.route-results{flex:1;overflow-y:auto;padding:0 14px 14px}
+.route-results::-webkit-scrollbar{width:3px}
+.route-results::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.route-summary{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+.route-summary .dest{font-size:14px;font-weight:600;margin-bottom:4px}
+.route-summary .meta{font-size:11px;color:var(--muted)}
+.route-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s}
+.route-card:hover{border-color:var(--border2)}
+.route-card.active-route{border-color:rgba(59,130,246,0.5);background:rgba(59,130,246,0.05)}
+.route-card .route-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.route-card .route-num{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+.hop-count{font-size:10px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:2px 8px;color:var(--muted)}
+.route-steps{display:flex;flex-direction:column;gap:0}
+.step{display:flex;align-items:flex-start;gap:8px}
+.step-line{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.step-dot{width:8px;height:8px;border-radius:50%;border:2px solid;flex-shrink:0;margin-top:3px}
+.step-connector{width:1px;background:var(--border2);flex:1;min-height:16px;margin:2px 0}
+.step-info{padding-bottom:12px;flex:1}
+.step-info:last-child{padding-bottom:0}
+.step-name{font-size:12px;font-weight:500}
+.step-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.arrow-label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;display:inline-block;margin:2px 0}
+.no-results{padding:24px;text-align:center;color:var(--muted);font-size:13px}
+.empty{padding:32px;text-align:center;color:var(--muted);font-size:13px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:15px;font-weight:600;margin-bottom:18px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.form-group input,.form-group select,.form-group textarea{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;color:var(--text);font-size:13px;font-family:'Sora',sans-serif;outline:none;transition:border-color 0.2s;width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:rgba(59,130,246,0.5)}
+.form-group select option{background:var(--surface2)}
+.form-group textarea{resize:vertical;min-height:70px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;font-size:13px;z-index:999;display:none;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.toast.show{display:flex}
+.toast-dot{width:7px;height:7px;border-radius:50%}
+
+/* Leaflet popup */
+.leaflet-popup-content-wrapper{background:var(--surface2) !important;border:1px solid var(--border2) !important;border-radius:10px !important;box-shadow:0 8px 32px rgba(0,0,0,0.5) !important;color:var(--text) !important}
+.leaflet-popup-tip{background:var(--surface2) !important}
+.leaflet-popup-content{margin:12px 14px !important}
+.popup-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.popup-sub{font-size:10px;color:var(--muted);margin-bottom:6px}
+.popup-divider{height:1px;background:var(--border);margin:6px 0}
+.popup-coverage{font-size:10px;color:var(--muted);line-height:1.5;max-width:220px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <div>
+      <div style="font-size:14px;font-weight:600">Delivery Segment</div>
+      <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">NDC · RDC · SDC · HUB Coverage Map</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="token-wrap">
+      <svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <input class="token-input" id="token-input" type="password" placeholder="Paste GitHub token lo di sini..." oninput="onTokenChange()"/>
+      <div class="token-status" id="token-status"></div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadData()">↺ Refresh</button>
+    <span id="last-updated" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace"></span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-top">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search" placeholder="Cari DC, kota, area..." oninput="render()"/>
+      </div>
+      <div class="filter-pills">
+        <button class="pill active-ALL" onclick="setFilter('ALL')">Semua</button>
+        <button class="pill" onclick="setFilter('NDC')">NDC</button>
+        <button class="pill" onclick="setFilter('RDC')">RDC</button>
+        <button class="pill" onclick="setFilter('SDC')">SDC</button>
+        <button class="pill" onclick="setFilter('HUB')">HUB</button>
+      </div>
+    </div>
+    <div class="summary-grid" id="sum-grid"></div>
+    <div class="add-btn-wrap">
+      <button onclick="openModal()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tambah Fasilitas DC
+      </button>
+    </div>
+    <div class="dc-list" id="dc-list"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('map')">Peta</div>
+      <div class="tab" onclick="switchTab('table')">Tabel</div>
+      <div class="tab" onclick="switchTab('route')">🗺 Route Finder</div>
+    </div>
+
+    <!-- Peta -->
+    <div class="panel-view active" id="panel-map"><div id="map"></div></div>
+
+    <!-- Tabel -->
+    <div class="panel-view" id="panel-table">
+      <div class="table-panel">
+        <table>
+          <thead><tr><th>TIPE</th><th>NAMA</th><th>LOKASI</th><th>COVERAGE AREA</th><th>STATUS</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Route Finder -->
+    <div class="panel-view" id="panel-route">
+      <div class="route-panel">
+        <div class="route-left">
+          <div class="route-search-wrap">
+            <label>CARI KOTA TUJUAN</label>
+            <div class="route-input-wrap">
+              <input class="route-input" id="route-search" type="text" placeholder="Ketik nama kota..." oninput="onRouteSearch()" autocomplete="off"/>
+              <div class="autocomplete-list" id="autocomplete"></div>
+            </div>
+          </div>
+          <div class="route-results" id="route-results">
+            <div class="no-results" style="padding-top:40px">
+              <div style="font-size:32px;margin-bottom:12px">🗺</div>
+              <div style="font-weight:500;margin-bottom:6px">Cari kota tujuan</div>
+              <div style="font-size:12px">Ketik nama kota untuk lihat semua jalur distribusi yang tersedia</div>
+            </div>
+          </div>
+        </div>
+        <div class="route-right">
+          <div id="route-map"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">Tambah Fasilitas DC</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>TIPE DC</label>
+        <select id="f-type"><option value="NDC">NDC</option><option value="RDC">RDC</option><option value="SDC">SDC</option><option value="HUB">HUB</option></select>
+      </div>
+      <div class="form-group"><label>STATUS</label>
+        <select id="f-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
+      </div>
+      <div class="form-group full"><label>NAMA DC</label><input id="f-name" type="text" placeholder="contoh: HUB HCI Surabaya"/></div>
+      <div class="form-group full"><label>LOKASI</label><input id="f-lokasi" type="text" placeholder="contoh: Surabaya - Jawa Timur"/></div>
+      <div class="form-group full"><label>COVERAGE AREA</label><textarea id="f-coverage" placeholder="contoh: Surabaya, Gresik, Sidoarjo, Mojokerto"></textarea></div>
+      <div class="form-group"><label>LATITUDE</label><input id="f-lat" type="number" step="0.0001" placeholder="-7.2575"/></div>
+      <div class="form-group"><label>LONGITUDE</label><input id="f-lon" type="number" step="0.0001" placeholder="112.7521"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+      <button class="btn btn-success" onclick="saveEntry()">💾 Simpan ke GitHub</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="toast-dot" id="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const REPO_OWNER='Astromoon26',REPO_NAME='Delivery-segment',FILE_PATH='delivery_segment_template.csv';
+const RAW_URL=`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}`;
+const API_URL=`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+const COLOR={NDC:'#f59e0b',RDC:'#3b82f6',SDC:'#a78bfa',HUB:'#34d399'};
+const RADIUS={NDC:12,RDC:10,SDC:8,HUB:6};
+const TYPE_ORDER={NDC:0,RDC:1,SDC:2,HUB:3};
+
+let DATA=[],curFilter='ALL',selectedIdx=null,markers=[],map,routeMap,editIdx=null,fileSHA='';
+let routeLines=[],routeMarkers=[],selectedRoute=null;
+
+// ── TOKEN ────────────────────────────────────────────────────
+function getToken(){return document.getElementById('token-input').value.trim();}
+function onTokenChange(){
+  const t=getToken();
+  document.getElementById('token-status').className='token-status'+(t.length>10?' ok':'');
+  if(t){localStorage.setItem('gh_token',t);loadData();}
+}
+
+// ── CSV ──────────────────────────────────────────────────────
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^\uFEFF/,''));
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(const c of line){
+      if(c==='"')inQ=!inQ;
+      else if(c===','&&!inQ){vals.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    vals.push(cur.trim());
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim());
+    return obj;
+  }).filter(d=>d.dc_type);
+}
+
+function toCSV(data){
+  const h=['dc_type','dc_name','lokasi','coverage_area','lat','lon','status'];
+  const rows=data.map(d=>h.map(k=>{const v=d[k]||'';return v.includes(',')? `"${v}"`:v;}).join(','));
+  return[h.join(','),...rows].join('\n');
+}
+
+// ── LOAD ─────────────────────────────────────────────────────
+async function loadData(){
+  try{
+    const res=await fetch(RAW_URL+'?t='+Date.now());
+    const text=await res.text();
+    DATA=parseCSV(text);
+    document.getElementById('last-updated').textContent='Updated: '+new Date().toLocaleTimeString('id-ID');
+    const token=getToken();
+    if(token){
+      const meta=await fetch(API_URL,{headers:{Authorization:`token ${token}`}});
+      const j=await meta.json();
+      fileSHA=j.sha||'';
+    }
+    render();
+  }catch(e){showToast('Gagal memuat data','error');}
+}
+
+async function pushToGitHub(newData,msg){
+  const token=getToken();
+  if(!token){showToast('Masukin GitHub token dulu!','error');return false;}
+  const content=btoa(unescape(encodeURIComponent(toCSV(newData))));
+  const res=await fetch(API_URL,{
+    method:'PUT',
+    headers:{Authorization:`token ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,content,sha:fileSHA})
+  });
+  if(!res.ok){const e=await res.json();showToast('Error: '+(e.message||'Gagal'),'error');return false;}
+  const j=await res.json();fileSHA=j.content.sha;
+  return true;
+}
+
+// ── FILTER ───────────────────────────────────────────────────
+function getFiltered(){
+  const q=document.getElementById('search').value.toLowerCase();
+  return DATA.filter(d=>{
+    const okType=curFilter==='ALL'||d.dc_type===curFilter;
+    const okSearch=!q||d.dc_name.toLowerCase().includes(q)||d.lokasi.toLowerCase().includes(q)||d.coverage_area.toLowerCase().includes(q);
+    return okType&&okSearch;
+  });
+}
+
+function setFilter(f){
+  curFilter=f;
+  document.querySelectorAll('.pill').forEach(b=>{
+    b.className='pill';
+    if((f==='ALL'&&b.textContent==='Semua')||b.textContent===f)b.classList.add('active-'+f);
+  });
+  render();
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['map','table','route'][i]===tab));
+  ['map','table','route'].forEach(p=>document.getElementById('panel-'+p).classList.toggle('active',p===tab));
+  if(tab==='map')setTimeout(()=>map&&map.invalidateSize(),50);
+  if(tab==='route')setTimeout(()=>routeMap&&routeMap.invalidateSize(),50);
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function render(){
+  const f=getFiltered();
+  updateSummary(f);updateList(f);updateMap(f);updateTable(f);
+}
+
+function updateSummary(f){
+  const tot={NDC:0,RDC:0,SDC:0,HUB:0},fc={NDC:0,RDC:0,SDC:0,HUB:0};
+  DATA.forEach(d=>{if(tot[d.dc_type]!==undefined)tot[d.dc_type]++;});
+  f.forEach(d=>{if(fc[d.dc_type]!==undefined)fc[d.dc_type]++;});
+  document.getElementById('sum-grid').innerHTML=[
+    {k:'NDC',c:'var(--NDC)',s:'National DC'},{k:'RDC',c:'var(--RDC)',s:'Regional DC'},
+    {k:'SDC',c:'var(--SDC)',s:'Sub DC'},{k:'HUB',c:'var(--HUB)',s:'Hub'}
+  ].map(x=>`<div class="sum-card"><div class="lbl">${x.k}</div><div class="val" style="color:${x.c}">${fc[x.k]}<span style="font-size:11px;color:var(--muted);font-weight:400"> /${tot[x.k]}</span></div><div class="sub">${x.s}</div></div>`).join('');
+}
+
+function updateList(f){
+  if(!f.length){document.getElementById('dc-list').innerHTML='<div class="empty">Tidak ada data</div>';return;}
+  document.getElementById('dc-list').innerHTML=f.map((d,i)=>`
+    <div class="dc-item ${d.dc_type} ${selectedIdx===i?'selected':''}" onclick="selectItem(${i})">
+      <div class="dc-dot" style="background:${COLOR[d.dc_type]||'#888'}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+          <span class="dc-name">${d.dc_name}</span>
+          <span class="badge badge-${d.dc_type}">${d.dc_type}</span>
+        </div>
+        <div class="dc-meta">${d.lokasi}</div>
+        <div class="dc-coverage">${d.coverage_area}</div>
+      </div>
+      <div class="dc-actions">
+        <button class="icon-btn" title="Edit" onclick="event.stopPropagation();openModal(${i})">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn del" title="Hapus" onclick="event.stopPropagation();deleteEntry(${i})">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function selectItem(i){
+  selectedIdx=i;
+  const f=getFiltered(),d=f[i];
+  if(d&&map){const lat=parseFloat(d.lat),lon=parseFloat(d.lon);if(!isNaN(lat)&&!isNaN(lon)){map.setView([lat,lon],9,{animate:true});markers[i]&&markers[i].openPopup();}}
+  updateList(getFiltered());
+}
+
+function makeMarkerIcon(dc_type){
+  const r=RADIUS[dc_type]||7,color=COLOR[dc_type]||'#888';
+  return L.divIcon({
+    html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 0 3px ${color}33,0 2px 8px rgba(0,0,0,0.4);transition:transform 0.15s" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'"></div>`,
+    className:'',iconAnchor:[r,r],popupAnchor:[0,-r-4]
+  });
+}
+
+function updateMap(f){
+  if(!map)return;
+  markers.forEach(m=>m&&map.removeLayer(m));markers=[];
+  f.forEach((d,i)=>{
+    const lat=parseFloat(d.lat),lon=parseFloat(d.lon);
+    if(isNaN(lat)||isNaN(lon)||!d.lat||!d.lon){markers.push(null);return;}
+    const m=L.marker([lat,lon],{icon:makeMarkerIcon(d.dc_type)}).addTo(map);
+    m.bindPopup(`<div class="popup-title">${d.dc_name}</div><div class="popup-sub"><span class="badge badge-${d.dc_type}">${d.dc_type}</span> &nbsp;${d.lokasi}</div><div class="popup-divider"></div><div class="popup-coverage"><b style="color:var(--muted);font-size:9px">COVERAGE</b><br>${d.coverage_area}</div>`,{maxWidth:260});
+    m.on('click',()=>{selectedIdx=i;updateList(getFiltered());});
+    markers.push(m);
+  });
+}
+
+function updateTable(f){
+  document.getElementById('tbody').innerHTML=!f.length
+    ?`<tr><td colspan="6" class="empty">Tidak ada data</td></tr>`
+    :f.map((d,i)=>`<tr>
+        <td><span class="badge badge-${d.dc_type}">${d.dc_type}</span></td>
+        <td style="font-weight:500">${d.dc_name}</td>
+        <td style="color:var(--muted);font-size:11px">${d.lokasi}</td>
+        <td><div class="coverage-cell" title="${d.coverage_area}">${d.coverage_area}</div></td>
+        <td><span style="color:#34d399;font-size:11px;font-family:'DM Mono',monospace">${d.status}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick="openModal(${i})">Edit</button>
+          <button class="btn btn-danger" style="padding:3px 8px;font-size:11px;margin-left:4px" onclick="deleteEntry(${i})">Hapus</button>
+        </td>
+      </tr>`).join('');
+}
+
+// ── ROUTE FINDER ─────────────────────────────────────────────
+// Build city index from all coverage areas
+function buildCityIndex(){
+  const index={};
+  DATA.forEach(d=>{
+    if(d.dc_type==='NDC')return; // NDC covers all, handled separately
+    const areas=d.coverage_area.split(',').map(a=>a.trim().toLowerCase()).filter(Boolean);
+    areas.forEach(area=>{
+      if(!index[area])index[area]=[];
+      index[area].push(d);
+    });
+    // Also index by lokasi
+    const lok=d.lokasi.split('-')[0].trim().toLowerCase();
+    if(!index[lok])index[lok]=[];
+    if(!index[lok].includes(d))index[lok].push(d);
+  });
+  return index;
+}
+
+function getAllCities(){
+  const cities=new Set();
+  DATA.forEach(d=>{
+    if(d.dc_type==='NDC')return;
+    d.coverage_area.split(',').forEach(a=>{const t=a.trim();if(t)cities.add(t);});
+    const lok=d.lokasi.split('-')[0].trim();
+    if(lok)cities.add(lok);
+  });
+  return [...cities].sort();
+}
+
+function findFacilitiesForCity(city){
+  const q=city.toLowerCase();
+  return DATA.filter(d=>{
+    if(d.dc_type==='NDC')return false;
+    const areas=d.coverage_area.split(',').map(a=>a.trim().toLowerCase());
+    const lok=d.lokasi.split('-')[0].trim().toLowerCase();
+    return areas.some(a=>a.includes(q)||q.includes(a))||lok.includes(q)||q.includes(lok);
+  });
+}
+
+// Generate all possible routes to a city
+function generateRoutes(city){
+  const destFacilities=findFacilitiesForCity(city);
+  if(!destFacilities.length)return[];
+
+  const NDCs=DATA.filter(d=>d.dc_type==='NDC');
+  const RDCs=DATA.filter(d=>d.dc_type==='RDC');
+  const routes=[];
+
+  NDCs.forEach(ndc=>{
+    // For each destination facility (HUB/SDC/RDC)
+    destFacilities.forEach(dest=>{
+      // Find intermediate facilities
+      const destType=dest.dc_type;
+
+      if(destType==='RDC'){
+        // NDC → RDC direct
+        routes.push([ndc,dest]);
+      } else if(destType==='SDC'){
+        // NDC → SDC direct
+        routes.push([ndc,dest]);
+        // NDC → RDC → SDC (if any RDC covers this SDC area)
+        RDCs.forEach(rdc=>{
+          const rdcAreas=rdc.coverage_area.split(',').map(a=>a.trim().toLowerCase());
+          const sdcLok=dest.lokasi.split('-')[0].trim().toLowerCase();
+          // Check if RDC region covers SDC location
+          const rdcCoversSDC=rdcAreas.some(a=>sdcLok.includes(a)||a.includes(sdcLok));
+          if(rdcCoversSDC){routes.push([ndc,rdc,dest]);}
+        });
+      } else if(destType==='HUB'){
+        // NDC → HUB direct
+        routes.push([ndc,dest]);
+        // NDC → SDC → HUB (if SDC covers HUB area)
+        const hubLok=dest.lokasi.split('-')[0].trim().toLowerCase();
+        DATA.filter(d=>d.dc_type==='SDC').forEach(sdc=>{
+          const sdcAreas=sdc.coverage_area.split(',').map(a=>a.trim().toLowerCase());
+          if(sdcAreas.some(a=>hubLok.includes(a)||a.includes(hubLok))){
+            routes.push([ndc,sdc,dest]);
+            // NDC → RDC → SDC → HUB
+            RDCs.forEach(rdc=>{
+              const rdcAreas=rdc.coverage_area.split(',').map(a=>a.trim().toLowerCase());
+              const sdcLok=sdc.lokasi.split('-')[0].trim().toLowerCase();
+              if(rdcAreas.some(a=>sdcLok.includes(a)||a.includes(sdcLok))){
+                routes.push([ndc,rdc,sdc,dest]);
+              }
+            });
+          }
+        });
+        // NDC → RDC → HUB
+        RDCs.forEach(rdc=>{
+          const rdcAreas=rdc.coverage_area.split(',').map(a=>a.trim().toLowerCase());
+          if(rdcAreas.some(a=>hubLok.includes(a)||a.includes(hubLok))){
+            routes.push([ndc,rdc,dest]);
+          }
+        });
+      }
+    });
+  });
+
+  // Deduplicate routes
+  const seen=new Set();
+  return routes.filter(r=>{
+    const key=r.map(d=>d.dc_name).join('→');
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  }).sort((a,b)=>a.length-b.length);
+}
+
+// Autocomplete
+let allCities=[];
+function onRouteSearch(){
+  const q=document.getElementById('route-search').value.trim();
+  const ac=document.getElementById('autocomplete');
+  if(!allCities.length)allCities=getAllCities();
+  if(q.length<2){ac.classList.remove('open');return;}
+  const matches=allCities.filter(c=>c.toLowerCase().includes(q.toLowerCase())).slice(0,10);
+  if(!matches.length){ac.classList.remove('open');return;}
+  ac.innerHTML=matches.map(c=>{
+    const facs=findFacilitiesForCity(c);
+    const types=[...new Set(facs.map(f=>f.dc_type))].join(', ');
+    return`<div class="autocomplete-item" onclick="selectCity('${c}')">
+      <div class="city-name">${c}</div>
+      <div class="city-meta">Dilayani: ${types||'NDC Direct'}</div>
+    </div>`;
+  }).join('');
+  ac.classList.add('open');
+}
+
+function selectCity(city){
+  document.getElementById('route-search').value=city;
+  document.getElementById('autocomplete').classList.remove('open');
+  showRoutes(city);
+}
+
+const ROUTE_COLORS=['#3b82f6','#f59e0b','#a78bfa','#34d399','#f87171','#38bdf8','#fb923c','#a3e635'];
+
+function showRoutes(city){
+  const routes=generateRoutes(city);
+  selectedRoute=null;
+
+  // Clear route map
+  routeLines.forEach(l=>routeMap&&routeMap.removeLayer(l));
+  routeMarkers.forEach(m=>routeMap&&routeMap.removeLayer(m));
+  routeLines=[];routeMarkers=[];
+
+  const resultsEl=document.getElementById('route-results');
+  if(!routes.length){
+    resultsEl.innerHTML=`<div class="no-results"><div style="font-size:28px;margin-bottom:10px">🔍</div><div style="font-weight:500;margin-bottom:4px">Tidak ditemukan</div><div style="font-size:12px">Kota "${city}" tidak ada di coverage fasilitas manapun</div></div>`;
+    return;
+  }
+
+  const destFacs=findFacilitiesForCity(city);
+  const destTypes=[...new Set(destFacs.map(f=>f.dc_type))];
+
+  resultsEl.innerHTML=`
+    <div class="route-summary">
+      <div class="dest">📍 ${city}</div>
+      <div class="meta">${routes.length} jalur distribusi ditemukan · Dilayani: ${destTypes.join(', ')}</div>
+    </div>
+    ${routes.map((route,i)=>`
+      <div class="route-card" id="rc-${i}" onclick="selectRouteCard(${i})">
+        <div class="route-header">
+          <div class="route-num">JALUR ${i+1}</div>
+          <div class="hop-count">${route.length-1} transit</div>
+        </div>
+        <div class="route-steps">
+          ${route.map((d,si)=>`
+            <div class="step">
+              <div class="step-line">
+                <div class="step-dot" style="border-color:${COLOR[d.dc_type]};background:${si===0||si===route.length-1?COLOR[d.dc_type]:'transparent'}"></div>
+                ${si<route.length-1?`<div class="step-connector"></div>`:''}
+              </div>
+              <div class="step-info">
+                <div class="step-name">${d.dc_name}</div>
+                <div class="step-sub"><span class="badge badge-${d.dc_type}">${d.dc_type}</span> · ${d.lokasi}</div>
+                ${si<route.length-1?`<div class="arrow-label" style="margin-top:4px">↓ transit</div>`:''}
+              </div>
+            </div>`).join('')}
+          <div class="step">
+            <div class="step-line"><div class="step-dot" style="border-color:#6b7280;background:#6b7280"></div></div>
+            <div class="step-info"><div class="step-name" style="color:var(--muted)">📦 ${city}</div><div class="step-sub">Tujuan akhir</div></div>
+          </div>
+        </div>
+      </div>`).join('')}`;
+
+  // Draw all routes on map dimmed, highlight on click
+  drawAllRoutesOnMap(routes,city);
+
+  // Auto select first
+  selectRouteCard(0,routes);
+}
+
+function drawAllRoutesOnMap(routes,city){
+  if(!routeMap)return;
+  const bounds=[];
+
+  routes.forEach((route,i)=>{
+    const color=ROUTE_COLORS[i%ROUTE_COLORS.length];
+    const pts=route.map(d=>{
+      const lat=parseFloat(d.lat),lon=parseFloat(d.lon);
+      if(!isNaN(lat)&&!isNaN(lon))return[lat,lon];
+      return null;
+    }).filter(Boolean);
+    if(pts.length<1)return;
+    pts.forEach(p=>bounds.push(p));
+
+    const line=L.polyline(pts,{color,weight:2,opacity:0.25,dashArray:'6,4'}).addTo(routeMap);
+    routeLines.push(line);
+
+    route.forEach(d=>{
+      const lat=parseFloat(d.lat),lon=parseFloat(d.lon);
+      if(isNaN(lat)||isNaN(lon))return;
+      const r=RADIUS[d.dc_type]||7;
+      const m=L.circleMarker([lat,lon],{radius:r,fillColor:COLOR[d.dc_type],color:'white',weight:2,fillOpacity:0.5,opacity:0.5}).addTo(routeMap);
+      m.bindPopup(`<div class="popup-title">${d.dc_name}</div><div class="popup-sub"><span class="badge badge-${d.dc_type}">${d.dc_type}</span></div>`);
+      routeMarkers.push(m);
+    });
+  });
+
+  if(bounds.length)routeMap.fitBounds(bounds,{padding:[40,40]});
+}
+
+function selectRouteCard(i,routesArg){
+  const routes=routesArg||window._lastRoutes;
+  if(!routes)return;
+  window._lastRoutes=routes;
+
+  // Update card styles
+  document.querySelectorAll('.route-card').forEach((el,idx)=>{
+    el.classList.toggle('active-route',idx===i);
+  });
+
+  // Highlight selected route on map
+  routeLines.forEach((line,idx)=>{
+    if(!line)return;
+    const isSelected=idx===i;
+    line.setStyle({opacity:isSelected?0.95:0.15,weight:isSelected?4:2,dashArray:isSelected?null:'6,4'});
+    if(isSelected)line.bringToFront();
+  });
+
+  // Highlight markers for selected route
+  const route=routes[i];
+  routeMarkers.forEach((m,idx)=>{
+    // rough: markers are added per route per facility
+    m.setStyle&&m.setStyle({fillOpacity:0.3,opacity:0.3});
+  });
+
+  if(route&&routeMap){
+    const pts=route.map(d=>{
+      const lat=parseFloat(d.lat),lon=parseFloat(d.lon);
+      return(!isNaN(lat)&&!isNaN(lon))?[lat,lon]:null;
+    }).filter(Boolean);
+    if(pts.length)routeMap.fitBounds(pts,{padding:[60,60],animate:true});
+
+    // Add bright markers for selected route
+    route.forEach(d=>{
+      const lat=parseFloat(d.lat),lon=parseFloat(d.lon);
+      if(isNaN(lat)||isNaN(lon))return;
+      const color=COLOR[d.dc_type]||'#888';
+      const r=RADIUS[d.dc_type]||7;
+      const m=L.circleMarker([lat,lon],{radius:r+2,fillColor:color,color:'white',weight:2.5,fillOpacity:1,opacity:1}).addTo(routeMap);
+      m.bindPopup(`<div class="popup-title">${d.dc_name}</div><div class="popup-sub"><span class="badge badge-${d.dc_type}">${d.dc_type}</span> · ${d.lokasi}</div>`);
+      routeMarkers.push(m);
+    });
+  }
+  selectedRoute=i;
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+function openModal(idx=null){
+  editIdx=idx;
+  const f=getFiltered();
+  document.getElementById('modal-title').textContent=idx!==null?'Edit Fasilitas DC':'Tambah Fasilitas DC';
+  if(idx!==null&&f[idx]){
+    const d=f[idx];
+    document.getElementById('f-type').value=d.dc_type;
+    document.getElementById('f-name').value=d.dc_name;
+    document.getElementById('f-lokasi').value=d.lokasi;
+    document.getElementById('f-coverage').value=d.coverage_area;
+    document.getElementById('f-lat').value=d.lat;
+    document.getElementById('f-lon').value=d.lon;
+    document.getElementById('f-status').value=d.status;
+  } else {
+    ['f-name','f-lokasi','f-coverage','f-lat','f-lon'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-type').value='HUB';
+    document.getElementById('f-status').value='Active';
+  }
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');editIdx=null;}
+
+async function saveEntry(){
+  const entry={
+    dc_type:document.getElementById('f-type').value,
+    dc_name:document.getElementById('f-name').value.trim(),
+    lokasi:document.getElementById('f-lokasi').value.trim(),
+    coverage_area:document.getElementById('f-coverage').value.trim(),
+    lat:document.getElementById('f-lat').value.trim(),
+    lon:document.getElementById('f-lon').value.trim(),
+    status:document.getElementById('f-status').value,
+  };
+  if(!entry.dc_name||!entry.lokasi){showToast('Nama dan lokasi wajib diisi!','error');return;}
+  let newData=[...DATA];
+  if(editIdx!==null){
+    const f=getFiltered();const realIdx=DATA.indexOf(f[editIdx]);
+    if(realIdx>=0)newData[realIdx]=entry;
+  } else {newData.push(entry);}
+  showToast('Menyimpan ke GitHub...','info');
+  const ok=await pushToGitHub(newData,`${editIdx!==null?'Update':'Tambah'} ${entry.dc_type}: ${entry.dc_name}`);
+  if(ok){DATA=newData;allCities=[];closeModal();render();showToast(`${editIdx!==null?'Update':'Tambah'} berhasil!`,'success');}
+}
+
+async function deleteEntry(i){
+  const f=getFiltered(),d=f[i];
+  if(!confirm(`Hapus "${d.dc_name}"?`))return;
+  const realIdx=DATA.indexOf(d);
+  const newData=DATA.filter((_,idx)=>idx!==realIdx);
+  showToast('Menghapus...','info');
+  const ok=await pushToGitHub(newData,`Hapus ${d.dc_type}: ${d.dc_name}`);
+  if(ok){DATA=newData;allCities=[];render();showToast('Berhasil dihapus!','success');}
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg,type='info'){
+  const colors={success:'#34d399',error:'#f87171',info:'#3b82f6'};
+  document.getElementById('toast-msg').textContent=msg;
+  document.getElementById('toast-dot').style.background=colors[type];
+  const t=document.getElementById('toast');
+  t.className='toast show '+type;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  // Main map
+  map=L.map('map',{zoomControl:false}).setView([-2.5,118],5);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+
+  // Route map
+  routeMap=L.map('route-map',{zoomControl:false}).setView([-2.5,118],5);
+  L.control.zoom({position:'bottomright'}).addTo(routeMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(routeMap);
+
+  // Token
+  const saved=localStorage.getItem('gh_token');
+  if(saved){document.getElementById('token-input').value=saved;document.getElementById('token-status').className='token-status ok';}
+
+  loadData();
+});
+
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.addEventListener('click',e=>{if(!e.target.closest('.route-input-wrap'))document.getElementById('autocomplete').classList.remove('open');});
+</script>
+</body>
+</html>
