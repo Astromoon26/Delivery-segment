@@ -1,9 +1,9 @@
 dc_type,dc_name,lokasi,coverage_area,lat,lon,status
-NDC,NDC Cikupa,Cikupa - Banten,All Indonesia,-6.2177,106.3539,Active
-NDC,NDC Jababeka,Jababeka - Bekasi,All Indonesia,-6.3644,107.1694,Active
-NDC,NDC Sidoarjo,Sidoarjo - Jawa Timur,All Indonesia,-7.4458,112.7181,Active
-RDC,RDC Tanjung Morawa,Tanjung Morawa - Sumatera Utara,"Aceh, Sumatera Utara, Sumatera Barat, Riau, Jambi",3.527,98.7412,Active
-RDC,RDC Tallo,Tallo - Makassar,Sulawesi Selatan,-5.1231,119.4169,Active
+NDC,NDC Cikupa,Cikupa - Banten,"Bogor Kabupaten, Jakarta Timur, Jakarta Pusat, Jakarta Selatan, Jakarta Barat, All Banten",-6.2177,106.3539,Active
+NDC,NDC Jababeka,Jababeka - Bekasi,"Bekasi Kota, Bekasi kabupaten, Karawang, Purwakarta, Bogor Kabupaten, Jakarta Timur, Jakarta Pusat, Jakarta Selatan, Jakarta Barat",-6.3644,107.1694,Active
+NDC,NDC Sidoarjo,Sidoarjo - Jawa Timur,"Tuban, Bojonegoro, Lamongan, Mojokerto, Gresik, Sidoarjo, Surabaya, Madura, Pasuruan",-7.4458,112.7181,Active
+RDC,RDC Tanjung Morawa,Tanjung Morawa - Sumatera Utara,"Medan, Binjai, Deli Serdang, Karo, Tebing Tinggi, Langkat, Serdang Bedagai",3.527,98.7412,Active
+RDC,RDC Tallo,Tallo - Makassar,"Gowa, Makassar, Takalar, Maros, Pangkep",-5.1231,119.4169,Active
 SDC,SDC Batam,Batam - Kepulauan Riau,Batam dan sekitarnya,1.1301,104.0530,Active
 SDC,SDC Pontianak,Pontianak - Kalimantan Barat,Pontianak dan sekitarnya,-0.0263,109.3425,Active
 SDC,SDC Banjarmasin,Banjarmasin - Kalimantan Selatan,Banjarmasin dan sekitarnya,-3.3194,114.5908,Active
