@@ -366,12 +366,19 @@ async function loadData(){
     // Load lead time via API (base64 encoded) to avoid CORS/auth issues
     try{
       const ltRes=await fetch(LT_API_URL,{headers});
+      console.log('LT fetch status:',ltRes.status);
       if(ltRes.ok){
         const ltJson=await ltRes.json();
+        console.log('LT json keys:',Object.keys(ltJson));
+        console.log('LT content length:',ltJson.content?.length);
         const decoded=atob(ltJson.content.replace(/\n/g,''));
+        console.log('LT decoded first 200 chars:',decoded.substring(0,200));
         LEAD_TIME=parseCSV(decoded);
         console.log('Lead time loaded:',LEAD_TIME.length,'rows');
         console.log('Sample:',LEAD_TIME.slice(0,3));
+      } else {
+        const errText=await ltRes.text();
+        console.error('LT fetch error:',errText);
       }
     }catch(e){console.warn('Lead time load failed:',e);}
 
