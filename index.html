@@ -320,6 +320,7 @@ const REPO_OWNER='Astromoon26',REPO_NAME='Delivery-segment',FILE_PATH='delivery_
 const RAW_URL=`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}`;
 const API_URL=`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
 const LT_RAW_URL=`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/lead_time.csv`;
+const LT_API_URL=`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/lead_time.csv`;
 let LEAD_TIME=[];
 const COLOR={NDC:'#f59e0b',RDC:'#3b82f6',SDC:'#a78bfa',HUB:'#34d399'};
 const RADIUS={NDC:12,RDC:10,SDC:8,HUB:6};
@@ -355,21 +356,33 @@ function toCSV(data){
 
 async function loadData(){
   try{
-    const [dcRes,ltRes]=await Promise.all([
-      fetch(RAW_URL+'?t='+Date.now()),
-      fetch(LT_RAW_URL+'?t='+Date.now())
-    ]);
-    DATA=parseCSV(await dcRes.text());
-    if(ltRes.ok){
-      LEAD_TIME=parseCSV(await ltRes.text());
-      console.log('Lead time loaded:',LEAD_TIME.length,'rows');
-      console.log('Sample:',LEAD_TIME.slice(0,3));
-    }
-    document.getElementById('last-updated').textContent='Updated: '+new Date().toLocaleTimeString('id-ID');
     const token=getToken();
-    if(token){const meta=await fetch(API_URL,{headers:{Authorization:`token ${token}`}});const j=await meta.json();fileSHA=j.sha||'';}
+    const headers=token?{Authorization:`token ${token}`}:{};
+
+    // Load DC data
+    const dcRes=await fetch(RAW_URL+'?t='+Date.now());
+    DATA=parseCSV(await dcRes.text());
+
+    // Load lead time via API (base64 encoded) to avoid CORS/auth issues
+    try{
+      const ltRes=await fetch(LT_API_URL,{headers});
+      if(ltRes.ok){
+        const ltJson=await ltRes.json();
+        const decoded=atob(ltJson.content.replace(/\n/g,''));
+        LEAD_TIME=parseCSV(decoded);
+        console.log('Lead time loaded:',LEAD_TIME.length,'rows');
+        console.log('Sample:',LEAD_TIME.slice(0,3));
+      }
+    }catch(e){console.warn('Lead time load failed:',e);}
+
+    document.getElementById('last-updated').textContent='Updated: '+new Date().toLocaleTimeString('id-ID');
+    if(token){
+      const meta=await fetch(API_URL,{headers});
+      const j=await meta.json();
+      fileSHA=j.sha||'';
+    }
     render();
-  }catch(e){showToast('Gagal memuat data','error');}
+  }catch(e){showToast('Gagal memuat data','error');console.error(e);}
 }
 
 function getLeadTime(origin,city,moda){
