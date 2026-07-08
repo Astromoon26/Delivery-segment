@@ -136,6 +136,9 @@ tbody tr:hover{background:var(--surface2)}
 .dest-dot{width:10px;height:10px;border-radius:50%;background:#6b7280;flex-shrink:0}
 .dest-label{font-size:12px;color:var(--muted);font-weight:500}
 .no-results{padding:40px 20px;text-align:center;color:var(--muted)}
+.moda-btn{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);transition:all 0.15s;font-family:'Sora',sans-serif}
+.moda-btn.active-moda{background:rgba(59,130,246,0.15);color:#3b82f6;border-color:rgba(59,130,246,0.4)}
+.lt-badge{font-size:11px;font-weight:600;font-family:'DM Mono',monospace;background:rgba(52,211,153,0.12);color:#34d399;border:1px solid rgba(52,211,153,0.3);border-radius:6px;padding:2px 8px}
 .empty{padding:32px;text-align:center;color:var(--muted);font-size:13px}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
@@ -316,6 +319,8 @@ const PROV_TO_DC = {
 const REPO_OWNER='Astromoon26',REPO_NAME='Delivery-segment',FILE_PATH='delivery_segment_template.csv';
 const RAW_URL=`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}`;
 const API_URL=`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+const LT_RAW_URL=`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/lead_time.csv`;
+let LEAD_TIME=[];
 const COLOR={NDC:'#f59e0b',RDC:'#3b82f6',SDC:'#a78bfa',HUB:'#34d399'};
 const RADIUS={NDC:12,RDC:10,SDC:8,HUB:6};
 const ROUTE_COLORS=['#3b82f6','#f59e0b','#a78bfa','#34d399','#f87171','#38bdf8','#fb923c','#a3e635','#e879f9','#4ade80'];
@@ -350,13 +355,34 @@ function toCSV(data){
 
 async function loadData(){
   try{
-    const res=await fetch(RAW_URL+'?t='+Date.now());
-    DATA=parseCSV(await res.text());
+    const [dcRes,ltRes]=await Promise.all([
+      fetch(RAW_URL+'?t='+Date.now()),
+      fetch(LT_RAW_URL+'?t='+Date.now())
+    ]);
+    DATA=parseCSV(await dcRes.text());
+    if(ltRes.ok) LEAD_TIME=parseCSV(await ltRes.text());
     document.getElementById('last-updated').textContent='Updated: '+new Date().toLocaleTimeString('id-ID');
     const token=getToken();
     if(token){const meta=await fetch(API_URL,{headers:{Authorization:`token ${token}`}});const j=await meta.json();fileSHA=j.sha||'';}
     render();
   }catch(e){showToast('Gagal memuat data','error');}
+}
+
+function getLeadTime(origin,city,moda){
+  const cityLower=city.toLowerCase();
+  const row=LEAD_TIME.find(r=>
+    r.origin===origin&&
+    r.moda===moda&&
+    r.city.toLowerCase()===cityLower
+  );
+  return row?parseInt(row.lead_time_days):null;
+}
+
+function getTotalLeadTime(route,city,moda){
+  // Sum lead time from first NDC to destination city
+  const ndc=route.find(d=>d.dc_type==='NDC');
+  if(!ndc)return null;
+  return getLeadTime(ndc.dc_name,city,moda);
 }
 
 async function pushToGitHub(newData,msg){
@@ -442,6 +468,21 @@ function updateTable(f){
 }
 
 // ── ROUTE FINDER ──────────────────────────────────────────────
+let currentModa='Darat';
+function setModa(moda){
+  currentModa=moda;
+  document.querySelectorAll('.moda-btn').forEach(b=>b.classList.remove('active-moda'));
+  document.getElementById('moda-'+moda.toLowerCase())?.classList.add('active-moda');
+  // Update all lead time badges
+  document.querySelectorAll('[id^="lt-"]').forEach(el=>{
+    const val=moda==='Darat'?el.dataset.darat:el.dataset.laut;
+    el.textContent=val&&val!=='-'?val+' hari':'-';
+    el.style.color=val&&val!=='-'?'#34d399':'var(--muted)';
+    el.style.background=val&&val!=='-'?'rgba(52,211,153,0.12)':'transparent';
+    el.style.borderColor=val&&val!=='-'?'rgba(52,211,153,0.3)':'var(--border2)';
+  });
+}
+
 function onRouteSearch(){
   const q=document.getElementById('route-search').value.trim();
   const ac=document.getElementById('autocomplete');
@@ -556,14 +597,23 @@ function showRoutes(city){
   el.innerHTML=`
     <div class="route-summary">
       <div class="dest">📍 ${city}</div>
-      <div class="meta" style="margin-bottom:4px">${cityData?cityData.prov:''}</div>
-      <div class="meta">${routes.length} jalur tersedia · ${types.length?'Dilayani: '+types.join(', '):'NDC Direct'}</div>
+      <div class="meta" style="margin-bottom:8px">${cityData?cityData.prov:''} · ${routes.length} jalur tersedia</div>
+      <div style="display:flex;gap:6px">
+        <button id="moda-darat" class="moda-btn active-moda" onclick="setModa('Darat')">🚛 Darat</button>
+        <button id="moda-laut" class="moda-btn" onclick="setModa('Laut')">🚢 Laut</button>
+      </div>
     </div>
-    ${routes.map((route,i)=>`
+    ${routes.map((route,i)=>{
+      const ltDarat=getTotalLeadTime(route,city,'Darat');
+      const ltLaut=getTotalLeadTime(route,city,'Laut');
+      return`
       <div class="route-card" id="rc-${i}" onclick="selectRouteCard(${i})">
         <div class="route-header">
           <div class="route-num" style="color:${ROUTE_COLORS[i%ROUTE_COLORS.length]}">● JALUR ${i+1}</div>
-          <div class="hop-badge">${route.length} fasilitas · ${route.length-1} transit</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="hop-badge">${route.length-1} transit</div>
+            <div class="lt-badge" id="lt-${i}" data-darat="${ltDarat||'-'}" data-laut="${ltLaut||'-'}">${ltDarat?ltDarat+' hari':'-'}</div>
+          </div>
         </div>
         <div class="route-steps">
           ${route.map((d,si)=>`
@@ -583,7 +633,7 @@ function showRoutes(city){
           <div class="dest-dot"></div>
           <div class="dest-label">📦 ${city}${cityData?' ('+cityData.prov+')':''}</div>
         </div>
-      </div>`).join('')}`;
+      </div>`;}).join('')}`;
 
   // Draw on map
   const bounds=[];
