@@ -369,17 +369,24 @@ async function loadData(){
 }
 
 function getLeadTime(origin,city,moda){
-  const cityLower=city.toLowerCase();
-  const row=LEAD_TIME.find(r=>
-    r.origin===origin&&
-    r.moda===moda&&
-    r.city.toLowerCase()===cityLower
+  const cityLower=city.toLowerCase().trim();
+  // Exact match first
+  let row=LEAD_TIME.find(r=>
+    r.origin===origin&&r.moda===moda&&
+    r.city.toLowerCase().trim()===cityLower
+  );
+  if(row)return parseInt(row.lead_time_days);
+  // Partial match — city name contains or is contained in lead_time city
+  row=LEAD_TIME.find(r=>
+    r.origin===origin&&r.moda===moda&&(
+      r.city.toLowerCase().trim().includes(cityLower.split(' ')[0])||
+      cityLower.includes(r.city.toLowerCase().trim())
+    )
   );
   return row?parseInt(row.lead_time_days):null;
 }
 
 function getTotalLeadTime(route,city,moda){
-  // Sum lead time from first NDC to destination city
   const ndc=route.find(d=>d.dc_type==='NDC');
   if(!ndc)return null;
   return getLeadTime(ndc.dc_name,city,moda);
