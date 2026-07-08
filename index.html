@@ -360,7 +360,11 @@ async function loadData(){
       fetch(LT_RAW_URL+'?t='+Date.now())
     ]);
     DATA=parseCSV(await dcRes.text());
-    if(ltRes.ok) LEAD_TIME=parseCSV(await ltRes.text());
+    if(ltRes.ok){
+      LEAD_TIME=parseCSV(await ltRes.text());
+      console.log('Lead time loaded:',LEAD_TIME.length,'rows');
+      console.log('Sample:',LEAD_TIME.slice(0,3));
+    }
     document.getElementById('last-updated').textContent='Updated: '+new Date().toLocaleTimeString('id-ID');
     const token=getToken();
     if(token){const meta=await fetch(API_URL,{headers:{Authorization:`token ${token}`}});const j=await meta.json();fileSHA=j.sha||'';}
@@ -370,17 +374,20 @@ async function loadData(){
 
 function getLeadTime(origin,city,moda){
   const cityLower=city.toLowerCase().trim();
+  const modaLower=moda.toLowerCase().trim();
   // Exact match first
   let row=LEAD_TIME.find(r=>
-    r.origin===origin&&r.moda===moda&&
+    r.origin===origin &&
+    r.moda.toLowerCase().trim()===modaLower &&
     r.city.toLowerCase().trim()===cityLower
   );
   if(row)return parseInt(row.lead_time_days);
-  // Partial match — city name contains or is contained in lead_time city
+  // Partial match
   row=LEAD_TIME.find(r=>
-    r.origin===origin&&r.moda===moda&&(
-      r.city.toLowerCase().trim().includes(cityLower.split(' ')[0])||
-      cityLower.includes(r.city.toLowerCase().trim())
+    r.origin===origin &&
+    r.moda.toLowerCase().trim()===modaLower &&(
+      cityLower.includes(r.city.toLowerCase().trim())||
+      r.city.toLowerCase().trim().includes(cityLower)
     )
   );
   return row?parseInt(row.lead_time_days):null;
