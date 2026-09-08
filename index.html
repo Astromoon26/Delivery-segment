@@ -230,6 +230,10 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
               <option value="RDC">Sampai RDC</option>
               <option value="NDC">Baru NDC</option>
             </select>
+            <button class="btn" id="table-export-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
             <span class="result-count" id="table-count"></span>
           </div>
           <div class="table-wrap">
@@ -859,7 +863,7 @@ function renderSegmentRoute(c){
 // ============================================================
 // TABLE VIEW
 // ============================================================
-function renderTable(){
+function getVisibleTableRows(){
   const searchQ = document.getElementById('table-search').value.trim().toLowerCase();
   const tierFilter = document.getElementById('table-filter-tier').value;
   let rows = Object.values(COVERAGE[currentBU]);
@@ -878,7 +882,11 @@ function renderTable(){
     else { va=a[k]||''; vb=b[k]||''; }
     if(va<vb) return -1*tableSort.dir; if(va>vb) return 1*tableSort.dir; return 0;
   });
+  return rows;
+}
 
+function renderTable(){
+  const rows = getVisibleTableRows();
   document.getElementById('table-count').textContent = rows.length + ' kab/kota';
   const cell = (d,tier) => d ? `<span class="tier-chip" style="background:${TYPE_COLOR[tier]}22;color:${TYPE_COLOR[tier]}">${escapeHtml(d.name)}</span>` : `<span class="tier-empty">—</span>`;
 
@@ -899,6 +907,41 @@ function renderTable(){
     tr.onclick = ()=>openDetail(COVERAGE[currentBU][tr.dataset.key]);
   });
 }
+
+// CSV export of whatever is currently visible in the table (respects search + tier filter)
+function csvCell(v){
+  v = (v==null?'':String(v));
+  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function exportTableCSV(){
+  const rows = getVisibleTableRows();
+  const header = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau','HUB','HUB Lead Time Darat','HUB Cost',
+    'SDC','SDC Lead Time Darat','SDC Cost','RDC','RDC Lead Time Darat','RDC Cost',
+    'NDC','NDC Lead Time Darat','NDC Lead Time Laut','NDC Cost Darat','NDC Cost Laut','Deepest Coverage'];
+  const lines = [header.map(csvCell).join(',')];
+  for(const c of rows){
+    lines.push([
+      c.no, c.kabkota, c.tipe, c.provinsi, c.pulau,
+      c.HUB?c.HUB.name:'', c.HUB?c.HUB.sla:'', c.HUB?c.HUB.cost:'',
+      c.SDC?c.SDC.name:'', c.SDC?c.SDC.sla:'', c.SDC?c.SDC.cost:'',
+      c.RDC?c.RDC.name:'', c.RDC?c.RDC.sla:'', c.RDC?c.RDC.cost:'',
+      c.NDC?c.NDC.name:'', c.NDC?c.NDC.slaLand:'', c.NDC?c.NDC.slaSea:'', c.NDC?c.NDC.costLand:'', c.NDC?c.NDC.costSea:'',
+      deepestTier(c)
+    ].map(csvCell).join(','));
+  }
+  const csv = '\uFEFF' + lines.join('\r\n'); // BOM so Excel opens UTF-8 (province/city names) correctly
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `coverage_${currentBU}_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('table-export-btn').onclick = exportTableCSV;
 
 // ============================================================
 // FACILITY-TO-FACILITY VIEW
