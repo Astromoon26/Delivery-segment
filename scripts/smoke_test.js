@@ -53,8 +53,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('tile basemap termuat', Object.values(tileHosts).reduce((a, b) => a + b, 0) > 0);
 
   // --- ringkasan
-  const total = await page.$eval('#summary-grid', e => e.innerText.replace(/\s+/g, ' '));
-  const nKab = parseInt((total.match(/TOTAL KAB\/KOTA\s+(\d+)/i) || [])[1] || '0', 10);
+  const total = await page.$eval('#summary-grid', e => e.textContent.replace(/\s+/g, ' '));
+  const nKab = parseInt((total.match(/TOTAL KAB\/KOTA\s*(\d+)/i) || [])[1] || '0', 10);
   check('total kab/kota >= 510', nKab >= 510, `terbaca ${nKab}`);
   await page.screenshot({ path: path.join(OUT, '1_peta.png') });
 
@@ -93,6 +93,30 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Other rute Palu: breakdown "Other rute (mulai dari NDC …)" ada', !!othNdc, String(othNdc));
   check('Other rute Palu: NDC Other ≠ NDC Reguler', !!othNdc && !!regNdc && othNdc !== regNdc, `reguler=${regNdc} other=${othNdc}`);
   await page.screenshot({ path: path.join(OUT, '5_other_rute_palu.png') });
+
+  // --- layout panel Delivery Segment: cukup lebar, tidak overflow horizontal, bisa digeser
+  const geo = async () => page.evaluate(() => {
+    const l = document.querySelector('.seg-left'), t = document.querySelector('.seg-cmp table'), m = document.getElementById('seg-map');
+    return { left: Math.round(l.getBoundingClientRect().width), scrollW: l.scrollWidth, clientW: l.clientWidth,
+             tblOverflow: t ? t.scrollWidth - t.clientWidth : 0, map: Math.round(m.getBoundingClientRect().width),
+             sidebarHidden: getComputedStyle(document.querySelector('.sidebar')).display === 'none' };
+  });
+  const g0 = await geo();
+  check('layout: panel segmen >= 440px & tanpa scroll horizontal', g0.left >= 440 && g0.scrollW <= g0.clientW + 1 && g0.tblOverflow <= 1, JSON.stringify(g0));
+  check('layout: peta segmen tetap >= 500px', g0.map >= 500, `${g0.map}px`);
+  check('layout: sidebar global disembunyikan di tab Delivery Segment', g0.sidebarHidden);
+  const bb = await (await page.$('#seg-resizer')).boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();
+  await page.mouse.move(bb.x + 160, bb.y + bb.height / 2, { steps: 6 }); await page.mouse.up();
+  const g1 = await geo();
+  check('layout: resizer menggeser lebar panel', g1.left > g0.left + 100 && g1.left <= Math.round(1440 * 0.75), `${g0.left} -> ${g1.left}`);
+  await page.screenshot({ path: path.join(OUT, '6_layout_resize.png') });
+  await page.dblclick('#seg-resizer');
+  const g2 = await geo();
+  check('layout: klik 2x resizer = reset', Math.abs(g2.left - g0.left) <= 2, `${g2.left}`);
+  await page.click('.tab[data-tab="table"]');
+  check('layout: sidebar muncul lagi di tab lain', !(await geo()).sidebarHidden);
+  await page.click('.tab[data-tab="segment"]'); await page.waitForTimeout(300);
 
   // --- BU toggle
   await page.click('.bu-btn[data-bu="AHI"]'); await page.waitForTimeout(1500);

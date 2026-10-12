@@ -44,6 +44,7 @@ Kolom wajib per tab coverage: `No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulau
 - gviz/Drive-MCP/XLSX export bisa **basi** dan memotong nama tab 31 karakter. Tarik live via gviz + `&_ts=`.
 - Peta: **CARTO dark_all sekarang butuh API key** (watermark "API KEY REQUIRED"). Basemap sekarang Esri World Dark Gray (tanpa key, fallback OSM). Jangan balik ke CARTO. Kalau ganti ke provider berkey (Mapbox/MapTiler), key publik di GitHub Pages → wajib di-restrict ke domain.
 - Polygon sumber `ghapsara/indonesia-atlas` tidak punya 8 kab/kota baru → muncul di tabel, tidak di peta (`unmatchedKabkota`).
+- Tab Delivery Segment menyembunyikan `.sidebar` (`body.tab-segment`) → elemen di dalamnya `display:none`: di tes baca pakai `textContent`, bukan `innerText`. Lebar panel `--seg-w` bisa digeser (`initSegResizer`, localStorage `seg-panel-w`).
 - Test dari `file://` kena CORS ke gviz → selalu lewat server HTTP lokal.
 
 ## Alur kerja tiap permintaan update
