@@ -267,7 +267,14 @@ def check_bu(bu, cache, rep):
     # --- cost F2F
     cr = rows(texts['cost'])
     filled = sum(1 for r in cr[1:] if any(c.strip() for c in r[3:]))
-    rep.add('INFO', P + f'Cost Facility to Facility: {filled} baris berisi (0 = belum diisi, dashboard belum membacanya)')
+    rep.add('INFO', P + f'Cost Facility to Facility: {filled} baris berisi (0 = belum diisi; dashboard membacanya untuk breakdown cost per segmen)')
+    bad_cost = []
+    for r in cr[1:]:
+        r = [c.strip() for c in r] + [''] * 5
+        for x in (r[1], r[2]):
+            if x and norm_fac(x) not in fac_names:
+                bad_cost.append(f'"{x}" ({r[0]}) tidak ada di Name of Facility')
+    if bad_cost: rep.add('WARN', P + 'Cost F2F: nama fasilitas tak dikenal (typo/beda nama?)', sorted(set(bad_cost)))
 
 def main():
     ap = argparse.ArgumentParser()
