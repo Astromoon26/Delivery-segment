@@ -64,7 +64,22 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .gap-note b{color:var(--text)}
 
 #view-segment{flex-direction:row}
-.seg-left{width:340px;min-width:340px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.seg-section{padding:10px 14px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace}
+.seg-cmp{margin:8px 14px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2,rgba(255,255,255,.02))}
+.seg-cmp-title{padding:8px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)}
+.seg-cmp table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
+.seg-cmp th:nth-child(1),.seg-cmp td:nth-child(1){width:92px}
+.seg-cmp td,.seg-cmp th{white-space:normal;word-break:break-word;overflow-wrap:anywhere}
+.seg-cmp th,.seg-cmp td{padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+.seg-cmp tr:last-child td{border-bottom:0}
+.seg-cmp th{font-size:10px;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace}
+.seg-cmp td:first-child{color:var(--muted);font-size:10.5px}
+.seg-cmp .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:5px;vertical-align:middle}
+.seg-cmp .val{font-family:'DM Mono',monospace}
+.seg-cmp .na{color:var(--muted);opacity:.6}
+.seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
+.seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
+.seg-left{width:390px;min-width:390px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
 #seg-map{flex:1;width:100%}
 .seg-empty{padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
 .seg-dest-header{padding:14px 14px 4px}
@@ -133,6 +148,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.tier-via{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap}
 .osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
 </style>
 </head>
@@ -213,6 +229,8 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
               <div class="seg-dest-title" id="seg-dest-title"></div>
               <div class="seg-dest-sub" id="seg-dest-sub"></div>
             </div>
+            <div id="seg-compare"></div>
+            <div class="seg-section">Rute flow sekarang</div>
             <div id="seg-steps"></div>
             <div class="seg-hop-note" id="seg-hop-note"></div>
           </div>
@@ -553,13 +571,48 @@ function parseLegSheet(text){
 }
 // AHI facility names in this sheet carry a "HUB " prefix (e.g. "HUB ALAM SUTERA")
 // that isn't used elsewhere (Name of Facility just has "ALAM SUTERA") — stripped here.
-function normFacName(s){ return (s||'').trim().replace(/^HUB\s+/i,'').toLowerCase(); }
+// HCI facility names in the Matriks/Lead Time sheets also carry a "BKS " prefix (e.g. "BKS Dumai")
+// and a few short aliases ("Yogya", "Tasik") vs Name of Facility / Hub sheets ("Dumai", "Yogyakarta", "Tasikmalaya").
+const FAC_ALIAS = { yogya:'yogyakarta', tasik:'tasikmalaya' };
+function normFacName(s){
+  const n = (s||'').trim().replace(/^(hub|bks)\s+/i,'').toLowerCase();
+  return FAC_ALIAS[n] || n;
+}
 function legKey(a,b){ return normFacName(a)+'|'+normFacName(b); }
 function buildLeadTime(bu, rows){
   const map = {};
   for(const r of rows){ map[legKey(r.a, r.b)] = r; }
   LEAD_TIME[bu] = map;
 }
+// ============================================================
+// HUB-TO-HUB FEEDER (e.g. Pekanbaru -> Dumai)
+// ============================================================
+// Matriks Facility to Facility has two HUB columns: col 1 = the hub that serves the
+// kab/kota, col 2 = the upstream hub that feeds it. Hub sheets only carry col 1, so the
+// feeder is looked up here by hub name and attached to each coverage row's HUB.
+let HUB_FEEDER = {HCI:{}, AHI:{}};
+function buildHubFeeder(bu, rows){
+  const m = {};
+  for(const r of rows){
+    if(r.hub && r.hub2) m[normFacName(r.hub)] = r.hub2.trim();
+  }
+  HUB_FEEDER[bu] = m;
+}
+function applyHubFeeder(bu){
+  for(const key in COVERAGE[bu]){
+    const h = COVERAGE[bu][key].HUB;
+    if(!h) continue;
+    const via = HUB_FEEDER[bu][normFacName(h.name)];
+    h.via = via ? (canonicalHubName(via)) : '';
+  }
+}
+// use the spelling from Name of Facility when we have it (so map markers/lookups line up)
+function canonicalHubName(name){
+  const n = normFacName(name);
+  const f = FACILITIES.find(x=>x.type==='HUB' && normFacName(x.name)===n);
+  return f ? f.name : name.replace(/^(hub|bks)\s+/i,'');
+}
+
 // Short "Darat Xh · Laut Yh" label for the lead time between two facilities, blank if unknown.
 function legMeta(bu, a, b){
   const d = (LEAD_TIME[bu]||{})[legKey(a,b)];
@@ -708,6 +761,14 @@ function openDetail(c){
         <div class="chain-name" style="${d?'':'color:var(--muted);opacity:.5'}">${d?escapeHtml(d.name):'belum di-assign'}</div>
         <div class="chain-meta">${tierMeta(t, d)}</div>
       </div>`;
+    if(t==='HUB' && d && d.via){
+      rows += `
+      <div class="chain-row">
+        <div class="chain-badge" style="background:${TYPE_COLOR.HUB}22;color:${TYPE_COLOR.HUB}">HUB</div>
+        <div class="chain-name">${escapeHtml(d.via)} <span style="color:var(--muted);font-size:11px">(hub feeder)</span></div>
+        <div class="chain-meta">${legMeta(currentBU, d.via, d.name)}</div>
+      </div>`;
+    }
   }
   el.innerHTML = `
     <h3>${escapeHtml(c.kabkota)}</h3>
@@ -812,11 +873,127 @@ function setupSearch(){
 // ============================================================
 // DELIVERY SEGMENT (origin -> destination route)
 // ============================================================
+const DIRECT_COLOR = '#f59e0b', FLOW_COLOR = '#ffffff';
+function numOrNull(v){
+  v = (v==null ? '' : String(v)).trim();
+  if(!v || v==='-') return null;
+  const n = parseFloat(v.replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+function fmtD(n){ return n==null ? '—' : (Number.isInteger(n) ? n : n.toFixed(1)) + 'h'; }
+
+// Compare "NDC langsung ke tujuan" vs. the current flow (NDC -> RDC -> SDC -> HUB (-> HUB) -> tujuan).
+// Direct = values from the NDC sheet for this kab/kota. Flow = sum of facility-to-facility legs
+// (Lead Time F2F sheet) + last-mile from the deepest facility. Darat and Laut are alternatives per
+// leg, so Darat = every leg by land; Laut = legs by sea where a sea option exists, else land.
+function computeRouteCompare(c, steps){
+  const nd = c.NDC;
+  const direct = {
+    land: nd ? numOrNull(nd.slaLand) : null,
+    sea:  nd ? numOrNull(nd.slaSea)  : null,
+    costLand: nd ? (nd.costLand||'') : '', costSea: nd ? (nd.costSea||'') : ''
+  };
+  const legs = [];
+  for(let i=0;i<steps.length-1;i++){
+    const a = steps[i].d.name, b = steps[i+1].d.name;
+    const d = (LEAD_TIME[currentBU]||{})[legKey(a,b)];
+    legs.push({a, b, land: d?numOrNull(d.land):null, sea: d?numOrNull(d.sea):null});
+  }
+  const last = steps[steps.length-1];
+  const lm = last.tier==='NDC'
+    ? {land:direct.land, sea:direct.sea, cost: direct.costLand||direct.costSea}
+    : {land:numOrNull(last.d.sla), sea:null, cost:last.d.cost||''};
+
+  const missing = [];
+  legs.forEach(l=>{ if(l.land==null && l.sea==null) missing.push(l.a+' → '+l.b); });
+  if(lm.land==null && lm.sea==null) missing.push('last-mile ke tujuan');
+
+  // Darat: needs a land value on every known leg; legs with no data at all count as partial
+  const landBlocked = legs.some(l=>l.land==null && l.sea!=null);
+  let landSum = 0, landKnown = 0;
+  legs.forEach(l=>{ if(l.land!=null){ landSum+=l.land; landKnown++; } });
+  if(lm.land!=null){ landSum+=lm.land; landKnown++; }
+  // Laut: only meaningful if at least one leg has a sea option
+  const anySea = legs.some(l=>l.sea!=null) || (last.tier==='NDC' && lm.sea!=null);
+  let seaSum = 0, seaKnown = 0;
+  legs.forEach(l=>{ const v = l.sea!=null ? l.sea : l.land; if(v!=null){ seaSum+=v; seaKnown++; } });
+  if(last.tier==='NDC'){ if(lm.sea!=null){ seaSum+=lm.sea; seaKnown++; } }
+  else if(lm.land!=null){ seaSum+=lm.land; seaKnown++; }
+
+  return {
+    direct, legs, lm, missing, partial: missing.length>0,
+    landTotal: (!landBlocked && landKnown>0) ? landSum : null,
+    seaTotal:  (anySea && seaKnown>0) ? seaSum : null,
+    landBlocked
+  };
+}
+
+function renderCompare(c, steps){
+  const el = document.getElementById('seg-compare');
+  const r = computeRouteCompare(c, steps);
+  const ndcName = steps[0].d.name;
+  const flowOnlyNdc = steps.length<=1;
+
+  const names = steps.map(s=>escapeHtml(s.d.name)).join(' → ');
+  const star = r.partial ? '*' : '';
+  const pre = r.partial ? '≥' : '';
+  const flowLand = r.landTotal==null ? '<span class="na">—</span>' : `<span class="val">${pre}${fmtD(r.landTotal)}${star}</span>`;
+  const flowSea  = r.seaTotal==null  ? '<span class="na">—</span>' : `<span class="val">${pre}${fmtD(r.seaTotal)}${star}</span>`;
+  const dLand = r.direct.land==null ? '<span class="na">belum diisi</span>' : `<span class="val">${fmtD(r.direct.land)}</span>`;
+  const dSea  = r.direct.sea==null  ? '<span class="na">belum diisi</span>' : `<span class="val">${fmtD(r.direct.sea)}</span>`;
+
+  // delta = flow - direct, only when both sides are complete numbers
+  const delta = (flow, dir) => {
+    if(flow==null || dir==null || r.partial) return '<span class="na">—</span>';
+    const d = flow - dir;
+    if(d===0) return '<span class="val">sama</span>';
+    return d<0 ? `<span class="val good">flow lebih cepat ${fmtD(-d)}</span>` : `<span class="val bad">flow lebih lama ${fmtD(d)}</span>`;
+  };
+  const costStr = (a,b) => [a?'Darat '+escapeHtml(a):'', b?'Laut '+escapeHtml(b):''].filter(Boolean).join(' · ');
+  const dCost = costStr(r.direct.costLand, r.direct.costSea);
+
+  const notes = [];
+  if(!flowOnlyNdc && r.direct.land==null && r.direct.sea==null)
+    notes.push('Lead time direct belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
+  if(r.partial)
+    notes.push('* Belum lengkap, belum ada data lead time: '+r.missing.map(escapeHtml).join('; ')+'.');
+  if(r.landBlocked)
+    notes.push('Ada leg yang cuma punya jalur laut, jadi total Darat tidak tersedia.');
+  notes.push('Cost leg facility-to-facility belum ada di sheet; cost flow = last-mile saja.');
+
+  if(flowOnlyNdc){
+    el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
+      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi flow sekarang = direct NDC ${escapeHtml(ndcName)} → tujuan. Lead time: Darat ${dLand} · Laut ${dSea}${dCost?' · Cost '+dCost:''}.</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
+    <table>
+      <thead><tr><th></th>
+        <th><span class="sw" style="border-color:${DIRECT_COLOR}"></span>Direct NDC</th>
+        <th><span class="sw" style="border-color:${FLOW_COLOR};opacity:.7"></span>Flow sekarang</th></tr></thead>
+      <tbody>
+        <tr><td>Rute</td><td>${escapeHtml(ndcName)} → Tujuan</td><td>${names} → Tujuan</td></tr>
+        <tr><td>Titik transit</td><td><span class="val">0</span></td><td><span class="val">${steps.length-1}</span></td></tr>
+        <tr><td>Lead time Darat</td><td>${dLand}</td><td>${flowLand}</td></tr>
+        <tr><td>Lead time Laut</td><td>${dSea}</td><td>${flowSea}</td></tr>
+        <tr><td>Cost</td><td>${dCost?`<span class="val">${dCost}</span>`:'<span class="na">belum diisi</span>'}</td><td>${r.lm.cost?`<span class="val">${escapeHtml(r.lm.cost)}</span>`:'<span class="na">belum diisi</span>'}</td></tr>
+        <tr><td>Selisih Darat</td><td colspan="2">${delta(r.landTotal, r.direct.land)}</td></tr>
+        <tr><td>Selisih Laut</td><td colspan="2">${delta(r.seaTotal, r.direct.sea)}</td></tr>
+      </tbody></table>
+    <div class="seg-cmp-note">${notes.join('<br>')}</div></div>`;
+}
+
 function renderSegmentRoute(c){
   document.getElementById('seg-empty').style.display = 'none';
   document.getElementById('seg-route').style.display = 'block';
 
-  const steps = ORIGIN_TO_DEST_ORDER.filter(t=>c[t]).map(t=>({tier:t, d:c[t]}));
+  const steps = [];
+  for(const t of ORIGIN_TO_DEST_ORDER){
+    if(!c[t]) continue;
+    // hub-to-hub: the feeder hub sits right before the hub that serves the kab/kota
+    if(t==='HUB' && c.HUB.via) steps.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
+    steps.push({tier:t, d:c[t]});
+  }
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
@@ -832,7 +1009,7 @@ function renderSegmentRoute(c){
 
   let html = '';
   steps.forEach((s,i)=>{
-    const meta = tierMeta(s.tier, s.d);
+    const meta = s.feeder ? 'Hub feeder (hub-to-hub)' : tierMeta(s.tier, s.d);
     html += stepHtml(s.tier, s.d.name, meta, false);
     const next = steps[i+1];
     const lt = next ? legMeta(currentBU, s.d.name, next.d.name) : '';
@@ -840,6 +1017,7 @@ function renderSegmentRoute(c){
   });
   html += stepHtml('', c.kabkota, `${escapeHtml(c.tipe)} · ${escapeHtml(c.provinsi)}`, true);
   document.getElementById('seg-steps').innerHTML = html;
+  renderCompare(c, steps);
 
   document.getElementById('seg-hop-note').textContent = steps.length<=1 ?
     'Belum ada HUB/SDC/RDC ter-assign — pengiriman masih via NDC langsung (backbone).' :
@@ -869,7 +1047,14 @@ function renderSegmentRoute(c){
     latlngs.push([center.lat, center.lng]);
   }
   if(latlngs.length>1){
-    L.polyline(latlngs, {color:'#fff', weight:2, opacity:.45, dashArray:'4,6'}).addTo(segLayer);
+    L.polyline(latlngs, {color:FLOW_COLOR, weight:2, opacity:.55, dashArray:'4,6'}).bindTooltip('Flow sekarang').addTo(segLayer);
+    // direct NDC -> tujuan, drawn as its own line when there are transit points in between
+    const ndcFac = FACILITY_INDEX[facilityKey('NDC', steps[0].d.name)];
+    if(steps.length>1 && ndcFac && geoFeats && geoFeats.length){
+      const center = latlngs[latlngs.length-1];
+      L.polyline([[ndcFac.lat, ndcFac.lon], center], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'})
+        .bindTooltip('Direct NDC → tujuan').addTo(segLayer);
+    }
   }
   if(latlngs.length){
     segMap.fitBounds(L.latLngBounds(latlngs), {padding:[50,50], maxZoom:9});
@@ -885,7 +1070,7 @@ function getVisibleTableRows(){
   let rows = Object.values(COVERAGE[currentBU]);
   if(searchQ){
     rows = rows.filter(c => c.kabkota.toLowerCase().includes(searchQ) || c.provinsi.toLowerCase().includes(searchQ)
-      || (c.HUB&&c.HUB.name.toLowerCase().includes(searchQ)) || (c.SDC&&c.SDC.name.toLowerCase().includes(searchQ))
+      || (c.HUB&&(c.HUB.name.toLowerCase().includes(searchQ) || (c.HUB.via||'').toLowerCase().includes(searchQ))) || (c.SDC&&c.SDC.name.toLowerCase().includes(searchQ))
       || (c.RDC&&c.RDC.name.toLowerCase().includes(searchQ)) || (c.NDC&&c.NDC.name.toLowerCase().includes(searchQ)));
   }
   if(tierFilter){ rows = rows.filter(c=>deepestTier(c)===tierFilter); }
@@ -904,7 +1089,7 @@ function getVisibleTableRows(){
 function renderTable(){
   const rows = getVisibleTableRows();
   document.getElementById('table-count').textContent = rows.length + ' kab/kota';
-  const cell = (d,tier) => d ? `<span class="tier-chip" style="background:${TYPE_COLOR[tier]}22;color:${TYPE_COLOR[tier]}">${escapeHtml(d.name)}</span>` : `<span class="tier-empty">—</span>`;
+  const cell = (d,tier) => d ? `<span class="tier-chip" style="background:${TYPE_COLOR[tier]}22;color:${TYPE_COLOR[tier]}">${escapeHtml(d.name)}</span>${d.via?`<div class="tier-via">&larr; via ${escapeHtml(d.via)}</div>`:''}` : `<span class="tier-empty">—</span>`;
 
   document.getElementById('table-body').innerHTML = rows.map(c=>`
     <tr data-key="${escapeHtml(c._key)}">
@@ -931,7 +1116,7 @@ function csvCell(v){
 }
 function exportTableCSV(){
   const rows = getVisibleTableRows();
-  const header = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau','HUB','HUB Lead Time Darat','HUB Cost',
+  const header = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau','HUB','HUB Lead Time Darat','HUB Cost','HUB Feeder (via)','Lead Time Feeder ke HUB',
     'SDC','SDC Lead Time Darat','SDC Cost','RDC','RDC Lead Time Darat','RDC Cost',
     'NDC','NDC Lead Time Darat','NDC Lead Time Laut','NDC Cost Darat','NDC Cost Laut','Deepest Coverage'];
   const lines = [header.map(csvCell).join(',')];
@@ -939,6 +1124,7 @@ function exportTableCSV(){
     lines.push([
       c.no, c.kabkota, c.tipe, c.provinsi, c.pulau,
       c.HUB?c.HUB.name:'', c.HUB?c.HUB.sla:'', c.HUB?c.HUB.cost:'',
+      c.HUB&&c.HUB.via?c.HUB.via:'', c.HUB&&c.HUB.via?legMeta(currentBU, c.HUB.via, c.HUB.name).replace(/&middot;/g,'·'):'',
       c.SDC?c.SDC.name:'', c.SDC?c.SDC.sla:'', c.SDC?c.SDC.cost:'',
       c.RDC?c.RDC.name:'', c.RDC?c.RDC.sla:'', c.RDC?c.RDC.cost:'',
       c.NDC?c.NDC.name:'', c.NDC?c.NDC.slaLand:'', c.NDC?c.NDC.slaSea:'', c.NDC?c.NDC.costLand:'', c.NDC?c.NDC.costSea:'',
@@ -1058,6 +1244,10 @@ async function loadAll(){
     const f2fHciRows = parseF2FHci(f2fHciText);
     F2F.HCI = f2fHciRows.map(r=>({hub:r.HUB, hub2:r.HUB_2, sdc:r.SDC, rdc:r.RDC, ndc:r.NDC}));
     F2F.AHI = sheetData.F2F_AHI.filter(r=>r.HUB).map(r=>({hub:r.HUB, hub2:'', sdc:r.SDC, rdc:r.RDC, ndc:r.NDC}));
+    buildHubFeeder('HCI', F2F.HCI);
+    buildHubFeeder('AHI', F2F.AHI);
+    applyHubFeeder('HCI');
+    applyHubFeeder('AHI');
 
     // lead time (facility-to-facility legs) — also has a duplicate "Facility" header, positional parse
     const [ltAhiText, ltHciText] = await Promise.all([
