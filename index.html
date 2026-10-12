@@ -67,7 +67,9 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp{margin:8px 14px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2,rgba(255,255,255,.02))}
 .seg-cmp-title{padding:8px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)}
 .seg-cmp table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
-.seg-cmp th:nth-child(1),.seg-cmp td:nth-child(1){width:92px}
+.seg-cmp th:nth-child(1),.seg-cmp td:nth-child(1){width:104px}
+.seg-cmp thead th .sw{margin-right:4px}
+.seg-cmp thead th{white-space:nowrap}
 .seg-cmp td,.seg-cmp th{white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 .seg-cmp th,.seg-cmp td{padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
 .seg-cmp tr:last-child td{border-bottom:0}
@@ -78,8 +80,24 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp .na{color:var(--muted);opacity:.6}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
 .seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
-.seg-left{width:390px;min-width:390px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
-#seg-map{flex:1;width:100%}
+.seg-left{width:var(--seg-w,clamp(460px,38vw,640px));min-width:340px;max-width:75%;flex:none;background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+.seg-left .sidebar-top{position:sticky;top:0;z-index:30;background:var(--surface)}
+.seg-resizer{flex:none;width:7px;margin:0 -3px;z-index:500;cursor:col-resize;position:relative;touch-action:none;background:transparent}
+.seg-resizer::before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--border2);transition:background .15s,width .15s,left .15s}
+.seg-resizer:hover::before,.seg-resizer.drag::before{background:#3b82f6;width:3px;left:2px}
+.seg-resizer::after{content:"";position:absolute;left:1px;top:50%;width:5px;height:34px;margin-top:-17px;border-radius:3px;background:var(--border2);opacity:.9}
+.seg-resizer:hover::after,.seg-resizer.drag::after{background:#3b82f6}
+body.resizing{cursor:col-resize;user-select:none}
+body.resizing #seg-map{pointer-events:none}
+#seg-map{flex:1;min-width:0;width:100%}
+/* tab Delivery Segment: sidebar global (ringkasan/legenda peta coverage) tidak relevan -> lebih lega */
+body.tab-segment .sidebar{display:none}
+@media (max-width:900px){
+  #view-segment{flex-direction:column}
+  .seg-left{width:100%!important;max-width:none;min-width:0;max-height:58%;border-bottom:1px solid var(--border)}
+  .seg-resizer{display:none}
+  #seg-map{min-height:280px}
+}
 .seg-empty{padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
 .seg-dest-header{padding:14px 14px 4px}
 .seg-dest-title{font-size:15px;font-weight:600}
@@ -145,14 +163,14 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .seg-bd-title .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle}
 .seg-cmp table.seg-bd{margin-bottom:6px}
 .seg-bd th:nth-child(1),.seg-bd td:nth-child(1){width:auto}
-.seg-bd th:nth-child(2),.seg-bd td:nth-child(2),.seg-bd th:nth-child(3),.seg-bd td:nth-child(3){width:30%}
+.seg-bd th:nth-child(2),.seg-bd td:nth-child(2),.seg-bd th:nth-child(3),.seg-bd td:nth-child(3){width:26%}
 .seg-bd td:first-child{color:var(--text);font-size:11.5px}
 .seg-bd tr.tot td{font-weight:600;border-top:1px solid var(--border2);background:rgba(255,255,255,.03)}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
 .osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
 </style>
 </head>
-<body>
+<body class="tab-segment">
 <div class="app">
   <div class="header">
     <div class="brand">
@@ -232,6 +250,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
             <div id="seg-compare"></div>
           </div>
         </div>
+        <div class="seg-resizer" id="seg-resizer" role="separator" aria-orientation="vertical" aria-label="Geser untuk ubah lebar panel" tabindex="0" title="Geser untuk ubah lebar panel (klik 2x = reset)"></div>
         <div id="seg-map"></div>
       </div>
 
@@ -1324,9 +1343,47 @@ function renderF2F(){
 function showTab(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));
+  document.body.classList.toggle('tab-segment', name==='segment');
   if(name==='map') setTimeout(()=>map.invalidateSize(), 50);
   if(name==='segment') setTimeout(()=>segMap.invalidateSize(), 50);
 }
+
+// Lebar panel Delivery Segment bisa digeser (drag / tombol panah / klik 2x = reset); disimpan per-browser.
+(function initSegResizer(){
+  const view = document.getElementById('view-segment'), bar = document.getElementById('seg-resizer');
+  const KEY = 'seg-panel-w', MIN = 340;
+  const maxW = () => Math.max(MIN, Math.min(900, view.clientWidth*0.75));
+  const apply = w => { view.style.setProperty('--seg-w', Math.round(Math.min(maxW(), Math.max(MIN, w)))+'px'); };
+  const refresh = () => { try{ segMap.invalidateSize(); }catch(e){} };
+  try{ const saved = parseInt(localStorage.getItem(KEY),10); if(saved) apply(saved); }catch(e){}
+  const save = () => { try{ localStorage.setItem(KEY, String(parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10))); }catch(e){} };
+  let raf = 0;
+  bar.addEventListener('pointerdown', e=>{
+    e.preventDefault(); bar.setPointerCapture(e.pointerId);
+    bar.classList.add('drag'); document.body.classList.add('resizing');
+  });
+  bar.addEventListener('pointermove', e=>{
+    if(!bar.classList.contains('drag')) return;
+    const left = view.getBoundingClientRect().left;
+    apply(e.clientX - left);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh);
+  });
+  const end = e=>{
+    if(!bar.classList.contains('drag')) return;
+    bar.classList.remove('drag'); document.body.classList.remove('resizing');
+    try{ bar.releasePointerCapture(e.pointerId); }catch(_){}
+    save(); refresh();
+  };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  bar.addEventListener('dblclick', ()=>{ view.style.removeProperty('--seg-w'); try{ localStorage.removeItem(KEY); }catch(e){} refresh(); });
+  bar.addEventListener('keydown', e=>{
+    if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
+    e.preventDefault();
+    const cur = parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10);
+    apply(cur + (e.key==='ArrowRight'?40:-40)); save(); refresh();
+  });
+  window.addEventListener('resize', ()=>{ const cur = parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10); if(view.style.getPropertyValue('--seg-w')) apply(cur); refresh(); });
+})();
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
 
 document.querySelectorAll('.bu-btn').forEach(btn=>{
