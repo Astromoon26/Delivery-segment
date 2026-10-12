@@ -14,6 +14,7 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 5. Peta per kabupaten/kota (choropleth), bukan per provinsi.
 6. Format lead time seragam: **"Darat Xh · Laut Yh"** (h = hari). Last mile pakai template yang sama.
 7. Hub-to-hub (mis. Pekanbaru → Dumai) adalah segmen resmi dan harus tampil di tabel, rute, dan export.
+8. Di tab Delivery Segment, rute lewat fasilitas disebut **"Reguler rute"** (bukan "Flow sekarang"); pembandingnya **"Direct NDC"**. Pakai istilah ini di UI dan dokumen.
 
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
