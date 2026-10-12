@@ -165,6 +165,20 @@ def check_bu(bu, cache, rep):
                 cov[t][k] = {'name': nm, 'raw': r}
                 if norm_fac(nm) not in fac_names:
                     unknown.add(nm)
+        if t == 'NDC':
+            # kolom opsional "NDC Reguler": asal rantai Reguler rute kalau beda dari NDC direct
+            rcol = next((c for c in h if c.strip().lower() in ('ndc reguler', 'reguler ndc', 'ndc rute reguler', 'ndc reguler rute')), None)
+            if rcol:
+                bad_reg, n_reg = set(), 0
+                for v in cov[t].values():
+                    rv = (v['raw'].get(rcol) or '').strip()
+                    if rv:
+                        n_reg += 1
+                        if norm_fac(rv) not in fac_names:
+                            bad_reg.add(rv)
+                if bad_reg:
+                    rep.add('ERROR', P + 'tab NDC: "NDC Reguler" berisi nama tak ada di "Name of Facility"', sorted(bad_reg))
+                rep.add('INFO', P + f'tab NDC: kolom "{rcol}" terisi {n_reg} kab/kota (asal Reguler rute beda dari Direct NDC)')
         if dup:
             rep.add('WARN', P + f'tab {t}: kab/kota dobel', dup)
         if unknown:

@@ -85,6 +85,33 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.click('.bu-btn[data-bu="AHI"]'); await page.waitForTimeout(1500);
   check('toggle AHI tanpa error', pageErrors.length === 0, pageErrors.join(' | '));
 
+  // --- kolom opsional "NDC Reguler": Palu direct dari Sidoarjo, reguler dari Jakarta (tab NDC HCI disuntik lewat intercept)
+  const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p2 = await ctx2.newPage();
+  const err2 = [];
+  p2.on('pageerror', e => err2.push(e.message));
+  await p2.route(/sheet=NDC%20HCI/, async route => {
+    const res = await route.fetch();
+    const lines = (await res.text()).split(/\r?\n/);
+    const out = lines.map((l, i) => i === 0 ? l + ',"NDC Reguler"' : (l.includes('"Kota Palu"') ? l + ',"Jakarta"' : (l ? l + ',""' : l)));
+    await route.fulfill({ response: res, body: out.join('\n') });
+  });
+  await p2.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p2.waitForTimeout(3500);
+  await p2.click('.tab[data-tab="segment"]');
+  await p2.fill('#seg-search-input', 'Kota Palu'); await p2.waitForTimeout(400);
+  await p2.click('#seg-ac-list .autocomplete-item'); await p2.waitForTimeout(1200);
+  const cmp2 = await p2.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('NDC Reguler: Palu direct = "Sidoarjo → Tujuan"', /Sidoarjo → Tujuan/.test(cmp2), cmp2.slice(0, 200));
+  check('NDC Reguler: reguler rute Palu mulai dari Jakarta', /Rute\s+\S.*?Jakarta →/.test(cmp2) && /Jakarta → \S+/.test(cmp2), cmp2.slice(0, 260));
+  await p2.screenshot({ path: path.join(OUT, '4_segmen_palu_reguler.png') });
+  await p2.click('.tab[data-tab="table"]');
+  await p2.fill('#table-search', 'Kota Palu'); await p2.waitForTimeout(500);
+  const palu = await p2.$$eval('#table-body tr', r => r.map(x => x.innerText.replace(/\s+/g, ' ')).join(' | '));
+  check('NDC Reguler: tabel menampilkan "reguler dari Jakarta"', /reguler dari Jakarta/.test(palu), palu.slice(0, 160));
+  check('NDC Reguler: tanpa JS error', err2.length === 0, err2.join(' | '));
+  await ctx2.close();
+
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;
