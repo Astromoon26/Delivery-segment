@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-12 (malam, 2)
+- **Other rute** (rute ke-3) di Delivery Segment untuk kab/kota Kalimantan & Sulawesi yang punya HUB/SDC/RDC: rantai fasilitas sama dengan Reguler rute, tapi mulai dari NDC lain (otomatis = NDC satunya di BU; override per kab/kota lewat kolom opsional `NDC Other` di tab NDC). Kolom baru di Perbandingan rute (lead time, cost, selisih vs Direct), breakdown per segmen, garis cyan + marker NDC di peta. Pulau lain tidak berubah.
+- `validate_sheet.py`: cek `NDC Other` + peringatan kalau jumlah NDC di BU ≠ 2. Smoke test +4 cek.
+
 ## 2026-10-12 (malam)
 - Kolom opsional **`NDC Reguler`** di tab `NDC HCI/AHI`: asal Reguler rute bisa beda dari Direct NDC (kolom `NDC`). Contoh Palu: `NDC`=Sidoarjo (direct), `NDC Reguler`=Jakarta (reguler Jakarta → Tallo → Palu). Tanpa kolom / kosong → perilaku lama.
 - Tampil di: perbandingan rute + breakdown, peta segmen (marker NDC kedua untuk asal Direct), Tabel Coverage ("reguler dari …"), detail kab/kota, export CSV (`NDC Reguler`). `validate_sheet.py` cek nama NDC Reguler. Smoke test +4 cek (intercept CSV NDC HCI).
