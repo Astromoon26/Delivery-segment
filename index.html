@@ -133,6 +133,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
 </style>
 </head>
 <body>
@@ -616,18 +617,33 @@ function tierOpacity(tier){
 // ============================================================
 // MAP
 // ============================================================
+// Basemap tanpa API key: Esri World Dark Gray (CARTO dark_all sekarang minta API key
+// dan menampilkan watermark "API KEY REQUIRED"). Kalau tile Esri gagal dimuat,
+// otomatis fallback ke OpenStreetMap yang digelapkan lewat CSS filter.
+function addBasemap(m){
+  const esri = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ', maxZoom:16, maxNativeZoom:16}
+  ).addTo(m);
+  let errs = 0, switched = false;
+  esri.on('tileerror', () => {
+    if(switched || ++errs < 4) return;
+    switched = true;
+    m.removeLayer(esri);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap contributors', maxZoom:19, className:'osm-dark'
+    }).addTo(m);
+  });
+}
+
 function initMap(){
   map = L.map('map', {zoomControl:true}).setView([-2.5,118],5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:19
-  }).addTo(map);
+  addBasemap(map);
   facilityLayer = L.layerGroup().addTo(map);
   choroLayer = L.layerGroup().addTo(map);
 
   segMap = L.map('seg-map', {zoomControl:true}).setView([-2.5,118],5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:19
-  }).addTo(segMap);
+  addBasemap(segMap);
   segLayer = L.layerGroup().addTo(segMap);
 }
 
