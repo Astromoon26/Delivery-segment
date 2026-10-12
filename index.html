@@ -573,9 +573,13 @@ function parseLegSheet(text){
 // that isn't used elsewhere (Name of Facility just has "ALAM SUTERA") — stripped here.
 // HCI facility names in the Matriks/Lead Time sheets also carry a "BKS " prefix (e.g. "BKS Dumai")
 // and a few short aliases ("Yogya", "Tasik") vs Name of Facility / Hub sheets ("Dumai", "Yogyakarta", "Tasikmalaya").
-const FAC_ALIAS = { yogya:'yogyakarta', tasik:'tasikmalaya' };
+// KEEP IN SYNC with FAC_ALIAS in scripts/validate_sheet.py
+const FAC_ALIAS = {
+  yogya:'yogyakarta', tasik:'tasikmalaya',
+  jogja:'yogyakarta', 'kuta bali':'kuta', 'denpasar/sempidi bali':'denpasar'   // AHI Matriks / Lead Time spellings
+};
 function normFacName(s){
-  const n = (s||'').trim().replace(/^(hub|bks)\s+/i,'').toLowerCase();
+  const n = (s||'').trim().replace(/^(hub|bks)\s+/i,'').toLowerCase().replace(/\s+/g,' ');
   return FAC_ALIAS[n] || n;
 }
 function legKey(a,b){ return normFacName(a)+'|'+normFacName(b); }
