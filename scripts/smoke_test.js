@@ -72,10 +72,11 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.click('.tab[data-tab="segment"]');
   await page.fill('#seg-search-input', 'Kota Dumai'); await page.waitForTimeout(400);
   await page.click('#seg-ac-list .autocomplete-item'); await page.waitForTimeout(1200);
-  const steps = await page.$eval('#seg-steps', e => e.innerText.replace(/\n+/g, ' | '));
-  check('segmen Dumai: urutan Pekanbaru -> Dumai', steps.indexOf('Pekanbaru') > -1 && steps.indexOf('Pekanbaru') < steps.indexOf('Dumai'), steps.slice(0, 120));
   const cmp = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
-  check('segmen Dumai: blok Perbandingan Rute tampil', /Direct NDC/.test(cmp) && /Reguler rute/.test(cmp));
+  check('segmen Dumai: blok Perbandingan Rute (Direct NDC vs Reguler rute)', /Direct NDC/.test(cmp) && /Reguler rute/.test(cmp));
+  check('segmen Dumai: breakdown per segmen memuat Pekanbaru → Dumai (hub-to-hub)', /breakdown per segmen/i.test(cmp) && /Pekanbaru → Dumai/.test(cmp), cmp.slice(0, 160));
+  check('segmen Dumai: ada baris last mile + Total', /last mile/.test(cmp) && /Total/.test(cmp));
+  check('daftar rute lama (#seg-steps) sudah dihapus', (await page.$('#seg-steps')) === null);
   const legend = await page.$$eval('#seg-map .leaflet-interactive', e => e.length);
   check('peta segmen: ada garis/poligon', legend > 0, `${legend} layer`);
   await page.screenshot({ path: path.join(OUT, '3_segmen_dumai.png') });

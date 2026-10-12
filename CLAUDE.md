@@ -15,6 +15,7 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 6. Format lead time seragam: **"Darat Xh · Laut Yh"** (h = hari). Last mile pakai template yang sama.
 7. Hub-to-hub (mis. Pekanbaru → Dumai) adalah segmen resmi dan harus tampil di tabel, rute, dan export.
 8. Di tab Delivery Segment, rute lewat fasilitas disebut **"Reguler rute"** (bukan "Flow sekarang"); pembandingnya **"Direct NDC"**. Pakai istilah ini di UI dan dokumen.
+9. Tab Delivery Segment **tidak menampilkan daftar langkah rute lagi** (dihapus atas permintaan Apip). Rincian ada di *Perbandingan rute → Breakdown per segmen* (lead time Darat/Laut + cost per segmen).
 
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
@@ -24,11 +25,11 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 | Nama & matching | `normName`, `cleanSpacedLetters`, `joinKey`, `resolveGeo`, **`normFacName` + `FAC_ALIAS`**, `legKey` |
 | Model data | `buildFacilities`, `resolveLatLon`, `buildCoverage` (`COVERAGE[bu][key][tier]`), `buildLeadTime`, `buildHubFeeder/applyHubFeeder` (`HUB.via`) |
 | Tampilan | `addBasemap/initMap`, `renderChoropleth`, `renderFacilityMarkers`, `renderTable`, `exportTableCSV`, `renderF2F`, `openDetail` |
-| Delivery Segment | `renderSegmentRoute`, `computeRouteCompare`, `renderCompare` |
+| Delivery Segment | `renderSegmentRoute` (peta mini), `buildSegments` (per segmen: lead time + cost), `totalsOf`, `renderCompare` (tabel perbandingan + breakdown per segmen), `buildCostLeg`, `parseMoney` |
 | Bootstrap | `loadAll` → `rerenderAll` |
 
 ## Skema gsheet (detail kolom: `docs/PANDUAN_GSHEET.md`)
-`Name of Facility` · `Hub|SDC|RDC|NDC` × `AHI|HCI` · `Matriks Facility to Facility AHI|HCI` · `Lead Time Facility to Facility AHI|HCI` · (`Cost Facility to Facility AHI|HCI` ada, **belum dibaca**).
+`Name of Facility` · `Hub|SDC|RDC|NDC` × `AHI|HCI` · `Matriks Facility to Facility AHI|HCI` · `Lead Time Facility to Facility AHI|HCI` · `Cost Facility to Facility AHI|HCI` (format sama dengan Lead Time: Remark, Facility, Facility, Cost Land, Cost Sea; dibaca ke `COST_LEG`).
 Kolom wajib per tab coverage: `No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan, <Tier>, Lead Time land, Cost` (NDC: `Lead Time Land/Sea`, `Cost Land/Sea`). Header sering di-rename Apip → selalu baca lewat `pickField(...alias)`.
 
 ## Quirk yang sudah pernah bikin bug
@@ -56,7 +57,6 @@ Smoke test 100% lolos · tidak ada error console · tampilan dicek lewat screens
 ## Backlog & temuan data (per 2026-10-12, hasil `validate_sheet.py`)
 **Fitur:**
 - Validasi coverage vs Matriks di dalam dashboard (sekarang cuma lewat script).
-- Baca tab `Cost Facility to Facility` (kosong; HCI 1 baris) → total cost flow & perbandingan cost.
 - Baca kolom baru SDC AHI: `aging POO`, `Sailing Time`, `Aging POD`.
 - Tabel massal selisih direct vs flow semua kab/kota + export CSV.
 - 8 kab/kota tanpa polygon (Kota Pontianak, Buton Selatan, Buton Tengah, Konawe Kepulauan, Muna Barat, Pegunungan Arfak, Bayung Lencir, Musi Banyuasin Exclude Bayung Lencir).
@@ -67,4 +67,5 @@ Smoke test 100% lolos · tidak ada error console · tampilan dicek lewat screens
 - HCI: tab Hub berisi nama gabungan "Jember / banyuwangi" (bukan satu fasilitas) → pecah per hub.
 - HCI Lead Time: leg `Sidoarjo → Tallo` belum ada (Palopo); leg `Jakarta → Pekanbaru` dobel.
 - AHI: SDC Abepura, Lombok, Ternate dipakai di tab SDC/Matriks/Lead Time AHI tapi di `Name of Facility` cuma berlabel BU "HCI" (tidak ada marker AHI). AHI Palu: Matriks tanpa RDC, tab RDC bilang Tallo.
-- Isian kosong: NDC direct lead time 1/514 & cost 0 (HCI & AHI); RDC lead time 0/34; SDC HCI 1/28; semua cost 0.
+- Isian kosong (cek ulang dengan `validate_sheet.py`, angka cepat berubah): cost di semua tab (last mile, direct NDC, Cost F2F) belum terisi → breakdown cost tampil "cost —".
+- Cost F2F HCI baris pertama memakai asal "NDC" (bukan "Jakarta") → tidak akan nyambung ke leg manapun.
