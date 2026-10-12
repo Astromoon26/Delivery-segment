@@ -230,7 +230,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
               <div class="seg-dest-sub" id="seg-dest-sub"></div>
             </div>
             <div id="seg-compare"></div>
-            <div class="seg-section">Rute flow sekarang</div>
+            <div class="seg-section">Reguler rute</div>
             <div id="seg-steps"></div>
             <div class="seg-hop-note" id="seg-hop-note"></div>
           </div>
@@ -886,7 +886,7 @@ function numOrNull(v){
 }
 function fmtD(n){ return n==null ? '—' : (Number.isInteger(n) ? n : n.toFixed(1)) + 'h'; }
 
-// Compare "NDC langsung ke tujuan" vs. the current flow (NDC -> RDC -> SDC -> HUB (-> HUB) -> tujuan).
+// Compare "NDC langsung ke tujuan" vs. the "Reguler rute" (current flow) (NDC -> RDC -> SDC -> HUB (-> HUB) -> tujuan).
 // Direct = values from the NDC sheet for this kab/kota. Flow = sum of facility-to-facility legs
 // (Lead Time F2F sheet) + last-mile from the deepest facility. Darat and Laut are alternatives per
 // leg, so Darat = every leg by land; Laut = legs by sea where a sea option exists, else land.
@@ -951,7 +951,7 @@ function renderCompare(c, steps){
     if(flow==null || dir==null || r.partial) return '<span class="na">—</span>';
     const d = flow - dir;
     if(d===0) return '<span class="val">sama</span>';
-    return d<0 ? `<span class="val good">flow lebih cepat ${fmtD(-d)}</span>` : `<span class="val bad">flow lebih lama ${fmtD(d)}</span>`;
+    return d<0 ? `<span class="val good">reguler lebih cepat ${fmtD(-d)}</span>` : `<span class="val bad">reguler lebih lama ${fmtD(d)}</span>`;
   };
   const costStr = (a,b) => [a?'Darat '+escapeHtml(a):'', b?'Laut '+escapeHtml(b):''].filter(Boolean).join(' · ');
   const dCost = costStr(r.direct.costLand, r.direct.costSea);
@@ -963,18 +963,18 @@ function renderCompare(c, steps){
     notes.push('* Belum lengkap, belum ada data lead time: '+r.missing.map(escapeHtml).join('; ')+'.');
   if(r.landBlocked)
     notes.push('Ada leg yang cuma punya jalur laut, jadi total Darat tidak tersedia.');
-  notes.push('Cost leg facility-to-facility belum ada di sheet; cost flow = last-mile saja.');
+  notes.push('Cost leg facility-to-facility belum ada di sheet; cost reguler = last-mile saja.');
 
   if(flowOnlyNdc){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
-      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi flow sekarang = direct NDC ${escapeHtml(ndcName)} → tujuan. Lead time: Darat ${dLand} · Laut ${dSea}${dCost?' · Cost '+dCost:''}.</div></div>`;
+      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(ndcName)} → tujuan. Lead time: Darat ${dLand} · Laut ${dSea}${dCost?' · Cost '+dCost:''}.</div></div>`;
     return;
   }
   el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
     <table>
       <thead><tr><th></th>
         <th><span class="sw" style="border-color:${DIRECT_COLOR}"></span>Direct NDC</th>
-        <th><span class="sw" style="border-color:${FLOW_COLOR};opacity:.7"></span>Flow sekarang</th></tr></thead>
+        <th><span class="sw" style="border-color:${FLOW_COLOR};opacity:.7"></span>Reguler rute</th></tr></thead>
       <tbody>
         <tr><td>Rute</td><td>${escapeHtml(ndcName)} → Tujuan</td><td>${names} → Tujuan</td></tr>
         <tr><td>Titik transit</td><td><span class="val">0</span></td><td><span class="val">${steps.length-1}</span></td></tr>
@@ -1051,7 +1051,7 @@ function renderSegmentRoute(c){
     latlngs.push([center.lat, center.lng]);
   }
   if(latlngs.length>1){
-    L.polyline(latlngs, {color:FLOW_COLOR, weight:2, opacity:.55, dashArray:'4,6'}).bindTooltip('Flow sekarang').addTo(segLayer);
+    L.polyline(latlngs, {color:FLOW_COLOR, weight:2, opacity:.55, dashArray:'4,6'}).bindTooltip('Reguler rute').addTo(segLayer);
     // direct NDC -> tujuan, drawn as its own line when there are transit points in between
     const ndcFac = FACILITY_INDEX[facilityKey('NDC', steps[0].d.name)];
     if(steps.length>1 && ndcFac && geoFeats && geoFeats.length){

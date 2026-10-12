@@ -75,7 +75,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const steps = await page.$eval('#seg-steps', e => e.innerText.replace(/\n+/g, ' | '));
   check('segmen Dumai: urutan Pekanbaru -> Dumai', steps.indexOf('Pekanbaru') > -1 && steps.indexOf('Pekanbaru') < steps.indexOf('Dumai'), steps.slice(0, 120));
   const cmp = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
-  check('segmen Dumai: blok Perbandingan Rute tampil', /Direct NDC/.test(cmp) && /Flow sekarang/.test(cmp));
+  check('segmen Dumai: blok Perbandingan Rute tampil', /Direct NDC/.test(cmp) && /Reguler rute/.test(cmp));
   const legend = await page.$$eval('#seg-map .leaflet-interactive', e => e.length);
   check('peta segmen: ada garis/poligon', legend > 0, `${legend} layer`);
   await page.screenshot({ path: path.join(OUT, '3_segmen_dumai.png') });
