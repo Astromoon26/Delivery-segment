@@ -16,6 +16,7 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 7. Hub-to-hub (mis. Pekanbaru → Dumai) adalah segmen resmi dan harus tampil di tabel, rute, dan export.
 8. Di tab Delivery Segment, rute lewat fasilitas disebut **"Reguler rute"** (bukan "Flow sekarang"); pembandingnya **"Direct NDC"**. Pakai istilah ini di UI dan dokumen.
 9. Tab Delivery Segment **tidak menampilkan daftar langkah rute lagi** (dihapus atas permintaan Apip). Rincian ada di *Perbandingan rute → Breakdown per segmen* (lead time Darat/Laut + cost per segmen).
+10. Direct NDC dan awal Reguler rute boleh beda NDC (kolom opsional `NDC Reguler` di tab NDC); jangan hardcode pengecualian per kab/kota di `index.html`.
 
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
@@ -30,6 +31,7 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 
 ## Skema gsheet (detail kolom: `docs/PANDUAN_GSHEET.md`)
 `Name of Facility` · `Hub|SDC|RDC|NDC` × `AHI|HCI` · `Matriks Facility to Facility AHI|HCI` · `Lead Time Facility to Facility AHI|HCI` · `Cost Facility to Facility AHI|HCI` (format sama dengan Lead Time: Remark, Facility, Facility, Cost Land, Cost Sea; dibaca ke `COST_LEG`).
+Tab `NDC <BU>` punya kolom **opsional** `NDC Reguler` (alias: `Reguler NDC`, `NDC Rute Reguler`): asal rantai Reguler rute kalau beda dari NDC direct (kolom `NDC` tetap = Direct NDC + nilai di Tabel Coverage). Dibaca ke `COVERAGE[bu][key].NDC.reguler`; `regulerDiffers(c)` menentukan; hanya berlaku bila kab/kota punya HUB/SDC/RDC.
 Kolom wajib per tab coverage: `No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan, <Tier>, Lead Time land, Cost` (NDC: `Lead Time Land/Sea`, `Cost Land/Sea`). Header sering di-rename Apip → selalu baca lewat `pickField(...alias)`.
 
 ## Quirk yang sudah pernah bikin bug

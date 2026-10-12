@@ -479,7 +479,9 @@ function buildCoverage(bu, tier, rows){
           slaLand: pickField(r,'Lead Time Land','Lead Time land','SLA Land','SLA').trim(),
           slaSea: pickField(r,'Lead Time Sea','Lead Time sea','SLA Sea').trim(),
           costLand: pickField(r,'Cost Land','Cost').trim(),
-          costSea: pickField(r,'Cost Sea').trim()
+          costSea: pickField(r,'Cost Sea').trim(),
+          // optional: NDC asal rantai Reguler rute, kalau beda dari NDC direct (kolom "NDC") — mis. Palu: direct Sidoarjo, reguler Jakarta
+          reguler: pickField(r,'NDC Reguler','Reguler NDC','NDC Rute Reguler','NDC Reguler Rute').trim()
         };
       } else {
         COVERAGE[bu][key][tier] = {
@@ -777,6 +779,14 @@ function openDetail(c){
         <div class="chain-name" style="${d?'':'color:var(--muted);opacity:.5'}">${d?escapeHtml(d.name):'belum di-assign'}</div>
         <div class="chain-meta">${tierMeta(t, d)}</div>
       </div>`;
+    if(t==='NDC' && regulerDiffers(c)){
+      rows += `
+      <div class="chain-row">
+        <div class="chain-badge" style="background:${TYPE_COLOR.NDC}22;color:${TYPE_COLOR.NDC}">NDC</div>
+        <div class="chain-name">${escapeHtml(d.reguler)} <span style="color:var(--muted);font-size:11px">(asal Reguler rute; ${escapeHtml(d.name)} = Direct NDC)</span></div>
+        <div class="chain-meta"></div>
+      </div>`;
+    }
     if(t==='HUB' && d && d.via){
       rows += `
       <div class="chain-row">
@@ -920,7 +930,7 @@ function buildSegments(c, steps){
   const bu = currentBU;
   const nd = c.NDC;
   const directSeg = {
-    label: steps[0].d.name+' → Tujuan', kind: 'direct',
+    label: nd.name+' → Tujuan', kind: 'direct',
     land: nd ? numOrNull(nd.slaLand) : null, sea: nd ? numOrNull(nd.slaSea) : null,
     costLand: nd ? (nd.costLand||'') : '', costSea: nd ? (nd.costSea||'') : ''
   };
@@ -1034,7 +1044,7 @@ function renderCompare(c, steps){
 
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
-      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(steps[0].d.name)} → tujuan.</div>
+      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(c.NDC.name)} → tujuan.</div>
       <div class="seg-bd-wrap">${bdTable('Direct NDC = Reguler rute', DIRECT_COLOR, [directSeg], D, false)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
@@ -1045,7 +1055,7 @@ function renderCompare(c, steps){
         <th><span class="sw" style="border-color:${DIRECT_COLOR}"></span>Direct NDC</th>
         <th><span class="sw" style="border-color:${FLOW_COLOR};opacity:.7"></span>Reguler rute</th></tr></thead>
       <tbody>
-        <tr><td>Rute</td><td>${escapeHtml(steps[0].d.name)} → Tujuan</td><td>${names} → Tujuan</td></tr>
+        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Tujuan</td><td>${names} → Tujuan</td></tr>
         <tr><td>Titik transit</td><td><span class="val">0</span></td><td><span class="val">${steps.length-1}</span></td></tr>
         <tr><td>Lead time Darat</td><td>${D.land==null?todo:ltCell(D.land,false)}</td><td>${ltCell(R.land, rPartialLT)}</td></tr>
         <tr><td>Lead time Laut</td><td>${D.sea==null?todo:ltCell(D.sea,false)}</td><td>${ltCell(R.sea, rPartialLT)}</td></tr>
@@ -1062,16 +1072,24 @@ function renderCompare(c, steps){
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 }
 
+// true when this kab/kota has a separate origin NDC for the Reguler rute
+function regulerDiffers(c){
+  return !!(c.NDC && c.NDC.reguler && normFacName(c.NDC.reguler) !== normFacName(c.NDC.name));
+}
+
 function renderSegmentRoute(c){
   document.getElementById('seg-empty').style.display = 'none';
   document.getElementById('seg-route').style.display = 'block';
 
   const steps = [];
+  const hasMid = !!(c.RDC || c.SDC || c.HUB);
   for(const t of ORIGIN_TO_DEST_ORDER){
     if(!c[t]) continue;
     // hub-to-hub: the feeder hub sits right before the hub that serves the kab/kota
     if(t==='HUB' && c.HUB.via) steps.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
-    steps.push({tier:t, d:c[t]});
+    // Reguler rute may start from a different NDC than Direct (kolom "NDC Reguler" di tab NDC)
+    if(t==='NDC' && hasMid && regulerDiffers(c)) steps.push({tier:'NDC', d:{...c.NDC, name:c.NDC.reguler}});
+    else steps.push({tier:t, d:c[t]});
   }
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
@@ -1091,29 +1109,43 @@ function renderSegmentRoute(c){
       html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR[s.tier]};border:2px solid rgba(255,255,255,.85);box-shadow:0 0 0 3px ${TYPE_COLOR[s.tier]}33"></div>`,
       className:'', iconAnchor:[r,r]
     });
-    L.marker([fac.lat, fac.lon], {icon}).bindTooltip(`${s.tier}: ${s.d.name}`).addTo(segLayer);
+    L.marker([fac.lat, fac.lon], {icon}).bindTooltip(`${s.tier}: ${s.d.name}${s.tier==='NDC'&&regulerDiffers(c)&&hasMid?' (asal Reguler rute)':''}`).addTo(segLayer);
+  }
+  // Direct NDC that differs from the Reguler origin gets its own marker (not part of the reguler polyline)
+  const directFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
+  if(hasMid && regulerDiffers(c) && directFac){
+    const r = TYPE_RADIUS.NDC;
+    const icon = L.divIcon({
+      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR.NDC};border:2px dashed ${DIRECT_COLOR};box-shadow:0 0 0 3px ${TYPE_COLOR.NDC}33"></div>`,
+      className:'', iconAnchor:[r,r]
+    });
+    L.marker([directFac.lat, directFac.lon], {icon}).bindTooltip(`NDC: ${c.NDC.name} (asal Direct NDC)`).addTo(segLayer);
   }
   const geoFeats = resolveGeo(c.kabkota, c.tipe);
+  let destCenter = null;
   if(geoFeats && geoFeats.length){
     const destLayer = L.geoJSON({type:'FeatureCollection', features:geoFeats}, {
       style:{color:'#ef4444', weight:1.5, fillColor:'#ef4444', fillOpacity:.3}
     });
     destLayer.addTo(segLayer);
     const center = destLayer.getBounds().getCenter();
-    latlngs.push([center.lat, center.lng]);
+    destCenter = [center.lat, center.lng];
+    latlngs.push(destCenter);
   }
   if(latlngs.length>1){
     L.polyline(latlngs, {color:FLOW_COLOR, weight:2, opacity:.55, dashArray:'4,6'}).bindTooltip('Reguler rute').addTo(segLayer);
     // direct NDC -> tujuan, drawn as its own line when there are transit points in between
-    const ndcFac = FACILITY_INDEX[facilityKey('NDC', steps[0].d.name)];
+    const ndcFac = directFac;
     if(steps.length>1 && ndcFac && geoFeats && geoFeats.length){
-      const center = latlngs[latlngs.length-1];
+      const center = destCenter;
       L.polyline([[ndcFac.lat, ndcFac.lon], center], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'})
         .bindTooltip('Direct NDC → tujuan').addTo(segLayer);
     }
   }
   if(latlngs.length){
-    segMap.fitBounds(L.latLngBounds(latlngs), {padding:[50,50], maxZoom:9});
+    const bounds = L.latLngBounds(latlngs);
+    if(directFac) bounds.extend([directFac.lat, directFac.lon]);
+    segMap.fitBounds(bounds, {padding:[50,50], maxZoom:9});
   }
 }
 
@@ -1157,7 +1189,7 @@ function renderTable(){
       <td>${cell(c.HUB,'HUB')}</td>
       <td>${cell(c.SDC,'SDC')}</td>
       <td>${cell(c.RDC,'RDC')}</td>
-      <td>${cell(c.NDC,'NDC')}</td>
+      <td>${cell(c.NDC,'NDC')}${regulerDiffers(c)?`<div class="tier-via">reguler dari ${escapeHtml(c.NDC.reguler)}</div>`:''}</td>
     </tr>`).join('');
 
   document.querySelectorAll('#table-body tr').forEach(tr=>{
@@ -1174,7 +1206,7 @@ function exportTableCSV(){
   const rows = getVisibleTableRows();
   const header = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau','HUB','HUB Lead Time Darat','HUB Cost','HUB Feeder (via)','Lead Time Feeder ke HUB',
     'SDC','SDC Lead Time Darat','SDC Cost','RDC','RDC Lead Time Darat','RDC Cost',
-    'NDC','NDC Lead Time Darat','NDC Lead Time Laut','NDC Cost Darat','NDC Cost Laut','Deepest Coverage'];
+    'NDC','NDC Lead Time Darat','NDC Lead Time Laut','NDC Cost Darat','NDC Cost Laut','NDC Reguler','Deepest Coverage'];
   const lines = [header.map(csvCell).join(',')];
   for(const c of rows){
     lines.push([
@@ -1184,6 +1216,7 @@ function exportTableCSV(){
       c.SDC?c.SDC.name:'', c.SDC?c.SDC.sla:'', c.SDC?c.SDC.cost:'',
       c.RDC?c.RDC.name:'', c.RDC?c.RDC.sla:'', c.RDC?c.RDC.cost:'',
       c.NDC?c.NDC.name:'', c.NDC?c.NDC.slaLand:'', c.NDC?c.NDC.slaSea:'', c.NDC?c.NDC.costLand:'', c.NDC?c.NDC.costSea:'',
+      c.NDC&&c.NDC.reguler?c.NDC.reguler:'',
       deepestTier(c)
     ].map(csvCell).join(','));
   }

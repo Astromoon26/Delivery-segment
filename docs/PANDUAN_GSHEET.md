@@ -17,9 +17,10 @@ Dashboard **baca langsung** dari gsheet. Edit di sheet → klik **Refresh** di d
 | Tambah/ubah coverage kab/kota | `Hub/SDC/RDC/NDC <BU>` | Isi kolom nama fasilitas di baris kab/kota itu. NDC wajib terisi semua. |
 | Isi SLA last mile | `Hub/SDC/RDC <BU>` kolom `Lead Time land` | Hari, dari fasilitas ke kab/kota itu. |
 | Isi lead time/cost direct NDC → kab/kota | `NDC <BU>` kolom `Lead Time Land/Sea`, `Cost Land/Sea` | Dipakai untuk **perbandingan Direct vs Flow**. |
+| Direct NDC beda asal dari Reguler rute (mis. Palu: direct dari Sidoarjo, reguler dari Jakarta) | `NDC <BU>` | Kolom `NDC` = **asal Direct NDC** (+ lead time/cost direct). Tambah kolom baru **`NDC Reguler`** (header persis itu, boleh di paling kanan) → isi nama NDC asal Reguler rute **hanya di baris kab/kota yang beda**. Kosong = sama dengan kolom `NDC`. Contoh Palu: `NDC`=Sidoarjo, `NDC Reguler`=Jakarta. Jangan lupa leg lead time dari NDC Reguler ke RDC/SDC/Hub-nya (Jakarta → Tallo) dan antar fasilitas berikutnya (Tallo → Palu) ada di `Lead Time Facility to Facility`. Cuma berlaku kalau kab/kota itu punya HUB/SDC/RDC. |
 | Atur rantai resmi suatu hub | `Matriks Facility to Facility <BU>` | Kolom: `HUB`, `HUB` (ke-2 = hub feeder, mis. Pekanbaru → Dumai), `SDC`, `RDC`, `NDC`. Baris SDC-only: kolom HUB dikosongkan. |
 | Isi lead time antar fasilitas | `Lead Time Facility to Facility <BU>` | Satu baris per leg: `Remark, Facility (asal), Facility (tujuan), Lead Time Land, Lead Time Sea`. Remark: `NDC to Hub`, `NDC to SDC`, `NDC to RDC`, `RDC to Hub`, `SDC to Hub`, `Hub to Hub`. |
-| Cost antar fasilitas | `Cost Facility to Facility <BU>` | Belum dibaca dashboard. Kalau mulai diisi, kabarin → gua sambungin. |
+| Cost antar fasilitas | `Cost Facility to Facility <BU>` | Format sama dengan Lead Time (`Remark, Facility, Facility, Cost Land, Cost Sea`). Dibaca dashboard untuk breakdown cost per segmen. |
 
 ## Resep cepat
 **Tambah HUB baru** (mis. "Hub Kupang")
@@ -53,5 +54,6 @@ Untuk bug: sebut BU (HCI/AHI), tab dashboard, kab/kota, dan apa yang kelihatan v
 | Lead time antar fasilitas kosong | Nama fasilitas di tab Lead Time beda dengan Name of Facility / leg belum ada |
 | Marker fasilitas tidak muncul di AHI | BU di Name of Facility tidak mengandung AHI |
 | Kab/kota tidak berwarna di peta | Polygon sumber tidak ada (lihat catatan di sidebar) atau nama beda ejaan |
+| Reguler rute Palu masih mulai dari NDC yang sama dengan Direct | Kolom `NDC Reguler` belum ada / header salah ketik / nama NDC-nya beda dengan Name of Facility |
 | Rute kelewat RDC | Tab `RDC <BU>` belum memuat kab/kota itu padahal Matriks bilang lewat RDC |
 | Tulisan "API KEY REQUIRED" di peta | Provider tile butuh key — kabarin, jangan diutak-atik sendiri |
