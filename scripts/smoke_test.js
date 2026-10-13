@@ -300,7 +300,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const err5 = [];
   p5.on('pageerror', e => err5.push(e.message));
   await p5.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
-    '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2"\n"Kota Banda Aceh","Aceh","Tamora - Aceh","Jakarta - Tamora - Aceh"\n' }));
+    '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2"\n"Kota Banda Aceh","Aceh","Tamora - Aceh","Jakarta - Tamora - Aceh"\n"Kota Pekanbaru","Riau","Tamora",""\n"Kota Palu","Sulawesi Tengah","","Tamora"\n' }));
   await p5.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
   await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
@@ -314,6 +314,18 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const line5 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1$/.test(l._tooltip.getContent()) && l.getLatLngs().length >= 3) n = l.getLatLngs().length; }); return n; });
   check('Rute 1 dari RDC: garis peta mulai dari Tamora (>=3 titik) dan legend memuat Rute 1', line5 >= 3 && (await p5.$eval('.seg-legend', e => e.textContent)).includes('Rute 1'), 'titik=' + line5);
   await p5.screenshot({ path: path.join(OUT, '9_rute1_dari_rdc.png') });
+  // satu nama RDC saja = RDC -> Cust / Sto (priority booking dari RDC/SDC)
+  await p5.fill('#seg-search-input', 'Kota Pekanbaru'); await p5.waitForTimeout(400);
+  await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
+  const tx6 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  const bdw6 = await p5.$eval('#seg-compare .seg-bd-wrap', e => e.innerText.replace(/\s+/g, ' '));
+  const pts6 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1$/.test(l._tooltip.getContent())) n = l.getLatLngs().length; }); return n; });
+  check('satu nama (Rute 1 = "Tamora"): Tamora → Cust / Sto, last mile RDC, tanpa warning', /Tamora → Cust \/ Sto/.test(tx6) && /last mile RDC/.test(bdw6) && !/belum tersedia|bukan RDC|bukan HUB|tidak ditemukan|bukan NDC/.test(tx6), tx6.slice(0, 300));
+  check('satu nama: garis peta dari Tamora ke Cust / Sto (2 titik)', pts6 === 2, 'titik=' + pts6);
+  await p5.fill('#seg-search-input', 'Kota Palu'); await p5.waitForTimeout(400);
+  await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
+  const tx7 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('satu nama RDC yang bukan pelayan kab/kota -> peringatan, tidak error', /Rute 2: .*Tamora bukan .*yang melayani Kota Palu/.test(tx7), tx7.slice(-300));
   check('Rute 1 dari RDC: tanpa JS error', err5.length === 0, err5.join(' | '));
   await ctx5.close();
 

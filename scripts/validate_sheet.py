@@ -335,7 +335,7 @@ def check_bu(bu, cache, rep):
             while names and re.match(r'^(cust\s*/?\s*sto|customer|tujuan)$', names[-1], re.I):
                 names.pop()
             is_proj = bool(re.match(r'^project', col.strip(), re.I))
-            if len(names) < (1 if is_proj else 2):
+            if len(names) < 1:
                 continue
             nroute += 1
             ctx = f'{kab} {col}'
@@ -343,9 +343,9 @@ def check_bu(bu, cache, rep):
                 if norm_fac(n) not in fac_names:
                     bad_name.append(f'{ctx}: "{n}" tidak ada di Name of Facility')
             # langkah pertama = NDC; rute berantai (>=2 nama) boleh mulai dari RDC/SDC/HUB
-            if fac_type.get(norm_fac(names[0])) != 'NDC' and not (len(names) > 1 and fac_type.get(norm_fac(names[0])) in ('RDC', 'SDC', 'HUB')):
+            if fac_type.get(norm_fac(names[0])) != 'NDC' and fac_type.get(norm_fac(names[0])) not in ('RDC', 'SDC', 'HUB'):
                 bad_first.append(f'{ctx}: langkah pertama "{names[0]}" bukan NDC')
-            if len(names) > 1 and kk in served and norm_fac(names[-1]) not in served[kk].values():
+            if (len(names) > 1 or fac_type.get(norm_fac(names[0])) != 'NDC') and kk in served and norm_fac(names[-1]) not in served[kk].values():
                 bad_last.append(f'{ctx}: "{names[-1]}" bukan fasilitas yang melayani kab/kota ini ({", ".join(f"{t} {n}" for t, n in served[kk].items())}) -> last mile kosong')
             for x, y in zip(names, names[1:]):
                 v = legs.get(f'{norm_fac(x)}|{norm_fac(y)}')
