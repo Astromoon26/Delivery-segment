@@ -1341,7 +1341,9 @@ function renderSegmentRoute(c, opts){
   routes.splice(1, 0, ...alts);
 
   // Project rute: default = direct NDC -> Cust / Sto (data tab NDC); custom (tab Rute Numbered) = satu atau beberapa Project rute
-  const projDefs = altDefs.filter(a=>a.kind==='project');
+  // satu Project rute yang cuma menulis NDC project default (mis. "Jakarta") sama dengan default -> tidak dianggap custom
+  let projDefs = altDefs.filter(a=>a.kind==='project');
+  if(projDefs.length===1 && projDefs[0].names.length===1 && normFacName(projDefs[0].names[0])===normFacName(c.NDC.name)) projDefs = [];
   const projects = projDefs.length ? projDefs.map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = PROJECT_STYLES[i%PROJECT_STYLES.length], warn = rr.warn.slice();
     if(rr.steps.length<=1 && normFacName(rr.steps[0].d.name)!==normFacName(c.NDC.name))
