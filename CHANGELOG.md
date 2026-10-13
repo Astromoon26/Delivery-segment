@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (dini hari, 1)
+- **Fix: tab Cost HCI kehilangan 15 baris pertama.** gviz menebak jumlah baris header; di tab dengan kolom berisi tanda "-" di baris-baris awal (mis. `Cont-20 Darat`) beberapa baris data ikut terbaca sebagai header. `gvizUrl` sekarang menambah `&headers=1` (tepat 1 baris header) untuk semua tab.
+- Smoke test: tes "tanpa tab Armada" men-stub tab Armada (tab asli di gsheet sudah dibuat) + cek `headers=1` (85 total).
+
 ## 2026-10-13 (malam, 6)
 - **Cost per armada** (cost/trip + cost/cbm) di Delivery Segment, bagian baru **setelah Breakdown per segmen** (sebelum Selisih): tabel "Total per armada" (baris = rute, kolom = armada) + rincian per segmen per rute.
   - **Tab baru `Armada`** (opsional): `Armada`, `Kapasitas (cbm)`, `Utilisasi (%)` (default 85). Kapasitas efektif = kapasitas × utilisasi (CDDL 16 → 13,6 · Fuso 32 → 27,2 · Wingbox 42 → 35,7 · Cont-20 25 → 21,25 · Cont-40 50 → 42,5). Kapasitas diubah di gsheet, bukan di kode. Template: `docs/templates/Armada.csv`.

@@ -49,6 +49,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
   // --- load & errors
   check('tidak ada JS error / alert', pageErrors.length === 0 && dialogs.length === 0, [...pageErrors, ...dialogs].join(' | '));
+  check('gviz memaksa 1 baris header (headers=1) agar baris awal bertanda "-" tidak ikut terbaca sebagai header', /[?&]headers=1\b/.test(await page.evaluate(() => gvizUrl('Cost Facility to Facility HCI'))), '');
   check('tidak ada HTTP >= 400', badHttp.length === 0, badHttp.slice(0, 3).join(' | '));
 
   // --- basemap (CARTO sekarang minta API key -> watermark; jangan balik ke sana)
@@ -305,6 +306,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p5.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2"\n"Kota Banda Aceh","Aceh","Tamora - Aceh","Jakarta - Tamora - Aceh"\n"Kota Pekanbaru","Riau","Tamora",""\n"Kota Palu","Sulawesi Tengah","","Tamora"\n' }));
   await p5.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
+  // tab Armada di gsheet asli sudah ada -> simulasikan 'tidak ada' (gviz mengembalikan sheet pertama)
+  await p5.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Name of Facility","Type"\n"Jakarta","NDC"\n' }));
   await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
   await p5.click('.tab[data-tab="segment"]');
