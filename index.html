@@ -710,8 +710,8 @@ function buildRouteAlt(bu, text){
         const raw = (r[h]||'').trim();
         if(!raw) continue;
         const names = splitRouteChain(raw);
-        // Project rute boleh cuma NDC (= direct NDC -> Cust / Sto); Rute dan Opsional minimal NDC + 1 fasilitas
-        if(names.length < (pj ? 1 : 2)) continue;
+        // satu nama juga boleh: NDC = direct NDC -> Cust / Sto; RDC/SDC/HUB = fasilitas itu -> Cust / Sto (mis. priority booking dari RDC/SDC)
+        if(names.length < 1) continue;
         const kind = m ? 'rute' : o ? 'opsional' : 'project', n = m ? +m[1] : (+(o||pj)[1] || 1);
         const label = {rute:'Rute', opsional:'Opsional rute', project:'Project rute'}[kind];
         (map[altKey(kab)] = map[altKey(kab)] || []).push({kind, n, id: label+' '+n, raw, names});
@@ -747,6 +747,19 @@ function resolveAltRoute(c, alt){
     const last = i===names.length-1;
     if(i===0){
       const f = findFacility(n, ['NDC']);
+      // rute boleh dimulai dari RDC/SDC/HUB (mis. "Tamora - Aceh"): langkah pertama = fasilitas itu, bukan NDC
+      const mf = !f ? findFacility(n, ['RDC','SDC','HUB']) : null;
+      if(mf){
+        if(names.length>1){ steps.push({tier:mf.type, d:{name:mf.name}, start:true}); return; }
+        // satu nama saja (RDC/SDC/HUB -> Cust / Sto): last mile (lead time/cost) diambil dari c[tier] kalau fasilitas itu melayani kab/kota ini
+        const sv = ['RDC','SDC','HUB'].find(tp=>c[tp] && normFacName(c[tp].name)===normFacName(mf.name));
+        if(sv) steps.push({tier:sv, d:c[sv], start:true});
+        else {
+          warn.push(`${alt.id}: ${mf.name} bukan ${['HUB','SDC','RDC'].filter(tp=>c[tp]).map(tp=>tp+' '+c[tp].name).join(' / ')||'fasilitas'} yang melayani ${c.kabkota}, jadi lead time/cost ${mf.name} → Cust / Sto kosong.`);
+          steps.push({tier:mf.type, d:{name:mf.name}, start:true});
+        }
+        return;
+      }
       if(!f) warn.push(`${alt.id}: "${n}" bukan NDC di Name of Facility (langkah pertama harus NDC).`);
       steps.push({tier:'NDC', d:{...(c.NDC||{}), name: f ? f.name : n}, unresolved:!f});
       return;
@@ -1075,6 +1088,8 @@ function costText(raw){ const n = parseMoney(raw); return n!=null ? fmtMoney(n) 
 // One row per delivery segment (leg between two facilities, plus the last mile to the destination).
 // land/sea = lead time (hari), costLand/costSea = raw cost cells. Darat and Laut are alternatives per
 // segment: Darat = every segment by land; Laut = by sea where a sea option exists, otherwise land.
+// satu langkah NDC = direct NDC -> Cust / Sto (data tab NDC); satu langkah RDC/SDC/HUB = last mile fasilitas itu
+const isDirectSteps = steps => steps.length<=1 && steps[0].tier==='NDC';
 function chainSegs(steps){
   const bu = currentBU, segs = [];
   for(let i=0;i<steps.length-1;i++){
@@ -1101,11 +1116,11 @@ function buildSegments(c, routes, projects){
     costLand: nd.costLand||'', costSea: nd.costSea||''
   };
   // satu rute per NDC; kalau tidak ada HUB/SDC/RDC maka Rute 1 = Project rute
-  const routeSegs = routes.map(r=> r.steps.length>1 ? chainSegs(r.steps) : [directSeg]);
+  const routeSegs = routes.map(r=> !isDirectSteps(r.steps) ? chainSegs(r.steps) : [directSeg]);
   // Project rute: cuma NDC = direct NDC -> Cust / Sto (data dari tab NDC; hanya ada untuk NDC project di tab itu);
   // kalau ditulis rantai di tab Rute Numbered = rantai fasilitas seperti rute biasa
   const projSegs = projects.map(pr=>{
-    if(pr.steps.length>1) return chainSegs(pr.steps);
+    if(!isDirectSteps(pr.steps)) return chainSegs(pr.steps);
     const same = normFacName(pr.steps[0].d.name)===normFacName(nd.name);
     return [same ? directSeg : {label: pr.steps[0].d.name+' → Cust / Sto', kind:'project', land:null, sea:null, costLand:'', costSea:''}];
   });
@@ -1141,7 +1156,7 @@ function totalsOf(segs){
 function renderCompare(c, routes, projects){
   const el = document.getElementById('seg-compare');
   const {directSeg, routeSegs, projSegs} = buildSegments(c, routes, projects);
-  const same = routes.length===1 && routes[0].steps.length<=1 && projects.length===1 && !projects[0].custom;   // tidak ada HUB/SDC/RDC dan tidak ada rute lain: Rute 1 = Project rute
+  const same = routes.length===1 && isDirectSteps(routes[0].steps) && projects.length===1 && !projects[0].custom;   // tidak ada HUB/SDC/RDC dan tidak ada rute lain: Rute 1 = Project rute
   const P = projSegs.map(totalsOf);
   const D = P[0];                                  // pembanding Selisih = Project rute pertama
   const R = routeSegs.map(totalsOf);
@@ -1152,15 +1167,15 @@ function renderCompare(c, routes, projects){
 
   // kolom/blok, urutan: Rute 1.. -> Opsional rute -> Project rute (yang disembunyikan toggle tidak ikut)
   const cols = routes.map((r,i)=>({kind:r.kind, id:r.id, color:r.color, T:R[i], segs:routeSegs[i], partial:R[i].unknown.length>0,
-                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
+                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari '+r.steps[0].tier+' '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
                     .filter(x=>x.kind==='rute' || SEG_VIS.opsional);
   if(SEG_VIS.project)
     projects.forEach((pr,pi)=>{
-      const direct = pr.steps.length<=1;
+      const direct = isDirectSteps(pr.steps);
       cols.push({kind:'project', id:pr.id, color:pr.color, T:P[pi], segs:projSegs[pi], isBase:pi===0, direct,
                  partial: !direct && P[pi].unknown.length>0,
                  path: direct ? escapeHtml(pr.steps[0].d.name)+' → Cust / Sto' : pathOf(pr)+' → Cust / Sto', transit: pr.steps.length-1,
-                 title: pr.id + (direct ? '' : ' (mulai dari NDC '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
+                 title: pr.id + (direct ? '' : ' (mulai dari '+pr.steps[0].tier+' '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
     });
   const kindLabel = {rute:'Rute', opsional:'Opsional', project:'Project'};
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
@@ -1211,7 +1226,7 @@ function renderCompare(c, routes, projects){
   };
 
   const notes = [];
-  if(SEG_VIS.project && !same && projects[0].steps.length<=1 && D.land==null && D.sea==null && normFacName(projects[0].steps[0].d.name)===normFacName(c.NDC.name))
+  if(SEG_VIS.project && !same && isDirectSteps(projects[0].steps) && D.land==null && D.sea==null && normFacName(projects[0].steps[0].d.name)===normFacName(c.NDC.name))
     notes.push('Lead time Project rute belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
   routes.concat(projects).forEach(r=>{ (r.warn||[]).forEach(w=>notes.push(escapeHtml(w))); });
   cols.forEach(x=>{
@@ -1346,7 +1361,7 @@ function renderSegmentRoute(c, opts){
   if(projDefs.length===1 && projDefs[0].names.length===1 && normFacName(projDefs[0].names[0])===normFacName(c.NDC.name)) projDefs = [];
   const projects = projDefs.length ? projDefs.map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = PROJECT_STYLES[i%PROJECT_STYLES.length], warn = rr.warn.slice();
-    if(rr.steps.length<=1 && normFacName(rr.steps[0].d.name)!==normFacName(c.NDC.name))
+    if(isDirectSteps(rr.steps) && normFacName(rr.steps[0].d.name)!==normFacName(c.NDC.name))
       warn.push(`${a.id}: lead time/cost direct dari NDC ${rr.steps[0].d.name} belum tersedia (tab NDC ${currentBU} hanya menyimpan data NDC ${c.NDC.name}); tulis rantai fasilitasnya di tab Rute Numbered kalau perlu.`);
     return {id: projDefs.length>1 ? a.id : 'Project rute', kind:'project', custom:true, color:st.color, dash:st.dash, steps:rr.steps, warn};
   }) : [{id:'Project rute', kind:'project', custom:false, color:DIRECT_COLOR, dash:'8,6', steps:[{tier:'NDC', d:c.NDC}], warn:[]}];
@@ -1403,7 +1418,11 @@ function renderSegmentRoute(c, opts){
     if(destCenter) pts.push(destCenter);
     if(pts.length>1) L.polyline(pts, {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer);
     const o = pointOf(r.steps[0]);
-    if(o){ bounds.push(o); L.marker(o, {icon:ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)}).bindTooltip(`NDC: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
+    if(o){ bounds.push(o);
+      const st0 = r.steps[0];
+      const icon = st0.tier==='NDC' ? ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)
+        : L.divIcon({html:`<div style="width:${(TYPE_RADIUS[st0.tier]||6)*2}px;height:${(TYPE_RADIUS[st0.tier]||6)*2}px;border-radius:50%;background:${TYPE_COLOR[st0.tier]};border:2px solid ${r.first?'rgba(255,255,255,.95)':r.color};box-shadow:0 0 0 3px ${r.color}55"></div>`, className:'', iconAnchor:[(TYPE_RADIUS[st0.tier]||6),(TYPE_RADIUS[st0.tier]||6)]});
+      L.marker(o, {icon}).bindTooltip(`${st0.tier}: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
   });
   // Project rute: direct NDC -> Cust / Sto, atau rantai kalau ditulis di tab Rute Numbered
   if(showProject) projects.forEach(pr=>{

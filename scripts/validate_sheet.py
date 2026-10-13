@@ -335,16 +335,17 @@ def check_bu(bu, cache, rep):
             while names and re.match(r'^(cust\s*/?\s*sto|customer|tujuan)$', names[-1], re.I):
                 names.pop()
             is_proj = bool(re.match(r'^project', col.strip(), re.I))
-            if len(names) < (1 if is_proj else 2):
+            if len(names) < 1:
                 continue
             nroute += 1
             ctx = f'{kab} {col}'
             for n in names:
                 if norm_fac(n) not in fac_names:
                     bad_name.append(f'{ctx}: "{n}" tidak ada di Name of Facility')
-            if fac_type.get(norm_fac(names[0])) != 'NDC':
+            # langkah pertama = NDC; rute berantai (>=2 nama) boleh mulai dari RDC/SDC/HUB
+            if fac_type.get(norm_fac(names[0])) != 'NDC' and fac_type.get(norm_fac(names[0])) not in ('RDC', 'SDC', 'HUB'):
                 bad_first.append(f'{ctx}: langkah pertama "{names[0]}" bukan NDC')
-            if len(names) > 1 and kk in served and norm_fac(names[-1]) not in served[kk].values():
+            if (len(names) > 1 or fac_type.get(norm_fac(names[0])) != 'NDC') and kk in served and norm_fac(names[-1]) not in served[kk].values():
                 bad_last.append(f'{ctx}: "{names[-1]}" bukan fasilitas yang melayani kab/kota ini ({", ".join(f"{t} {n}" for t, n in served[kk].items())}) -> last mile kosong')
             for x, y in zip(names, names[1:]):
                 v = legs.get(f'{norm_fac(x)}|{norm_fac(y)}')
@@ -352,7 +353,7 @@ def check_bu(bu, cache, rep):
                     miss.append(f'{x} -> {y}  (untuk {ctx})')
     if bad_kab: rep.add('ERROR', P + 'Rute Numbered: kab/kota tidak dikenal', bad_kab)
     if bad_name: rep.add('ERROR', P + 'Rute Numbered: nama fasilitas tidak ada di "Name of Facility"', bad_name)
-    if bad_first: rep.add('ERROR', P + 'Rute Numbered: langkah pertama harus NDC', bad_first)
+    if bad_first: rep.add('ERROR', P + 'Rute Numbered: langkah pertama harus NDC (atau RDC/SDC/HUB untuk rute berantai)', bad_first)
     if bad_last: rep.add('WARN', P + 'Rute Numbered: langkah terakhir bukan fasilitas yang melayani kab/kota', bad_last)
     miss = sorted(set(miss))
     rep.add('WARN' if miss else 'OK', P + f'Rute Numbered: {len(miss)} leg belum punya lead time (isi di tab Lead Time Facility to Facility {bu})' if miss else P + f'Rute Numbered: {nroute} rute, semua leg punya lead time', miss)

@@ -2,6 +2,14 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (malam, 4)
+- **Satu nama di sel rute** sekarang valid untuk Rute / Opsional rute / Project rute (sebelumnya Rute & Opsional minimal 2 nama, satu nama diabaikan). NDC saja = direct NDC → Cust / Sto (seperti Project rute default); **RDC/SDC/HUB saja = fasilitas itu → Cust / Sto** (buat priority booking dari RDC/SDC), mis. Rute 1 = `Tamora`. Lead time/cost = last mile fasilitas itu dari tab coverage-nya, hanya kalau fasilitas itu memang yang melayani kab/kota tsb; kalau bukan → peringatan + lead time kosong. Peta: garis fasilitas → Cust / Sto. Helper `isDirectSteps` (satu langkah NDC = direct).
+- `validate_sheet.py` ikut. Smoke test +3 (78 total).
+
+## 2026-10-13 (malam, 3)
+- **Rute boleh dimulai dari RDC/SDC/HUB** (mis. Rute 1 `Tamora - Aceh`, tanpa NDC di depan). Sebelumnya langkah pertama dipaksa NDC → fasilitas awal tidak punya titik di peta, garis Rute 1 cuma menyisakan potongan terakhir, judul "mulai dari NDC Tamora", dan muncul peringatan "bukan NDC". Sekarang langkah pertama = fasilitas itu (tier asli), ada marker + garis dari titik itu, judul "mulai dari RDC Tamora", segmen "RDC → HUB". Berlaku untuk Rute/Opsional/Project yang berantai (≥2 nama); satu nama non-NDC tetap diperingatkan.
+- `validate_sheet.py`: langkah pertama boleh RDC/SDC/HUB kalau rute berantai. Smoke test +4 (75 total).
+
 ## 2026-10-13 (malam, 2)
 - **Semua kelompok rute bisa ditulis di tab `Rute Numbered <BU>`**: kolom `Rute 1`, `Rute 2`, … · `Opsional rute 1`, `Opsional rute 2`, … · `Project rute 1`, `Project rute 2`, … (satu kolom `Opsional rute` / `Project rute` tanpa angka juga boleh). Format sel sama (`Jakarta - Pekanbaru - Dumai`).
   - **Rute 1** ditulis → menggantikan rantai Rute 1 dari coverage (dan Opsional rute otomatis dihitung dari NDC selain asal Rute 1 itu).
