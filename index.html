@@ -79,6 +79,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp .val{font-family:'DM Mono',monospace}
 .seg-cmp .na{color:var(--muted);opacity:.6}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
+.seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:10px;opacity:.8}
 .seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
 .seg-left{width:var(--seg-w,clamp(460px,38vw,640px));min-width:340px;max-width:75%;flex:none;background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
 .seg-left .sidebar-top{position:sticky;top:0;z-index:30;background:var(--surface)}
@@ -328,7 +329,7 @@ const TOPO_FILES = ["aceh-simplified-topo.json","bali-simplified-topo.json","ban
 const TYPE_COLOR = {NDC:'#f59e0b',RDC:'#3b82f6',SDC:'#a78bfa',HUB:'#34d399'};
 const TYPE_RADIUS = {NDC:11,RDC:9,SDC:7,HUB:5};
 const TIER_ORDER = ['HUB','SDC','RDC','NDC'];
-// "Other rute" (rute ke-3 di Delivery Segment): rantai fasilitas yang sama dengan Reguler rute, tapi mulai dari NDC lain.
+// Opsional rute (di Delivery Segment): rantai fasilitas yang sama dengan Rute 1, tapi mulai dari NDC lain.
 // Hanya untuk kab/kota di pulau-pulau ini (cocok dengan kolom Pulau/Kepulauan di sheet, huruf kecil, "contains").
 const OTHER_RUTE_PULAU = ['kalimantan','sulawesi'];
 
@@ -506,9 +507,9 @@ function buildCoverage(bu, tier, rows){
           slaSea: pickField(r,'Lead Time Sea','Lead Time sea','SLA Sea').trim(),
           costLand: pickField(r,'Cost Land','Cost').trim(),
           costSea: pickField(r,'Cost Sea').trim(),
-          // optional: NDC asal rantai Reguler rute, kalau beda dari NDC direct (kolom "NDC") — mis. Palu: direct Sidoarjo, reguler Jakarta
+          // optional: NDC asal Rute 1, kalau beda dari NDC project (kolom "NDC") — mis. Palu: project Sidoarjo, Rute 1 dari Jakarta
           reguler: pickField(r,'NDC Reguler','Reguler NDC','NDC Rute Reguler','NDC Reguler Rute').trim(),
-          // optional: NDC asal "Other rute" (default otomatis: NDC lain selain asal Reguler rute)
+          // optional: override NDC asal Opsional rute (default otomatis: semua NDC lain selain asal Rute 1)
           other: pickField(r,'NDC Other','Other NDC','NDC Other Rute','NDC Rute Other').trim()
         };
       } else {
@@ -823,7 +824,7 @@ function openDetail(c){
       rows += `
       <div class="chain-row">
         <div class="chain-badge" style="background:${TYPE_COLOR.NDC}22;color:${TYPE_COLOR.NDC}">NDC</div>
-        <div class="chain-name">${escapeHtml(d.reguler)} <span style="color:var(--muted);font-size:11px">(asal Reguler rute; ${escapeHtml(d.name)} = Direct NDC)</span></div>
+        <div class="chain-name">${escapeHtml(d.reguler)} <span style="color:var(--muted);font-size:11px">(asal Rute 1; ${escapeHtml(d.name)} = Project rute)</span></div>
         <div class="chain-meta"></div>
       </div>`;
     }
@@ -984,16 +985,16 @@ function chainSegs(steps){
   });
   return segs;
 }
-function buildSegments(c, steps, otherSteps){
+function buildSegments(c, routes){
   const nd = c.NDC;
   const directSeg = {
-    label: nd.name+' → Cust / Sto', kind: 'direct',
-    land: nd ? numOrNull(nd.slaLand) : null, sea: nd ? numOrNull(nd.slaSea) : null,
-    costLand: nd ? (nd.costLand||'') : '', costSea: nd ? (nd.costSea||'') : ''
+    label: nd.name+' → Cust / Sto', kind: 'project',
+    land: numOrNull(nd.slaLand), sea: numOrNull(nd.slaSea),
+    costLand: nd.costLand||'', costSea: nd.costSea||''
   };
-  const regSegs = steps.length>1 ? chainSegs(steps) : [directSeg];   // no facilities in between: reguler = direct
-  const othSegs = (otherSteps && otherSteps.length>1) ? chainSegs(otherSteps) : null;
-  return {directSeg, regSegs, othSegs};
+  // satu rute per NDC; kalau tidak ada HUB/SDC/RDC maka Rute 1 = Project rute
+  const routeSegs = routes.map(r=> r.steps.length>1 ? chainSegs(r.steps) : [directSeg]);
+  return {directSeg, routeSegs};
 }
 
 function totalsOf(segs){
@@ -1022,31 +1023,29 @@ function totalsOf(segs){
   };
 }
 
-function renderCompare(c, steps, otherSteps){
+function renderCompare(c, routes){
   const el = document.getElementById('seg-compare');
-  const {directSeg, regSegs, othSegs} = buildSegments(c, steps, otherSteps);
-  const same = steps.length<=1;
-  const hasO = !!othSegs;
-  const D = totalsOf([directSeg]), R = totalsOf(regSegs), O = hasO ? totalsOf(othSegs) : null;
+  const {directSeg, routeSegs} = buildSegments(c, routes);
+  const same = routes[0].steps.length<=1;          // tidak ada HUB/SDC/RDC: Rute 1 = Project rute
+  const D = totalsOf([directSeg]);
+  const R = routeSegs.map(totalsOf);
+  const part = R.map(t=>t.unknown.length>0);
   const na = '<span class="na">—</span>';
   const todo = '<span class="na">belum diisi</span>';
-  const names = steps.map(s=>escapeHtml(s.d.name)).join(' → ');
-  const othNames = hasO ? otherSteps.map(s=>escapeHtml(s.d.name)).join(' → ') : '';
+  const pathOf = r => r.steps.map(s=>escapeHtml(s.d.name)).join(' → ');
 
   const ltCell = (v, partial) => v==null ? na : `<span class="val">${partial?'≥':''}${fmtD(v)}${partial?'*':''}</span>`;
   const costCell = (v, partial, emptyHtml) => v==null ? emptyHtml : `<span class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</span>`;
-  const rPartialLT = R.unknown.length>0;
-  const oPartialLT = hasO && O.unknown.length>0;
-  const oc = html => hasO ? `<td>${html}</td>` : '';   // extra "Other rute" column
+  const perRoute = fn => R.map((t,i)=>`<td>${fn(t,i)}</td>`).join('');
 
-  // Selisih = rute pembanding − direct, only for numbers both sides actually have
-  const diff = (reg, dir, regPartial, dirPartial, isMoney, who) => {
-    if(reg==null || dir==null || regPartial || dirPartial) return null;
-    const d = reg - dir;
+  // Selisih = rute − Project rute, only for numbers both sides actually have
+  const diff = (v, dir, partial, isMoney) => {
+    if(v==null || dir==null || partial) return null;
+    const d = v - dir;
     if(d===0) return 'sama';
     const txt = isMoney ? fmtMoney(Math.abs(d)) : fmtD(Math.abs(d));
     const less = isMoney ? 'lebih murah' : 'lebih cepat', more = isMoney ? 'lebih mahal' : 'lebih lama';
-    return d<0 ? `<span class="good">${who} ${less} ${txt}</span>` : `<span class="bad">${who} ${more} ${txt}</span>`;
+    return d<0 ? `<span class="good">${less} ${txt}</span>` : `<span class="bad">${more} ${txt}</span>`;
   };
   const diffParts = (lt, cost) => {
     const parts = [];
@@ -1055,11 +1054,8 @@ function renderCompare(c, steps, otherSteps){
     return parts.length ? parts.join('<br>') : na;
   };
   const diffRow = (label, kind) => {
-    const lt = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
-    const reg = diffParts(diff(R[lt[0]],D[lt[0]],rPartialLT,false,false,'reguler'), diff(R[lt[1]],D[lt[1]],R[lt[2]],false,true,'reguler'));
-    if(!hasO) return `<tr><td>${label}</td><td colspan="2" class="val">${reg}</td></tr>`;
-    const oth = diffParts(diff(O[lt[0]],D[lt[0]],oPartialLT,false,false,'other'), diff(O[lt[1]],D[lt[1]],O[lt[2]],false,true,'other'));
-    return `<tr><td>${label}</td><td class="val">${na}</td><td class="val">${reg}</td><td class="val">${oth}</td></tr>`;
+    const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
+    return `<tr><td>${label}</td><td class="val">${na}</td>${perRoute((t,i)=>`<span class="val">${diffParts(diff(t[f[0]],D[f[0]],part[i],false), diff(t[f[1]],D[f[1]],t[f[2]],true))}</span>`)}</tr>`;
   };
 
   // --- breakdown tables
@@ -1083,116 +1079,103 @@ function renderCompare(c, steps, otherSteps){
   };
 
   const notes = [];
-  const pre = hasO ? 'Reguler rute: ' : '';
   if(!same && D.land==null && D.sea==null)
-    notes.push('Lead time direct belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
-  if(rPartialLT)
-    notes.push('* '+pre+'belum lengkap, belum ada lead time: '+R.unknown.map(escapeHtml).join('; ')+'.');
-  if(oPartialLT)
-    notes.push('* Other rute belum lengkap, belum ada lead time: '+O.unknown.map(escapeHtml).join('; ')+'.');
-  if(R.landBlocked || (hasO && O.landBlocked))
-    notes.push('Ada segmen yang cuma punya jalur laut, jadi total Darat tidak tersedia'+(hasO?' ('+[R.landBlocked?'Reguler rute':'', O&&O.landBlocked?'Other rute':''].filter(Boolean).join(' & ')+')':'')+'.');
-  const missingCost = regSegs.some(s=>!s.costLand && !s.costSea) || (hasO && othSegs.some(s=>!s.costLand && !s.costSea));
-  if(missingCost)
-    notes.push('Cost belum lengkap: isi tab "Cost Facility to Facility '+currentBU+'" (antar fasilitas) dan kolom Cost di tab Hub/SDC/RDC/NDC (last mile / direct).');
+    notes.push('Lead time Project rute belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
+  routes.forEach((r,i)=>{
+    if(part[i]) notes.push('* '+r.id+' belum lengkap, belum ada lead time: '+R[i].unknown.map(escapeHtml).join('; ')+'.');
+  });
+  const blocked = routes.filter((r,i)=>R[i].landBlocked).map(r=>r.id);
+  if(blocked.length)
+    notes.push('Ada segmen yang cuma punya jalur laut, jadi total Darat tidak tersedia ('+blocked.join(' & ')+').');
+  if(routeSegs.some(segs=>segs.some(s=>!s.costLand && !s.costSea)))
+    notes.push('Cost belum lengkap: isi tab "Cost Facility to Facility '+currentBU+'" (antar fasilitas) dan kolom Cost di tab Hub/SDC/RDC/NDC (last mile / project rute).');
 
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
-      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(c.NDC.name)} → Cust / Sto.</div>
-      <div class="seg-bd-wrap">${bdTable('Direct NDC = Reguler rute', DIRECT_COLOR, [directSeg], D, false, false)}</div>
+      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi Rute 1 = Project rute (NDC ${escapeHtml(c.NDC.name)} → Cust / Sto).</div>
+      <div class="seg-bd-wrap">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
   }
   el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
     <table>
-      <thead><tr><th></th>
-        <th>Direct NDC</th>
-        <th>Reguler rute</th>
-        ${hasO?`<th>Other rute</th>`:''}</tr></thead>
+      <thead><tr><th></th><th>Project rute</th>${routes.map(r=>`<th>${r.id}</th>`).join('')}</tr></thead>
       <tbody>
-        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Cust / Sto</td><td>${names} → Cust / Sto</td>${oc(othNames+' → Cust / Sto')}</tr>
-        <tr><td>Titik transit</td><td><span class="val">0</span></td><td><span class="val">${steps.length-1}</span></td>${oc(`<span class="val">${hasO?otherSteps.length-1:0}</span>`)}</tr>
-        <tr><td>Lead time Darat</td><td>${D.land==null?todo:ltCell(D.land,false)}</td><td>${ltCell(R.land, rPartialLT)}</td>${oc(hasO?ltCell(O.land,oPartialLT):'')}</tr>
-        <tr><td>Lead time Laut</td><td>${D.sea==null?todo:ltCell(D.sea,false)}</td><td>${ltCell(R.sea, rPartialLT)}</td>${oc(hasO?ltCell(O.sea,oPartialLT):'')}</tr>
-        <tr><td>Cost Darat</td><td>${costCell(D.costLand,false,todo)}</td><td>${costCell(R.costLand,R.costLandPartial,todo)}</td>${oc(hasO?costCell(O.costLand,O.costLandPartial,todo):'')}</tr>
-        <tr><td>Cost Laut</td><td>${costCell(D.costSea,false,todo)}</td><td>${costCell(R.costSea,R.costSeaPartial,todo)}</td>${oc(hasO?costCell(O.costSea,O.costSeaPartial,todo):'')}</tr>
+        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Cust / Sto</td>${routes.map(r=>`<td>${pathOf(r)} → Cust / Sto</td>`).join('')}</tr>
+        <tr><td>Titik transit</td><td><span class="val">0</span></td>${routes.map(r=>`<td><span class="val">${r.steps.length-1}</span></td>`).join('')}</tr>
+        <tr><td>Lead time Darat</td><td>${D.land==null?todo:ltCell(D.land,false)}</td>${perRoute((t,i)=>ltCell(t.land,part[i]))}</tr>
+        <tr><td>Lead time Laut</td><td>${D.sea==null?todo:ltCell(D.sea,false)}</td>${perRoute((t,i)=>ltCell(t.sea,part[i]))}</tr>
+        <tr><td>Cost Darat</td><td>${costCell(D.costLand,false,todo)}</td>${perRoute(t=>costCell(t.costLand,t.costLandPartial,todo))}</tr>
+        <tr><td>Cost Laut</td><td>${costCell(D.costSea,false,todo)}</td>${perRoute(t=>costCell(t.costSea,t.costSeaPartial,todo))}</tr>
         ${diffRow('Selisih Darat','land')}
         ${diffRow('Selisih Laut','sea')}
       </tbody></table>
+    <div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
-      ${bdTable('Direct NDC', DIRECT_COLOR, [directSeg], D, false, false)}
-      ${bdTable('Reguler rute', FLOW_COLOR, regSegs, R, true, rPartialLT)}
-      ${hasO?bdTable('Other rute (mulai dari NDC '+escapeHtml(otherSteps[0].d.name)+')', OTHER_COLOR, othSegs, O, true, oPartialLT):''}
+      ${bdTable('Project rute', DIRECT_COLOR, [directSeg], D, false, false)}
+      ${routes.map((r,i)=>bdTable(r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', r.color, routeSegs[i], R[i], true, part[i])).join('')}
     </div>
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 }
 
-// true when this kab/kota has a separate origin NDC for the Reguler rute
+// true when this kab/kota has a separate origin NDC for Rute 1 (kolom "NDC Reguler")
 function regulerDiffers(c){
   return !!(c.NDC && c.NDC.reguler && normFacName(c.NDC.reguler) !== normFacName(c.NDC.name));
 }
 
-// NDC asal "Other rute": NDC lain (selain asal Reguler rute). Override per kab/kota lewat kolom "NDC Other" di tab NDC;
-// default otomatis = satu-satunya NDC lain di BU ini. '' = Other rute tidak berlaku.
-function otherNdcName(c){
-  if(!c.NDC || !OTHER_RUTE_PULAU.some(p=>(c.pulau||'').toLowerCase().includes(p))) return '';
-  const regName = regulerDiffers(c) ? c.NDC.reguler : c.NDC.name;
-  if(c.NDC.other && normFacName(c.NDC.other)!==normFacName(regName)) return c.NDC.other;
-  const cands = FACILITIES.filter(f=>(f.type||'').trim().toUpperCase()==='NDC' && (f.bu||'').includes(currentBU)
-    && normFacName(f.name)!==normFacName(regName));
-  return cands.length===1 ? cands[0].name : '';
+// Gaya garis/warna per rute (Rute 1, Opsional rute, ... berulang kalau lebih dari 4)
+const ROUTE_STYLES = [
+  {color:'#ffffff', dash:'4,6'}, {color:'#22d3ee', dash:'2,7'}, {color:'#f472b6', dash:'6,3,1,3'}, {color:'#a3e635', dash:'1,5'}
+];
+// NDC asal rute-rute selain Project rute, berurutan: Rute 1 = asal Reguler (kolom "NDC Reguler" atau NDC project),
+// Opsional rute = NDC lain yang ada di BU ini (khusus kab/kota di OTHER_RUTE_PULAU; override satu NDC lewat kolom "NDC Other").
+function routeNdcNames(c, hasMid){
+  const first = (hasMid && regulerDiffers(c)) ? c.NDC.reguler : c.NDC.name;
+  const names = [first];
+  if(!hasMid || !OTHER_RUTE_PULAU.some(p=>(c.pulau||'').toLowerCase().includes(p))) return names;
+  const taken = new Set([normFacName(first)]);
+  const add = n => { const k = normFacName(n); if(n && !taken.has(k)){ taken.add(k); names.push(n); } };
+  if(c.NDC.other) add(c.NDC.other);
+  else FACILITIES.filter(f=>(f.type||'').trim().toUpperCase()==='NDC' && (f.bu||'').includes(currentBU)).forEach(f=>add(f.name));
+  return names;
 }
 
 function renderSegmentRoute(c){
   document.getElementById('seg-empty').style.display = 'none';
   document.getElementById('seg-route').style.display = 'block';
 
-  const steps = [];
   const hasMid = !!(c.RDC || c.SDC || c.HUB);
-  for(const t of ORIGIN_TO_DEST_ORDER){
+  const mid = [];
+  for(const t of ['RDC','SDC','HUB']){
     if(!c[t]) continue;
     // hub-to-hub: the feeder hub sits right before the hub that serves the kab/kota
-    if(t==='HUB' && c.HUB.via) steps.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
-    // Reguler rute may start from a different NDC than Direct (kolom "NDC Reguler" di tab NDC)
-    if(t==='NDC' && hasMid && regulerDiffers(c)) steps.push({tier:'NDC', d:{...c.NDC, name:c.NDC.reguler}});
-    else steps.push({tier:t, d:c[t]});
+    if(t==='HUB' && c.HUB.via) mid.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
+    mid.push({tier:t, d:c[t]});
   }
+  // satu rute per NDC (coverage NDC): Rute 1, lalu Opsional rute
+  // Rute 1 = rute utama (asal NDC Reguler / NDC project); NDC lain = "Opsional rute" (Opsional rute 1, 2, ... kalau lebih dari satu)
+  const ndcNames = routeNdcNames(c, hasMid);
+  const routes = ndcNames.map((n,i)=>({
+    id: i===0 ? 'Rute 1' : (ndcNames.length>2 ? 'Opsional rute '+i : 'Opsional rute'), first:i===0, ndc:n, color:ROUTE_STYLES[i%ROUTE_STYLES.length].color, dash:ROUTE_STYLES[i%ROUTE_STYLES.length].dash,
+    steps:[{tier:'NDC', d:{...c.NDC, name:n}}, ...mid]
+  }));
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
 
-  // Other rute: same chain as Reguler rute, starting from the other NDC (Kalimantan & Sulawesi only)
-  let otherSteps = null;
-  const otherName = hasMid ? otherNdcName(c) : '';
-  if(otherName) otherSteps = steps.map(s=>s.tier==='NDC' ? {tier:'NDC', d:{...c.NDC, name:otherName}} : s);
+  renderCompare(c, routes);
 
-  renderCompare(c, steps, otherSteps);
-
-  // mini map: markers for each facility in the chain + destination boundary + connecting line
+  // mini map: markers for every facility + destination boundary + one line per route
   segLayer.clearLayers();
-  const latlngs = [];
-  for(const s of steps){
-    const fac = FACILITY_INDEX[facilityKey(s.tier, s.d.name)];
-    if(!fac) continue;
-    latlngs.push([fac.lat, fac.lon]);
-    const r = TYPE_RADIUS[s.tier]||6;
-    const icon = L.divIcon({
-      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR[s.tier]};border:2px solid rgba(255,255,255,.85);box-shadow:0 0 0 3px ${TYPE_COLOR[s.tier]}33"></div>`,
-      className:'', iconAnchor:[r,r]
-    });
-    L.marker([fac.lat, fac.lon], {icon}).bindTooltip(`${s.tier}: ${s.d.name}${s.tier==='NDC'&&regulerDiffers(c)&&hasMid?' (asal Reguler rute)':''}`).addTo(segLayer);
-  }
-  // Direct NDC that differs from the Reguler origin gets its own marker (not part of the reguler polyline)
-  const directFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
-  if(hasMid && regulerDiffers(c) && directFac){
+  const ndcIcon = (border, glow, dashed) => {
     const r = TYPE_RADIUS.NDC;
-    const icon = L.divIcon({
-      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR.NDC};border:2px dashed ${DIRECT_COLOR};box-shadow:0 0 0 3px ${TYPE_COLOR.NDC}33"></div>`,
+    return L.divIcon({
+      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR.NDC};border:2px ${dashed?'dashed':'solid'} ${border};box-shadow:0 0 0 3px ${glow}"></div>`,
       className:'', iconAnchor:[r,r]
     });
-    L.marker([directFac.lat, directFac.lon], {icon}).bindTooltip(`NDC: ${c.NDC.name} (asal Direct NDC)`).addTo(segLayer);
-  }
+  };
+  const bounds = [];
   const geoFeats = resolveGeo(c.kabkota, c.tipe);
   let destCenter = null;
   if(geoFeats && geoFeats.length){
@@ -1202,47 +1185,41 @@ function renderSegmentRoute(c){
     destLayer.addTo(segLayer);
     const center = destLayer.getBounds().getCenter();
     destCenter = [center.lat, center.lng];
-    latlngs.push(destCenter);
+    bounds.push(destCenter);
   }
-  // Other rute: marker for its own NDC + a line through the same chain
-  let otherFac = null;
-  if(otherSteps){
-    otherFac = FACILITY_INDEX[facilityKey('NDC', otherName)];
-    if(otherFac){
-      const r = TYPE_RADIUS.NDC;
-      const icon = L.divIcon({
-        html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR.NDC};border:2px solid ${OTHER_COLOR};box-shadow:0 0 0 3px ${OTHER_COLOR}44"></div>`,
-        className:'', iconAnchor:[r,r]
-      });
-      L.marker([otherFac.lat, otherFac.lon], {icon}).bindTooltip(`NDC: ${otherName} (asal Other rute)`).addTo(segLayer);
-      const pts = [[otherFac.lat, otherFac.lon]];
-      for(const s of otherSteps.slice(1)){
-        const f = FACILITY_INDEX[facilityKey(s.tier, s.d.name)];
-        if(f) pts.push([f.lat, f.lon]);
-      }
-      if(destCenter) pts.push(destCenter);
-      if(pts.length>1) L.polyline(pts, {color:OTHER_COLOR, weight:2.5, opacity:.9, dashArray:'2,7'}).bindTooltip('Other rute').addTo(segLayer);
-    }
+  const pointOf = s => { const f = FACILITY_INDEX[facilityKey(s.tier, s.d.name)]; return f ? [f.lat, f.lon] : null; };
+
+  // facility markers (mid-chain is shared by all routes -> draw once)
+  routes[0].steps.slice(1).forEach(s=>{
+    const pt = pointOf(s); if(!pt) return;
+    bounds.push(pt);
+    const r = TYPE_RADIUS[s.tier]||6;
+    L.marker(pt, {icon:L.divIcon({
+      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${TYPE_COLOR[s.tier]};border:2px solid rgba(255,255,255,.85);box-shadow:0 0 0 3px ${TYPE_COLOR[s.tier]}33"></div>`,
+      className:'', iconAnchor:[r,r]
+    })}).bindTooltip(`${s.tier}: ${s.d.name}`).addTo(segLayer);
+  });
+  // route lines + their NDC markers
+  routes.forEach(r=>{
+    const pts = r.steps.map(pointOf).filter(Boolean);
+    if(destCenter) pts.push(destCenter);
+    if(pts.length>1) L.polyline(pts, {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer);
+    const o = pointOf(r.steps[0]);
+    if(o){ bounds.push(o); L.marker(o, {icon:ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)}).bindTooltip(`NDC: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
+  });
+  // Project rute: NDC -> Cust / Sto langsung, digambar kalau ada titik transit di rute lain
+  const projFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
+  if(projFac){
+    bounds.push([projFac.lat, projFac.lon]);
+    if(hasMid && destCenter)
+      L.polyline([[projFac.lat, projFac.lon], destCenter], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'}).bindTooltip('Project rute → Cust / Sto').addTo(segLayer);
+    if(hasMid && !routes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
+      L.marker([projFac.lat, projFac.lon], {icon:ndcIcon(DIRECT_COLOR, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${c.NDC.name} (asal Project rute)`).addTo(segLayer);
   }
-  if(latlngs.length>1){
-    L.polyline(latlngs, {color:FLOW_COLOR, weight:2, opacity:.55, dashArray:'4,6'}).bindTooltip('Reguler rute').addTo(segLayer);
-    // direct NDC -> tujuan, drawn as its own line when there are transit points in between
-    const ndcFac = directFac;
-    if(steps.length>1 && ndcFac && geoFeats && geoFeats.length){
-      const center = destCenter;
-      L.polyline([[ndcFac.lat, ndcFac.lon], center], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'})
-        .bindTooltip('Direct NDC → Cust / Sto').addTo(segLayer);
-    }
-  }
-  setSegLegend(steps.length>1
-    ? [{label:'Direct NDC', color:DIRECT_COLOR, dash:'8,6'}, {label:'Reguler rute', color:FLOW_COLOR, dash:'4,6'}].concat(otherFac ? [{label:'Other rute', color:OTHER_COLOR, dash:'2,7'}] : [])
-    : [{label:'Direct NDC = Reguler rute', color:FLOW_COLOR, dash:'4,6'}]);
-  if(latlngs.length){
-    const bounds = L.latLngBounds(latlngs);
-    if(directFac) bounds.extend([directFac.lat, directFac.lon]);
-    if(otherFac) bounds.extend([otherFac.lat, otherFac.lon]);
-    segMap.fitBounds(bounds, {padding:[50,50], maxZoom:9});
-  }
+  setSegLegend(hasMid
+    ? [{label:'Project rute', color:DIRECT_COLOR, dash:'8,6'}].concat(routes.map(r=>({label:r.id, color:r.color, dash:r.dash})))
+    : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
+  if(bounds.length) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
 }
 
 // ============================================================
@@ -1285,7 +1262,7 @@ function renderTable(){
       <td>${cell(c.HUB,'HUB')}</td>
       <td>${cell(c.SDC,'SDC')}</td>
       <td>${cell(c.RDC,'RDC')}</td>
-      <td>${cell(c.NDC,'NDC')}${regulerDiffers(c)?`<div class="tier-via">reguler dari ${escapeHtml(c.NDC.reguler)}</div>`:''}</td>
+      <td>${cell(c.NDC,'NDC')}${regulerDiffers(c)?`<div class="tier-via">Rute 1 dari ${escapeHtml(c.NDC.reguler)}</div>`:''}</td>
     </tr>`).join('');
 
   document.querySelectorAll('#table-body tr').forEach(tr=>{

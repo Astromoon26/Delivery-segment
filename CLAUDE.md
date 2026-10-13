@@ -14,27 +14,28 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 5. Peta per kabupaten/kota (choropleth), bukan per provinsi.
 6. Format lead time seragam: **"Darat Xh · Laut Yh"** (h = hari). Last mile pakai template yang sama.
 7. Hub-to-hub (mis. Pekanbaru → Dumai) adalah segmen resmi dan harus tampil di tabel, rute, dan export.
-8. Di tab Delivery Segment, rute lewat fasilitas disebut **"Reguler rute"** (bukan "Flow sekarang"); pembandingnya **"Direct NDC"**. Pakai istilah ini di UI dan dokumen.
+8. *(diganti arahan 13)* Istilah lama "Reguler rute" / "Direct NDC" / "Flow sekarang" tidak dipakai lagi di UI Delivery Segment.
 9. Tab Delivery Segment **tidak menampilkan daftar langkah rute lagi** (dihapus atas permintaan Apip). Rincian ada di *Perbandingan rute → Breakdown per segmen* (lead time Darat/Laut + cost per segmen).
-10. Direct NDC dan awal Reguler rute boleh beda NDC (kolom opsional `NDC Reguler` di tab NDC); jangan hardcode pengecualian per kab/kota di `index.html`.
-11. Tab Delivery Segment punya 3 jenis rute: **Direct NDC**, **Reguler rute**, dan **Other rute** (mulai dari NDC lain; khusus Kalimantan & Sulawesi). Pakai istilah ini.
+10. Project rute dan awal Rute 1 boleh beda NDC (kolom opsional `NDC Reguler` di tab NDC); jangan hardcode pengecualian per kab/kota di `index.html`.
+11. *(diganti arahan 13)* "Other rute" sekarang bernama **Opsional rute** (khusus Kalimantan & Sulawesi).
 12. Di tab Delivery Segment, titik akhir rute disebut **"Cust / Sto"** (bukan "Tujuan"). Legend garis rute ada di pojok kiri bawah peta (`setSegLegend`), bukan di tabel.
+13. Perbandingan rute di Delivery Segment: **Project rute** (= direct NDC → Cust / Sto, data dari tab NDC) + **Rute 1** + **Opsional rute**, satu rute per NDC yang meng-cover kab/kota, semuanya lewat rantai fasilitas yang sama. Rute 1 = asal `NDC Reguler` (atau NDC project kalau kolom itu kosong); **Opsional rute** = NDC lain di BU (hanya pulau di `OTHER_RUTE_PULAU` = Kalimantan & Sulawesi, hanya kalau ada HUB/SDC/RDC); kalau ada >1 NDC lain jadi "Opsional rute 1, 2, …". Pakai istilah ini di UI dan dokumen.
 
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
 |---|---|
-| Config | `GSHEET_ID`, `SHEETS`, `LT_SHEETS`, `TOPO_BASE/TOPO_FILES`, `TYPE_COLOR`, `TIER_ORDER`, `OTHER_RUTE_PULAU` |
+| Config | `GSHEET_ID`, `SHEETS`, `LT_SHEETS`, `TOPO_BASE/TOPO_FILES`, `TYPE_COLOR`, `TIER_ORDER`, `OTHER_RUTE_PULAU`, `ROUTE_STYLES` |
 | Baca sheet | `gvizUrl`, `fetchSheet`, `loadGoogleSheetData`, `parseCSV` (keyed) — **`parseF2FHci`, `parseLegSheet` (posisional, karena header dobel)** |
 | Nama & matching | `normName`, `cleanSpacedLetters`, `joinKey`, `resolveGeo`, **`normFacName` + `FAC_ALIAS`**, `legKey` |
 | Model data | `buildFacilities`, `resolveLatLon`, `buildCoverage` (`COVERAGE[bu][key][tier]`), `buildLeadTime`, `buildHubFeeder/applyHubFeeder` (`HUB.via`) |
 | Tampilan | `addBasemap/initMap`, `renderChoropleth`, `renderFacilityMarkers`, `renderTable`, `exportTableCSV`, `renderF2F`, `openDetail` |
-| Delivery Segment | `renderSegmentRoute` (peta mini), `buildSegments` (per segmen: lead time + cost), `totalsOf`, `renderCompare` (tabel perbandingan + breakdown per segmen), `buildCostLeg`, `parseMoney` |
+| Delivery Segment | `renderSegmentRoute` (peta mini), `routeNdcNames`, `buildSegments` (per segmen: lead time + cost), `totalsOf`, `renderCompare` (tabel perbandingan + breakdown per segmen), `buildCostLeg`, `parseMoney` |
 | Bootstrap | `loadAll` → `rerenderAll` |
 
 ## Skema gsheet (detail kolom: `docs/PANDUAN_GSHEET.md`)
 `Name of Facility` · `Hub|SDC|RDC|NDC` × `AHI|HCI` · `Matriks Facility to Facility AHI|HCI` · `Lead Time Facility to Facility AHI|HCI` · `Cost Facility to Facility AHI|HCI` (format sama dengan Lead Time: Remark, Facility, Facility, Cost Land, Cost Sea; dibaca ke `COST_LEG`).
-Tab `NDC <BU>` punya kolom **opsional** `NDC Reguler` (alias: `Reguler NDC`, `NDC Rute Reguler`): asal rantai Reguler rute kalau beda dari NDC direct (kolom `NDC` tetap = Direct NDC + nilai di Tabel Coverage). Dibaca ke `COVERAGE[bu][key].NDC.reguler`; `regulerDiffers(c)` menentukan; hanya berlaku bila kab/kota punya HUB/SDC/RDC.
-**Other rute** (rute ke-3, hanya pulau di `OTHER_RUTE_PULAU` = Kalimantan & Sulawesi, hanya kalau ada HUB/SDC/RDC): rantai yang sama dengan Reguler rute tapi mulai dari NDC lain. `otherNdcName(c)` = override kolom opsional `NDC Other` (di tab NDC) atau otomatis satu-satunya NDC lain di BU; `renderCompare(c, steps, otherSteps)` menambah kolom "Other rute" + breakdown; peta: garis cyan `OTHER_COLOR`.
+Tab `NDC <BU>`: kolom `NDC` = asal **Project rute** (+ nilai di Tabel Coverage + lead time/cost project). Kolom **opsional** `NDC Reguler` (alias: `Reguler NDC`, `NDC Rute Reguler`) = asal **Rute 1** kalau beda dari NDC project (nama kolom di sheet tidak diganti supaya data lama tetap jalan). Dibaca ke `COVERAGE[bu][key].NDC.reguler`; `regulerDiffers(c)` menentukan; hanya berlaku bila kab/kota punya HUB/SDC/RDC.
+**Opsional rute** (hanya pulau di `OTHER_RUTE_PULAU` = Kalimantan & Sulawesi, hanya kalau ada HUB/SDC/RDC): rantai yang sama dengan Rute 1 tapi mulai dari NDC lain (id rute: `Rute 1`, `Opsional rute` / `Opsional rute N`). `routeNdcNames(c, hasMid)` = [asal Rute 1, lalu semua NDC lain di BU, atau satu NDC dari override kolom opsional `NDC Other`]; `renderCompare(c, routes)` membuat kolom + breakdown per rute; peta: satu garis per rute (`ROUTE_STYLES`) + legend.
 Kolom wajib per tab coverage: `No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan, <Tier>, Lead Time land, Cost` (NDC: `Lead Time Land/Sea`, `Cost Land/Sea`). Header sering di-rename Apip → selalu baca lewat `pickField(...alias)`.
 
 ## Quirk yang sudah pernah bikin bug
