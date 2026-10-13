@@ -80,6 +80,17 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp .na{color:var(--muted);opacity:.6}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
 .seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:10px;opacity:.8}
+.seg-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 10px;border-bottom:1px solid var(--border)}
+.seg-toggles .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-right:2px}
+.seg-toggle{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border:1px solid var(--border2);border-radius:999px;font-size:11px;cursor:pointer;user-select:none;color:var(--muted);transition:all .15s}
+.seg-toggle input{position:absolute;opacity:0;pointer-events:none}
+.seg-toggle .dot{width:16px;height:0;border-top:2px dashed var(--c);opacity:.35}
+.seg-toggle.on{color:var(--text);border-color:var(--c);background:rgba(255,255,255,.04)}
+.seg-toggle.on .dot{opacity:1}
+.seg-toggle:focus-within{outline:2px solid #3b82f6;outline-offset:1px}
+.seg-cmp th.grp,.seg-cmp td.grp{border-left:1px solid var(--border2)}
+.seg-cmp th .gtag{display:block;font-size:8.5px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:1px}
+.seg-cmp th.c-top{box-shadow:inset 0 2px 0 var(--c)}
 .seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
 .seg-left{width:var(--seg-w,clamp(460px,38vw,640px));min-width:340px;max-width:75%;flex:none;background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
 .seg-left .sidebar-top{position:sticky;top:0;z-index:30;background:var(--surface)}
@@ -347,6 +358,9 @@ let currentBU = 'HCI';
 let visibleTypes = new Set(['NDC','RDC','SDC','HUB']);
 let map, facilityLayer, choroLayer;
 let segMap, segLayer, segLegendEl;
+// toggle tampil/sembunyi di Perbandingan rute (Rute 1 selalu tampil); diingat per-browser
+let SEG_VIS = {opsional:true, project:true};
+try{ const v = JSON.parse(localStorage.getItem('seg-route-vis')||'null'); if(v) SEG_VIS = {opsional:v.opsional!==false, project:v.project!==false}; }catch(e){}
 let FACILITY_INDEX = {};
 let currentSegKey = null;
 let unmatchedKabkota = [];
@@ -1029,16 +1043,26 @@ function renderCompare(c, routes){
   const same = routes[0].steps.length<=1;          // tidak ada HUB/SDC/RDC: Rute 1 = Project rute
   const D = totalsOf([directSeg]);
   const R = routeSegs.map(totalsOf);
-  const part = R.map(t=>t.unknown.length>0);
   const na = '<span class="na">—</span>';
   const todo = '<span class="na">belum diisi</span>';
   const pathOf = r => r.steps.map(s=>escapeHtml(s.d.name)).join(' → ');
+  const hasOpsional = routes.some(r=>r.kind==='opsional');
+
+  // kolom/blok, urutan: Rute 1.. -> Opsional rute -> Project rute (yang disembunyikan toggle tidak ikut)
+  const cols = routes.map((r,i)=>({kind:r.kind, id:r.id, color:r.color, T:R[i], segs:routeSegs[i], partial:R[i].unknown.length>0,
+                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
+                    .filter(x=>x.kind==='rute' || SEG_VIS.opsional);
+  if(SEG_VIS.project)
+    cols.push({kind:'project', id:'Project rute', color:DIRECT_COLOR, T:D, segs:[directSeg], partial:false,
+               path:escapeHtml(c.NDC.name)+' → Cust / Sto', transit:0, title:'Project rute', showTotal:false});
+  const kindLabel = {rute:'Rute', opsional:'Opsional', project:'Project'};
+  const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
 
   const ltCell = (v, partial) => v==null ? na : `<span class="val">${partial?'≥':''}${fmtD(v)}${partial?'*':''}</span>`;
   const costCell = (v, partial, emptyHtml) => v==null ? emptyHtml : `<span class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</span>`;
-  const perRoute = fn => R.map((t,i)=>`<td>${fn(t,i)}</td>`).join('');
+  const row = (label, fn) => `<tr><td>${label}</td>${cols.map((x,i)=>`<td class="${grp(x,i).trim()}">${fn(x)}</td>`).join('')}</tr>`;
 
-  // Selisih = rute − Project rute, only for numbers both sides actually have
+  // Selisih = rute − Project rute (hanya kalau Project rute ditampilkan), only for numbers both sides actually have
   const diff = (v, dir, partial, isMoney) => {
     if(v==null || dir==null || partial) return null;
     const d = v - dir;
@@ -1047,15 +1071,14 @@ function renderCompare(c, routes){
     const less = isMoney ? 'lebih murah' : 'lebih cepat', more = isMoney ? 'lebih mahal' : 'lebih lama';
     return d<0 ? `<span class="good">${less} ${txt}</span>` : `<span class="bad">${more} ${txt}</span>`;
   };
-  const diffParts = (lt, cost) => {
-    const parts = [];
-    if(lt) parts.push('LT: '+lt);
-    if(cost) parts.push('Cost: '+cost);
-    return parts.length ? parts.join('<br>') : na;
-  };
-  const diffRow = (label, kind) => {
+  const diffCell = (x, kind) => {
+    if(x.kind==='project') return na;
     const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
-    return `<tr><td>${label}</td><td class="val">${na}</td>${perRoute((t,i)=>`<span class="val">${diffParts(diff(t[f[0]],D[f[0]],part[i],false), diff(t[f[1]],D[f[1]],t[f[2]],true))}</span>`)}</tr>`;
+    const parts = [];
+    const lt = diff(x.T[f[0]], D[f[0]], x.partial, false), cs = diff(x.T[f[1]], D[f[1]], x.T[f[2]], true);
+    if(lt) parts.push('LT: '+lt);
+    if(cs) parts.push('Cost: '+cs);
+    return `<span class="val">${parts.length?parts.join('<br>'):na}</span>`;
   };
 
   // --- breakdown tables
@@ -1079,15 +1102,15 @@ function renderCompare(c, routes){
   };
 
   const notes = [];
-  if(!same && D.land==null && D.sea==null)
+  if(SEG_VIS.project && !same && D.land==null && D.sea==null)
     notes.push('Lead time Project rute belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
-  routes.forEach((r,i)=>{
-    if(part[i]) notes.push('* '+r.id+' belum lengkap, belum ada lead time: '+R[i].unknown.map(escapeHtml).join('; ')+'.');
+  cols.forEach(x=>{
+    if(x.kind!=='project' && x.partial) notes.push('* '+x.id+' belum lengkap, belum ada lead time: '+x.T.unknown.map(escapeHtml).join('; ')+'.');
   });
-  const blocked = routes.filter((r,i)=>R[i].landBlocked).map(r=>r.id);
+  const blocked = cols.filter(x=>x.kind!=='project' && x.T.landBlocked).map(x=>x.id);
   if(blocked.length)
     notes.push('Ada segmen yang cuma punya jalur laut, jadi total Darat tidak tersedia ('+blocked.join(' & ')+').');
-  if(routeSegs.some(segs=>segs.some(s=>!s.costLand && !s.costSea)))
+  if(cols.some(x=>x.segs.some(s=>!s.costLand && !s.costSea)))
     notes.push('Cost belum lengkap: isi tab "Cost Facility to Facility '+currentBU+'" (antar fasilitas) dan kolom Cost di tab Hub/SDC/RDC/NDC (last mile / project rute).');
 
   if(same){
@@ -1097,26 +1120,39 @@ function renderCompare(c, routes){
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
   }
+
+  const toggle = (key, label, color, on) => `<label class="seg-toggle${on?' on':''}" style="--c:${color}"><input type="checkbox" data-vis="${key}"${on?' checked':''}><span class="dot"></span>${label}</label>`;
   el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
+    <div class="seg-toggles"><span class="lbl">Tampilkan</span>
+      ${hasOpsional ? toggle('opsional','Opsional rute', routes.find(r=>r.kind==='opsional').color, SEG_VIS.opsional) : ''}
+      ${toggle('project','Project rute', DIRECT_COLOR, SEG_VIS.project)}
+    </div>
     <table>
-      <thead><tr><th></th><th>Project rute</th>${routes.map(r=>`<th>${r.id}</th>`).join('')}</tr></thead>
+      <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}"><span class="gtag">${kindLabel[x.kind]}</span>${x.id}</th>`).join('')}</tr></thead>
       <tbody>
-        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Cust / Sto</td>${routes.map(r=>`<td>${pathOf(r)} → Cust / Sto</td>`).join('')}</tr>
-        <tr><td>Titik transit</td><td><span class="val">0</span></td>${routes.map(r=>`<td><span class="val">${r.steps.length-1}</span></td>`).join('')}</tr>
-        <tr><td>Lead time Darat</td><td>${D.land==null?todo:ltCell(D.land,false)}</td>${perRoute((t,i)=>ltCell(t.land,part[i]))}</tr>
-        <tr><td>Lead time Laut</td><td>${D.sea==null?todo:ltCell(D.sea,false)}</td>${perRoute((t,i)=>ltCell(t.sea,part[i]))}</tr>
-        <tr><td>Cost Darat</td><td>${costCell(D.costLand,false,todo)}</td>${perRoute(t=>costCell(t.costLand,t.costLandPartial,todo))}</tr>
-        <tr><td>Cost Laut</td><td>${costCell(D.costSea,false,todo)}</td>${perRoute(t=>costCell(t.costSea,t.costSeaPartial,todo))}</tr>
-        ${diffRow('Selisih Darat','land')}
-        ${diffRow('Selisih Laut','sea')}
+        ${row('Rute', x=>x.path)}
+        ${row('Titik transit', x=>`<span class="val">${x.transit}</span>`)}
+        ${row('Lead time Darat', x=>x.kind==='project' ? (D.land==null?todo:ltCell(D.land,false)) : ltCell(x.T.land,x.partial))}
+        ${row('Lead time Laut', x=>x.kind==='project' ? (D.sea==null?todo:ltCell(D.sea,false)) : ltCell(x.T.sea,x.partial))}
+        ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
+        ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
+        ${SEG_VIS.project ? row('Selisih Darat', x=>diffCell(x,'land')) + row('Selisih Laut', x=>diffCell(x,'sea')) : ''}
       </tbody></table>
-    <div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>
+    ${SEG_VIS.project ? '<div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>' : '<div class="seg-cmp-note seg-cmp-hint">Project rute disembunyikan, jadi baris Selisih tidak ditampilkan.</div>'}
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
-      ${bdTable('Project rute', DIRECT_COLOR, [directSeg], D, false, false)}
-      ${routes.map((r,i)=>bdTable(r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', r.color, routeSegs[i], R[i], true, part[i])).join('')}
+      ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial)).join('')}
     </div>
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
+
+  // toggle: simpan pilihan, gambar ulang tabel + peta (tanpa menggeser posisi peta)
+  el.querySelectorAll('.seg-toggles input').forEach(inp=>{
+    inp.onchange = ()=>{
+      SEG_VIS[inp.dataset.vis] = inp.checked;
+      try{ localStorage.setItem('seg-route-vis', JSON.stringify(SEG_VIS)); }catch(e){}
+      if(currentSegKey && COVERAGE[currentBU][currentSegKey]) renderSegmentRoute(COVERAGE[currentBU][currentSegKey], {keepView:true});
+    };
+  });
 }
 
 // true when this kab/kota has a separate origin NDC for Rute 1 (kolom "NDC Reguler")
@@ -1141,7 +1177,8 @@ function routeNdcNames(c, hasMid){
   return names;
 }
 
-function renderSegmentRoute(c){
+function renderSegmentRoute(c, opts){
+  opts = opts || {};
   document.getElementById('seg-empty').style.display = 'none';
   document.getElementById('seg-route').style.display = 'block';
 
@@ -1153,11 +1190,12 @@ function renderSegmentRoute(c){
     if(t==='HUB' && c.HUB.via) mid.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
     mid.push({tier:t, d:c[t]});
   }
-  // satu rute per NDC (coverage NDC): Rute 1, lalu Opsional rute
-  // Rute 1 = rute utama (asal NDC Reguler / NDC project); NDC lain = "Opsional rute" (Opsional rute 1, 2, ... kalau lebih dari satu)
+  // satu rute per NDC (coverage NDC). Rute 1 = rute utama (asal NDC Reguler / NDC project);
+  // NDC lain = "Opsional rute" (Opsional rute 1, 2, ... kalau lebih dari satu)
   const ndcNames = routeNdcNames(c, hasMid);
   const routes = ndcNames.map((n,i)=>({
-    id: i===0 ? 'Rute 1' : (ndcNames.length>2 ? 'Opsional rute '+i : 'Opsional rute'), first:i===0, ndc:n, color:ROUTE_STYLES[i%ROUTE_STYLES.length].color, dash:ROUTE_STYLES[i%ROUTE_STYLES.length].dash,
+    id: i===0 ? 'Rute 1' : (ndcNames.length>2 ? 'Opsional rute '+i : 'Opsional rute'), kind: i===0 ? 'rute' : 'opsional', first:i===0, ndc:n,
+    color:ROUTE_STYLES[i%ROUTE_STYLES.length].color, dash:ROUTE_STYLES[i%ROUTE_STYLES.length].dash,
     steps:[{tier:'NDC', d:{...c.NDC, name:n}}, ...mid]
   }));
 
@@ -1165,6 +1203,10 @@ function renderSegmentRoute(c){
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
 
   renderCompare(c, routes);
+
+  // yang ikut digambar = yang ditampilkan di perbandingan (toggle)
+  const showRoutes = routes.filter(r=>r.kind==='rute' || SEG_VIS.opsional);
+  const showProject = SEG_VIS.project || !hasMid;     // tanpa HUB/SDC/RDC, Project rute = Rute 1 -> tidak bisa disembunyikan
 
   // mini map: markers for every facility + destination boundary + one line per route
   segLayer.clearLayers();
@@ -1200,26 +1242,27 @@ function renderSegmentRoute(c){
     })}).bindTooltip(`${s.tier}: ${s.d.name}`).addTo(segLayer);
   });
   // route lines + their NDC markers
-  routes.forEach(r=>{
+  showRoutes.forEach(r=>{
     const pts = r.steps.map(pointOf).filter(Boolean);
     if(destCenter) pts.push(destCenter);
     if(pts.length>1) L.polyline(pts, {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer);
     const o = pointOf(r.steps[0]);
     if(o){ bounds.push(o); L.marker(o, {icon:ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)}).bindTooltip(`NDC: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
   });
-  // Project rute: NDC -> Cust / Sto langsung, digambar kalau ada titik transit di rute lain
+  // Project rute: NDC -> Cust / Sto langsung
   const projFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
-  if(projFac){
+  if(projFac && showProject){
     bounds.push([projFac.lat, projFac.lon]);
     if(hasMid && destCenter)
       L.polyline([[projFac.lat, projFac.lon], destCenter], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'}).bindTooltip('Project rute → Cust / Sto').addTo(segLayer);
-    if(hasMid && !routes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
+    if(hasMid && !showRoutes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
       L.marker([projFac.lat, projFac.lon], {icon:ndcIcon(DIRECT_COLOR, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${c.NDC.name} (asal Project rute)`).addTo(segLayer);
   }
+  // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute)
   setSegLegend(hasMid
-    ? [{label:'Project rute', color:DIRECT_COLOR, dash:'8,6'}].concat(routes.map(r=>({label:r.id, color:r.color, dash:r.dash})))
+    ? showRoutes.map(r=>({label:r.id, color:r.color, dash:r.dash})).concat(showProject ? [{label:'Project rute', color:DIRECT_COLOR, dash:'8,6'}] : [])
     : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
-  if(bounds.length) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
+  if(bounds.length && !opts.keepView) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
 }
 
 // ============================================================

@@ -57,5 +57,6 @@ Untuk bug: sebut BU (HCI/AHI), tab dashboard, kab/kota, dan apa yang kelihatan v
 | Kab/kota tidak berwarna di peta | Polygon sumber tidak ada (lihat catatan di sidebar) atau nama beda ejaan |
 | Opsional rute tidak muncul | Pulau bukan Kalimantan/Sulawesi, kab/kota tidak punya HUB/SDC/RDC, atau di Name of Facility cuma ada 1 NDC untuk BU itu |
 | Rute 1 Palu masih mulai dari NDC yang sama dengan Project rute | Kolom `NDC Reguler` belum ada / header salah ketik / nama NDC-nya beda dengan Name of Facility |
+| Kolom Opsional rute / Project rute hilang di Perbandingan rute | Dimatikan lewat toggle "Tampilkan" di atas tabel (pilihan diingat per browser) — klik lagi untuk menampilkan |
 | Rute kelewat RDC | Tab `RDC <BU>` belum memuat kab/kota itu padahal Matriks bilang lewat RDC |
 | Tulisan "API KEY REQUIRED" di peta | Provider tile butuh key — kabarin, jangan diutak-atik sendiri |
