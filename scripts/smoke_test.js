@@ -330,7 +330,34 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const tx7 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   check('satu nama RDC yang bukan pelayan kab/kota -> peringatan, tidak error', /Rute 2: .*Tamora bukan .*yang melayani Kota Palu/.test(tx7), tx7.slice(-300));
   check('Rute 1 dari RDC: tanpa JS error', err5.length === 0, err5.join(' | '));
+  check('tanpa tab Armada: bagian "Cost per armada" tidak muncul', !/Cost per armada/i.test(await p5.$eval('#seg-compare', e => e.innerText)));
   await ctx5.close();
+
+  // --- Cost per armada: tab Armada (kapasitas x utilisasi) + kolom armada di tab Cost Facility to Facility
+  const ctx6 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p6 = await ctx6.newPage();
+  const err6 = [];
+  p6.on('pageerror', e => err6.push(e.message));
+  await emptyRouteTabs(p6);
+  await p6.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Armada","Kapasitas (cbm)","Utilisasi (%)"\n"CDDL","16","85"\n"Fuso","32","85"\n"Wingbox","42","85"\n"Cont-20","25","85"\n"Cont-40","50","85"\n' }));
+  await p6.route(/sheet=Cost%20Facility%20to%20Facility%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Remark","Facility","Facility","Cost Land","Cost Sea","CDDL","Fuso","Cont-20 Laut","Kolom Bebas"\n' +
+    '"","Jakarta","Tamora","","","10.000.000","20.000.000","8.000.000","x"\n' +
+    '"","Tamora","Pekanbaru","","","2.000.000","","3.000.000","x"\n' }));
+  await p6.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p6.waitForTimeout(3500);
+  await p6.click('.tab[data-tab="segment"]');
+  await p6.fill('#seg-search-input', 'Kota Dumai'); await p6.waitForTimeout(400);
+  await p6.click('#seg-ac-list .autocomplete-item'); await p6.waitForTimeout(1500);
+  const tx8 = await p6.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  const ac = await p6.evaluate(() => armadaCols('HCI').map(c => c.label + (c.modeLabel ? ' ' + c.modeLabel : '') + ' ' + c.ar.eff));
+  check('armada: kolom dikenali dari header (CDDL, Fuso, Cont-20 Laut), kolom lain diabaikan, kapasitas efektif 85%', JSON.stringify(ac) === JSON.stringify(['CDDL 13.6', 'Fuso 27.2', 'Cont-20 Laut 21.25']), JSON.stringify(ac));
+  check('armada: bagian Cost per armada tampil dengan kapasitas efektif (13,6 / 27,2 / 21,25 cbm)', /Cost per armada/i.test(tx8) && /13,6 cbm/.test(tx8) && /27,2 cbm/.test(tx8) && /Laut · 21,25 cbm/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("cost per armada"), tx8.toLowerCase().indexOf("cost per armada") + 300));
+  check('armada: total CDDL = 12.000.000 (leg Pekanbaru → Dumai kosong -> partial ≥ …*) dan cost/cbm = 12.000.000 / 13,6', /≥Rp 12\.000\.000\*/.test(tx8) && /≥Rp 882\.353\/cbm\*/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("total per armada"), tx8.toLowerCase().indexOf("total per armada") + 400));
+  await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
+  check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
+  await ctx6.close();
 
   await browser.close();
   if (server) server.kill();
