@@ -190,10 +190,10 @@ def check_bu(bu, cache, rep):
                             bad_oth.add(ov)
                 if bad_oth:
                     rep.add('ERROR', P + 'tab NDC: "NDC Other" berisi nama tak ada di "Name of Facility"', sorted(bad_oth))
-                rep.add('INFO', P + f'tab NDC: kolom "{ocol}" terisi {n_oth} kab/kota (override asal Rute 2)')
+                rep.add('INFO', P + f'tab NDC: kolom "{ocol}" terisi {n_oth} kab/kota (override asal Opsional rute)')
             ndcs = sorted(f['Name Site'].strip() for f in facs if (f.get('Type') or '').strip().upper() == 'NDC')
             if len(ndcs) != 2:
-                rep.add('WARN', P + f'Rute 2/3 otomatis dari NDC lain di Name of Facility; BU ini punya {len(ndcs)} NDC (normal: 2) — cek, atau isi kolom "NDC Other" per kab/kota', ndcs)
+                rep.add('WARN', P + f'Opsional rute otomatis dari NDC lain di Name of Facility; BU ini punya {len(ndcs)} NDC (normal: 2) — cek, atau isi kolom "NDC Other" per kab/kota', ndcs)
         if dup:
             rep.add('WARN', P + f'tab {t}: kab/kota dobel', dup)
         if unknown:

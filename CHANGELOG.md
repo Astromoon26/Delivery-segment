@@ -2,6 +2,9 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (siang, 2)
+- Rute dari NDC lain (sebelumnya "Rute 2") sekarang bernama **Opsional rute** (kalau ada lebih dari satu NDC lain: Opsional rute 1, 2, …). Rute 1 dan Project rute tidak berubah.
+
 ## 2026-10-13 (siang)
 - **Perbandingan rute**: "Direct NDC" → **Project rute**; "Reguler rute" → **Rute 1**; "Other rute" → **Rute 2**, dan seterusnya (satu rute per NDC di BU yang meng-cover kab/kota; tiap NDC tambahan otomatis jadi Rute 3, 4, …). Selisih sekarang dibandingkan terhadap Project rute. Legend, peta, breakdown, Tabel Coverage ("Rute 1 dari …") ikut. Nama kolom sheet (`NDC`, `NDC Reguler`, `NDC Other`) tidak berubah.
 
