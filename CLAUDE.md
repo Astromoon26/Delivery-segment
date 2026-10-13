@@ -26,6 +26,8 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 
 16. Tab `Rute Numbered <BU>` mengatur **ketiga** kelompok: kolom `Rute N` (N ≥ 1; Rute 1 menggantikan rantai coverage), `Opsional rute N`, `Project rute N` (boleh cuma NDC = direct). Yang tidak ditulis per kab/kota → logika otomatis. Project rute 1 = pembanding Selisih. Test lain harus men-stub tab ini kosong (`emptyRouteTabs` di smoke test) karena gsheet sudah berisi data sungguhan.
 
+17. Langkah pertama rute di tab `Rute Numbered` = NDC, **atau RDC/SDC/HUB** untuk rute berantai (≥2 nama, mis. `Tamora - Aceh`); `resolveAltRoute` memberi `steps[0].tier` aslinya (+`start:true`), jadi jangan mengasumsikan `steps[0]` selalu NDC (judul, marker peta, tooltip pakai `tier`).
+
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
 |---|---|

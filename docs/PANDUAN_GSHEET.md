@@ -61,7 +61,7 @@ Untuk bug: sebut BU (HCI/AHI), tab dashboard, kab/kota, dan apa yang kelihatan v
 | Rute 1 Palu masih mulai dari NDC yang sama dengan Project rute | Kolom `NDC Reguler` belum ada / header salah ketik / nama NDC-nya beda dengan Name of Facility |
 | Kolom Opsional rute / Project rute hilang di Perbandingan rute | Dimatikan lewat toggle "Tampilkan" di atas tabel (pilihan diingat per browser) — klik lagi untuk menampilkan |
 | Rute 2 tidak muncul | Tab `Rute Numbered <BU>` belum dibuat / header kolom bukan persis `Kabupaten/Kota` dan `Rute 2` / nama kab/kota beda tulisan dengan tab coverage (mis. lupa awalan `Kota`/`Kabupaten`) / sel berisi < 2 fasilitas. Jalankan `validate_sheet.py` — ada pengecekan khusus tab ini |
-| Ada catatan merah di bawah Perbandingan rute ("fasilitas … tidak ditemukan") | Nama fasilitas di sel `Rute N` beda dengan `Name of Facility`, atau langkah pertama bukan NDC, atau langkah terakhir bukan fasilitas yang melayani kab/kota itu |
+| Ada catatan merah di bawah Perbandingan rute ("fasilitas … tidak ditemukan") | Nama fasilitas di sel `Rute N` beda dengan `Name of Facility`, atau langkah pertama bukan fasilitas yang dikenal (NDC; boleh RDC/SDC/HUB kalau rute berantai, mis. `Tamora - Aceh`), atau langkah terakhir bukan fasilitas yang melayani kab/kota itu |
 | Rute 2 lead time-nya `≥ … *` | Ada leg yang belum diisi di `Lead Time Facility to Facility <BU>` (catatan * menyebut leg-nya) |
 | Rute kelewat RDC | Tab `RDC <BU>` belum memuat kab/kota itu padahal Matriks bilang lewat RDC |
 | Tulisan "API KEY REQUIRED" di peta | Provider tile butuh key — kabarin, jangan diutak-atik sendiri |

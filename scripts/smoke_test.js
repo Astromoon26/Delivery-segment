@@ -294,6 +294,29 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('slot: tanpa JS error', err4.length === 0, err4.join(' | '));
   await ctx4.close();
 
+  // --- Rute 1 yang dimulai dari RDC (mis. "Tamora - Aceh"): bukan NDC, tetap digambar di peta + legend + tabel
+  const ctx5 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p5 = await ctx5.newPage();
+  const err5 = [];
+  p5.on('pageerror', e => err5.push(e.message));
+  await p5.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2"\n"Kota Banda Aceh","Aceh","Tamora - Aceh","Jakarta - Tamora - Aceh"\n' }));
+  await p5.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
+  await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
+  await p5.click('.tab[data-tab="segment"]');
+  await p5.fill('#seg-search-input', 'Kota Banda Aceh'); await p5.waitForTimeout(400);
+  await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
+  const tx5 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  const bd5 = await p5.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
+  check('Rute 1 dari RDC: judul "mulai dari RDC Tamora" dan tidak ada warning "bukan NDC"', bd5.some(t => /^Rute 1 \(mulai dari RDC Tamora\)/.test(t)) && !/bukan NDC/.test(tx5), JSON.stringify(bd5));
+  check('Rute 1 dari RDC: segmen RDC → HUB di breakdown', /RDC → HUB/.test(await p5.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)));
+  const line5 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1$/.test(l._tooltip.getContent()) && l.getLatLngs().length >= 3) n = l.getLatLngs().length; }); return n; });
+  check('Rute 1 dari RDC: garis peta mulai dari Tamora (>=3 titik) dan legend memuat Rute 1', line5 >= 3 && (await p5.$eval('.seg-legend', e => e.textContent)).includes('Rute 1'), 'titik=' + line5);
+  await p5.screenshot({ path: path.join(OUT, '9_rute1_dari_rdc.png') });
+  check('Rute 1 dari RDC: tanpa JS error', err5.length === 0, err5.join(' | '));
+  await ctx5.close();
+
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;

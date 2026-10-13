@@ -747,6 +747,9 @@ function resolveAltRoute(c, alt){
     const last = i===names.length-1;
     if(i===0){
       const f = findFacility(n, ['NDC']);
+      // rute boleh dimulai dari RDC/SDC/HUB (mis. "Tamora - Aceh"): langkah pertama = fasilitas itu, bukan NDC
+      const mf = (!f && names.length>1) ? findFacility(n, ['RDC','SDC','HUB']) : null;
+      if(mf){ steps.push({tier:mf.type, d:{name:mf.name}, start:true}); return; }
       if(!f) warn.push(`${alt.id}: "${n}" bukan NDC di Name of Facility (langkah pertama harus NDC).`);
       steps.push({tier:'NDC', d:{...(c.NDC||{}), name: f ? f.name : n}, unresolved:!f});
       return;
@@ -1152,7 +1155,7 @@ function renderCompare(c, routes, projects){
 
   // kolom/blok, urutan: Rute 1.. -> Opsional rute -> Project rute (yang disembunyikan toggle tidak ikut)
   const cols = routes.map((r,i)=>({kind:r.kind, id:r.id, color:r.color, T:R[i], segs:routeSegs[i], partial:R[i].unknown.length>0,
-                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
+                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari '+r.steps[0].tier+' '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
                     .filter(x=>x.kind==='rute' || SEG_VIS.opsional);
   if(SEG_VIS.project)
     projects.forEach((pr,pi)=>{
@@ -1160,7 +1163,7 @@ function renderCompare(c, routes, projects){
       cols.push({kind:'project', id:pr.id, color:pr.color, T:P[pi], segs:projSegs[pi], isBase:pi===0, direct,
                  partial: !direct && P[pi].unknown.length>0,
                  path: direct ? escapeHtml(pr.steps[0].d.name)+' → Cust / Sto' : pathOf(pr)+' → Cust / Sto', transit: pr.steps.length-1,
-                 title: pr.id + (direct ? '' : ' (mulai dari NDC '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
+                 title: pr.id + (direct ? '' : ' (mulai dari '+pr.steps[0].tier+' '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
     });
   const kindLabel = {rute:'Rute', opsional:'Opsional', project:'Project'};
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
@@ -1403,7 +1406,11 @@ function renderSegmentRoute(c, opts){
     if(destCenter) pts.push(destCenter);
     if(pts.length>1) L.polyline(pts, {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer);
     const o = pointOf(r.steps[0]);
-    if(o){ bounds.push(o); L.marker(o, {icon:ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)}).bindTooltip(`NDC: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
+    if(o){ bounds.push(o);
+      const st0 = r.steps[0];
+      const icon = st0.tier==='NDC' ? ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)
+        : L.divIcon({html:`<div style="width:${(TYPE_RADIUS[st0.tier]||6)*2}px;height:${(TYPE_RADIUS[st0.tier]||6)*2}px;border-radius:50%;background:${TYPE_COLOR[st0.tier]};border:2px solid ${r.first?'rgba(255,255,255,.95)':r.color};box-shadow:0 0 0 3px ${r.color}55"></div>`, className:'', iconAnchor:[(TYPE_RADIUS[st0.tier]||6),(TYPE_RADIUS[st0.tier]||6)]});
+      L.marker(o, {icon}).bindTooltip(`${st0.tier}: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
   });
   // Project rute: direct NDC -> Cust / Sto, atau rantai kalau ditulis di tab Rute Numbered
   if(showProject) projects.forEach(pr=>{
