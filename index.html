@@ -343,6 +343,9 @@ const COST_SHEETS = {
 };
 // Rute numbered (Rute 2, 3, ...): rantai fasilitas alternatif per kab/kota, ditulis di tab opsional ini
 // (kolom: Kabupaten/Kota, Provinsi, Rute 2, Rute 3, ... ; isi sel mis. "Jakarta - Pekanbaru - Dumai").
+// Tab opsional "Armada": Armada, Kapasitas (cbm), Utilisasi (%, default 85). Kolom cost per armada di tab Cost Facility to Facility
+// (header = nama armada, opsional + "Darat"/"Laut") dibaca lewat nama ini.
+const ARMADA_SHEET = 'Armada';
 const ROUTE_SHEETS = {
   AHI: 'Rute Numbered AHI',
   HCI: 'Rute Numbered HCI'
@@ -364,6 +367,8 @@ let COVERAGE = {HCI:{}, AHI:{}};
 let F2F = {HCI:[], AHI:[]};
 let LEAD_TIME = {HCI:{}, AHI:{}};
 let ROUTE_ALT = {HCI:{}, AHI:{}};   // bu -> altKey(kab/kota) -> [{n, id, raw, names[]}] dari tab Rute Numbered
+let ARMADA = [];                 // [{name, key, cap, util, eff}] dari tab Armada
+let COST_HDR = {HCI:[], AHI:[]};  // header kolom ke-6+ di tab Cost Facility to Facility (kolom cost per armada)
 let COST_LEG = {HCI:{}, AHI:{}};   // same layout as the Lead Time sheet: Cost Land / Cost Sea per leg
 let MERGED_GEO = null;
 let geoIdx = {}, geoIdxNoSp = {};
@@ -624,10 +629,12 @@ function parseLegSheet(text){
     vals.push(cur);
     return vals.map(v=>v.trim());
   }
-  return lines.slice(1).map(line=>{
+  const rows = lines.slice(1).map(line=>{
     const v = splitLine(line);
-    return { remark:v[0]||'', a:v[1]||'', b:v[2]||'', land:v[3]||'', sea:v[4]||'' };
+    return { remark:v[0]||'', a:v[1]||'', b:v[2]||'', land:v[3]||'', sea:v[4]||'', ext:v.slice(5) };
   }).filter(r=>r.a && r.b);
+  rows.headers = splitLine(lines[0]).slice(5);
+  return rows;
 }
 // AHI facility names in this sheet carry a "HUB " prefix (e.g. "HUB ALAM SUTERA")
 // that isn't used elsewhere (Name of Facility just has "ALAM SUTERA") — stripped here.
@@ -683,9 +690,44 @@ function buildCostLeg(bu, text){
   const map = {};
   const first = (text||'').split('\n')[0].toLowerCase();
   if(first.includes('cost')){
-    for(const r of parseLegSheet(text)){ map[legKey(r.a, r.b)] = {land:r.land, sea:r.sea}; }
-  }
+    const rows = parseLegSheet(text);
+    COST_HDR[bu] = rows.headers || [];
+    for(const r of rows){ map[legKey(r.a, r.b)] = {land:r.land, sea:r.sea, ext:r.ext||[]}; }
+  } else COST_HDR[bu] = [];
   COST_LEG[bu] = map;
+}
+// ---- Armada (tab opsional "Armada") + kolom cost per armada ----
+const normArm = x => String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function buildArmada(text){
+  const out = [];
+  const t = (text||'').trim(), head = (t.split('\n')[0]||'').toLowerCase();
+  // gviz untuk tab yang belum ada mengembalikan sheet pertama -> hanya dipakai kalau header memuat Armada & Kapasitas
+  if(head.includes('armada') && head.includes('kapasitas')){
+    for(const r of parseCSV(t)){
+      const name = pickField(r,'Armada','Nama Armada').trim();
+      const cap = parseMoney(pickField(r,'Kapasitas (cbm)','Kapasitas cbm','Kapasitas (CBM)','Kapasitas'));
+      if(!name || !cap) continue;
+      let u = parseMoney(String(pickField(r,'Utilisasi (%)','Utilisasi','Utilisasi %')).replace('%',''));
+      if(u==null) u = 85; else if(u<=1) u = u*100;
+      out.push({name, key:normArm(name), cap, util:u, eff:cap*u/100});
+    }
+  }
+  ARMADA = out;
+}
+// kolom cost per armada: header "CDDL", "CDDL Darat", "Cont-20 Laut", "Fuso/trip" ... (nama harus ada di tab Armada)
+function armadaCols(bu){
+  const cols = [];
+  (COST_HDR[bu]||[]).forEach((h,i)=>{
+    const clean = String(h||'').trim().replace(/\s*\/?\s*trip$/i,'');
+    const m = clean.match(/^(.*?)(?:[\s_\-\/]*(darat|land|laut|sea))?$/i);
+    if(!m) return;
+    const ai = ARMADA.findIndex(a=>a.key===normArm(m[1]));
+    if(ai<0) return;
+    const mode = m[2] ? (/darat|land/i.test(m[2]) ? 'land' : 'sea') : 'any';
+    cols.push({idx:i, ai, ar:ARMADA[ai], mode, label:ARMADA[ai].name, modeLabel: mode==='land'?'Darat':mode==='sea'?'Laut':''});
+  });
+  const mo = {land:0, sea:1, any:2};
+  return cols.sort((a,b)=>a.ai-b.ai || mo[a.mode]-mo[b.mode]);
 }
 // ---- Rute numbered (tab opsional "Rute Numbered <BU>") ----
 // Kunci kab/kota tanpa provinsi: "kota||dumai" (Provinsi di tab ini opsional, hanya info).
@@ -1169,14 +1211,14 @@ function renderCompare(c, routes, projects){
 
   // kolom/blok, urutan: Rute 1.. -> Opsional rute -> Project rute (yang disembunyikan toggle tidak ikut)
   const cols = routes.map((r,i)=>({kind:r.kind, id:r.id, color:r.color, T:R[i], segs:routeSegs[i], partial:R[i].unknown.length>0,
-                                   path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari '+r.steps[0].tier+' '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
+                                   steps:r.steps, path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari '+r.steps[0].tier+' '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
                     .filter(x=>x.kind==='rute' || SEG_VIS.opsional);
   if(SEG_VIS.project)
     projects.forEach((pr,pi)=>{
       const direct = isDirectSteps(pr.steps);
       cols.push({kind:'project', id:pr.id, color:pr.color, T:P[pi], segs:projSegs[pi], isBase:pi===0, direct,
                  partial: !direct && P[pi].unknown.length>0,
-                 path: direct ? escapeHtml(pr.steps[0].d.name)+' → Cust / Sto' : pathOf(pr)+' → Cust / Sto', transit: pr.steps.length-1,
+                 steps:pr.steps, path: direct ? escapeHtml(pr.steps[0].d.name)+' → Cust / Sto' : pathOf(pr)+' → Cust / Sto', transit: pr.steps.length-1,
                  title: pr.id + (direct ? '' : ' (mulai dari '+pr.steps[0].tier+' '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
     });
   const kindLabel = {rute:'Rute', opsional:'Opsional', project:'Project'};
@@ -1260,6 +1302,33 @@ function renderCompare(c, routes, projects){
       <div class="seg-cmp-note seg-cmp-hint">Membandingkan rute yang sedang ditampilkan: baris dibanding kolom (mis. baris Rute 1, kolom Project rute = Rute 1 dibanding Project rute).</div>
       ${matrix('Selisih Darat','land')}${matrix('Selisih Laut','sea')}</div>`;
 
+  // Cost per armada (kolom armada di tab Cost Facility to Facility x kapasitas efektif di tab Armada):
+  // cost/trip per leg + cost/cbm = cost/trip / (kapasitas x utilisasi). Hanya leg antar fasilitas (last mile & direct NDC belum per armada).
+  const aCols = armadaCols(currentBU);
+  const armLegs = x => { const o=[]; for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)}); return o; };
+  const armVal = (k, col) => { const e = (COST_LEG[currentBU]||{})[k]; return e && e.ext ? parseMoney(e.ext[col.idx]) : null; };
+  const armTotal = (legs, col) => { let sum=0, n=0; legs.forEach(l=>{ const v=armVal(l.k,col); if(v!=null){ sum+=v; n++; } }); return {v:n?sum:null, partial:n>0 && n<legs.length}; };
+  const fmtCbm = n => n.toLocaleString('id-ID',{maximumFractionDigits:2});
+  const armCell = (v, col, partial) => v==null ? `<div class="val"><span class="na">—</span></div>`
+    : `<div class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</div><div class="sub">${partial?'≥':''}${fmtMoney(v/col.ar.eff)}/cbm${partial?'*':''}</div>`;
+  const armHead = col => `<th>${escapeHtml(col.label)}<div class="sub">${col.modeLabel?col.modeLabel+' · ':''}${fmtCbm(col.ar.eff)} cbm</div></th>`;
+  const armXcols = cols.filter(x=>armLegs(x).length>0);
+  const armadaHtml = (!aCols.length || !armXcols.length) ? '' : (() => {
+    const mw = `min-width:${110+aCols.length*96}px`;
+    const summary = `<div class="seg-diff-title">Total per armada (leg antar fasilitas)</div>
+      <div class="seg-tbl-scroll"><table class="seg-bd" style="${mw}"><thead><tr><th>Rute</th>${aCols.map(armHead).join('')}</tr></thead><tbody>
+      ${armXcols.map(x=>{ const legs=armLegs(x); return `<tr><td><span class="sw" style="border-color:${x.color}"></span>${x.id}</td>${aCols.map(c=>{ const t=armTotal(legs,c); return `<td>${armCell(t.v,c,t.partial)}</td>`; }).join('')}</tr>`; }).join('')}
+      </tbody></table></div>`;
+    const detail = armXcols.map(x=>{ const legs=armLegs(x); return `<div class="seg-diff-title"><span class="sw" style="border-color:${x.color}"></span>${x.id}</div>
+      <div class="seg-tbl-scroll"><table class="seg-bd" style="${mw}"><thead><tr><th>Segmen</th>${aCols.map(armHead).join('')}</tr></thead><tbody>
+      ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div></td>${aCols.map(c=>`<td>${armCell(armVal(l.k,c),c,false)}</td>`).join('')}</tr>`).join('')}
+      <tr class="tot"><td>Total</td>${aCols.map(c=>{ const t=armTotal(legs,c); return `<td>${armCell(t.v,c,t.partial)}</td>`; }).join('')}</tr>
+      </tbody></table></div>`; }).join('');
+    return `<div class="seg-bd-wrap"><div class="seg-cmp-subtitle">Cost per armada</div>
+      <div class="seg-cmp-note seg-cmp-hint">Cost/trip per armada dari tab Cost Facility to Facility; cost/cbm = cost/trip ÷ kapasitas efektif (kapasitas × utilisasi, tab Armada). * = ada leg yang belum diisi. Last mile &amp; direct NDC belum termasuk (belum per armada).</div>
+      ${summary}${detail}</div>`;
+  })();
+
   const toggle = (key, label, color, on) => `<label class="seg-toggle${on?' on':''}" style="--c:${color}"><input type="checkbox" data-vis="${key}"${on?' checked':''}><span class="dot"></span>${label}</label>`;
   el.innerHTML = `<div class="seg-cmp${cols.length>4?' many':''}"><div class="seg-cmp-title">Perbandingan rute</div>
     <div class="seg-toggles"><span class="lbl">Tampilkan</span>
@@ -1281,6 +1350,7 @@ function renderCompare(c, routes, projects){
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
       ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
+    ${armadaHtml}
     ${diffHtml}
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
@@ -1696,6 +1766,9 @@ async function loadAll(){
     const [costAhi, costHci] = await Promise.all([fetchCostText("AHI"), fetchCostText("HCI")]);
     buildCostLeg('AHI', costAhi);
     buildCostLeg('HCI', costHci);
+
+    // armada (kapasitas cbm + utilisasi): tab opsional untuk cost per armada
+    try{ buildArmada(await (await fetch(gvizUrl(ARMADA_SHEET)+'&_ts='+Date.now())).text()); }catch(e){ ARMADA = []; }
 
     // rute numbered (Rute 2, 3, ...): tab opsional, gagal fetch / tab belum ada tidak boleh merusak dashboard
     const fetchRouteText = async bu => { try{ return await (await fetch(gvizUrl(ROUTE_SHEETS[bu])+'&_ts='+Date.now())).text(); }catch(e){ return ''; } };

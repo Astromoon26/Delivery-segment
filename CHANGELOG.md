@@ -2,6 +2,13 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (malam, 6)
+- **Cost per armada** (cost/trip + cost/cbm) di Delivery Segment, bagian baru **setelah Breakdown per segmen** (sebelum Selisih): tabel "Total per armada" (baris = rute, kolom = armada) + rincian per segmen per rute.
+  - **Tab baru `Armada`** (opsional): `Armada`, `Kapasitas (cbm)`, `Utilisasi (%)` (default 85). Kapasitas efektif = kapasitas × utilisasi (CDDL 16 → 13,6 · Fuso 32 → 27,2 · Wingbox 42 → 35,7 · Cont-20 25 → 21,25 · Cont-40 50 → 42,5). Kapasitas diubah di gsheet, bukan di kode. Template: `docs/templates/Armada.csv`.
+  - **Kolom armada di tab `Cost Facility to Facility <BU>`**, di kanan kolom `Cost Sea` (kolom 1–5 tidak berubah): header = nama armada + opsional `Darat` / `Laut` (mis. `CDDL Darat`, `Cont-20 Laut`, atau cuma `Fuso`); isi = cost/trip per leg. Kolom yang namanya tidak ada di tab Armada diabaikan. Cost/cbm = cost/trip ÷ kapasitas efektif. Total = jumlah leg antar fasilitas; `≥ … *` kalau ada leg yang kosong. Last mile & direct NDC belum per armada (masih satu kolom Cost).
+  - Tanpa tab Armada / tanpa kolom armada, bagian ini tidak muncul dan tampilan lama tidak berubah. LT tetap satu angka per segmen (Darat / Laut), tidak per armada.
+- Smoke test +4 (84 total).
+
 ## 2026-10-13 (malam, 5)
 - **Selisih LT & cost dikeluarkan dari tabel Perbandingan rute** dan dipindah ke bagian sendiri **setelah Breakdown per segmen** ("Selisih LT & cost antar rute"). Sekarang membandingkan **tiap rute yang tampil** (ikut toggle Opsional/Project): matriks Selisih Darat dan Selisih Laut, baris dibanding kolom (mis. baris Rute 1 × kolom Project rute = Rute 1 dibanding Project rute). Hanya angka yang dimiliki kedua sisi; total partial (*) tidak dibandingkan. Kalau yang tampil cuma satu rute, bagian ini hilang. Sebelumnya hanya dibanding Project rute 1 di baris tabel utama.
 - Smoke test +1 (79 total); selector tes tabel utama pakai `.seg-main-tbl:not(.seg-diff-tbl)`.

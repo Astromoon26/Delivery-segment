@@ -28,6 +28,8 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 
 17. Langkah pertama rute di tab `Rute Numbered` = NDC, **atau RDC/SDC/HUB** untuk rute berantai (≥2 nama, mis. `Tamora - Aceh`); `resolveAltRoute` memberi `steps[0].tier` aslinya (+`start:true`), jadi jangan mengasumsikan `steps[0]` selalu NDC (judul, marker peta, tooltip pakai `tier`). Satu nama juga valid: NDC = direct, RDC/SDC/HUB = fasilitas → Cust / Sto (last mile dari `c[tier]` kalau melayani kab/kota itu); pakai `isDirectSteps(steps)` untuk membedakan direct NDC dari rute satu langkah non-NDC.
 
+18. **Cost per armada**: tab opsional `Armada` (`ARMADA_SHEET`, `buildArmada`: Armada, Kapasitas (cbm), Utilisasi (%) default 85 → `eff`) + kolom armada di kanan `Cost Sea` pada tab `Cost Facility to Facility <BU>` (header = nama armada [+ `Darat`/`Laut`], dibaca posisional ke `COST_LEG[bu][leg].ext` + `COST_HDR[bu]`, dikenali lewat `armadaCols(bu)`). Cost/cbm = cost/trip ÷ `eff`. Bagian "Cost per armada" ada setelah Breakdown per segmen (`armadaHtml` di `renderCompare`). Kapasitas jangan di-hardcode di kode. **LT tetap satu angka per segmen** (Darat/Laut), tidak per armada. Last mile & direct NDC belum per armada. Judul bagian di-uppercase lewat CSS → di tes pakai regex `/i` atau `textContent`.
+
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
 |---|---|
