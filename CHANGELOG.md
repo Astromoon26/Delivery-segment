@@ -3,6 +3,7 @@
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
 ## 2026-10-13 (sore)
+- **Note Project rute**: "Note : Pengiriman direct Cust / Sto" ditambahkan di kolom Project rute (baris Note) dan di bawah judul breakdown Project rute (termasuk kasus Project rute = Rute 1). Smoke test +1 cek (47 total).
 - **Perbandingan rute disegmentasi**: urutan kolom (dan breakdown per segmen, dan legend peta) sekarang **Rute 1 (dst.) → Opsional rute → Project rute**, tiap kelompok diberi label kecil di header + garis pemisah.
 - **Toggle "Tampilkan"** di atas tabel untuk **Opsional rute** dan **Project rute** (Rute 1 selalu tampil). Yang dimatikan hilang dari tabel, breakdown, notes, legend, dan garis/marker di peta; kalau Project rute dimatikan baris Selisih ikut disembunyikan (selisih = vs Project rute). Pilihan diingat di browser (`localStorage['seg-route-vis']`); posisi/zoom peta tidak loncat saat toggle. Kab/kota tanpa HUB/SDC/RDC (Project rute = Rute 1) tidak ada toggle. Smoke test +12 cek (46 total).
 

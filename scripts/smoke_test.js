@@ -122,6 +122,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('urutan legend peta: Rute 1 -> Opsional rute -> Project rute', lg0.indexOf('Rute 1') < lg0.indexOf('Opsional rute') && lg0.indexOf('Opsional rute') < lg0.indexOf('Project rute'), lg0);
   check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-cmp > table thead th.grp')).length === 2);
   check('toggle: ada checkbox Opsional rute & Project rute', (await page.$$('#seg-compare .seg-toggles input')).length === 2);
+  check('note Project rute: tabel + breakdown memuat "Pengiriman direct Cust / Sto"', (await page.$eval('#seg-compare .seg-cmp > table', e => e.innerText)).includes('Pengiriman direct Cust / Sto') && (await page.$$eval('#seg-compare .seg-bd-note', e => e.map(x => x.textContent))).some(t => t.trim() === 'Note : Pengiriman direct Cust / Sto'));
   const view0 = await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); });
 
   await page.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await page.waitForTimeout(300);

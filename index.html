@@ -80,6 +80,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp .na{color:var(--muted);opacity:.6}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
 .seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:10px;opacity:.8}
+.seg-bd-note{padding:0 10px 6px;font-size:10.5px;color:var(--muted);font-style:italic}
 .seg-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 10px;border-bottom:1px solid var(--border)}
 .seg-toggles .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-right:2px}
 .seg-toggle{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border:1px solid var(--border2);border-radius:999px;font-size:11px;cursor:pointer;user-select:none;color:var(--muted);transition:all .15s}
@@ -1091,13 +1092,15 @@ function renderCompare(c, routes){
     if(s.land!=null) return `<div class="val">${fmtD(s.land)} <span class="na" title="tidak ada opsi laut, pakai darat">(darat)</span></div><div class="sub">${subCost(s.costLand)}</div>`;
     return `<div class="val">—</div><div class="sub">cost —</div>`;
   };
-  const bdTable = (title, color, segs, T, showTotal, partialLT) => {
+  const PROJECT_NOTE = 'Note : Pengiriman direct Cust / Sto';
+  const bdTable = (title, color, segs, T, showTotal, partialLT, note) => {
     const sea = makeSeaCell(T.anySea);
     const rows = segs.map(s=>`<tr><td><div>${escapeHtml(s.label)}</div><div class="sub">${escapeHtml(s.kind)}</div></td><td>${dCell(s)}</td><td>${sea(s)}</td></tr>`).join('');
     const totalRow = showTotal ? `<tr class="tot"><td>Total</td>
         <td><div class="val">${T.land==null?'—':(partialLT?'≥':'')+fmtD(T.land)+(partialLT?'*':'')}</div><div class="sub">${T.costLand==null?'cost —':(T.costLandPartial?'≥':'')+fmtMoney(T.costLand)+(T.costLandPartial?'*':'')}</div></td>
         <td><div class="val">${T.sea==null?'—':(partialLT?'≥':'')+fmtD(T.sea)+(partialLT?'*':'')}</div><div class="sub">${T.costSea==null?'cost —':(T.costSeaPartial?'≥':'')+fmtMoney(T.costSea)+(T.costSeaPartial?'*':'')}</div></td></tr>` : '';
     return `<div class="seg-bd-title"><span class="sw" style="border-color:${color}"></span>${title}</div>
+      ${note?`<div class="seg-bd-note">${note}</div>`:''}
       <table class="seg-bd"><thead><tr><th>Segmen</th><th>Darat</th><th>Laut</th></tr></thead><tbody>${rows}${totalRow}</tbody></table>`;
   };
 
@@ -1116,7 +1119,7 @@ function renderCompare(c, routes){
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
       <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi Rute 1 = Project rute (NDC ${escapeHtml(c.NDC.name)} → Cust / Sto).</div>
-      <div class="seg-bd-wrap">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false)}</div>
+      <div class="seg-bd-wrap">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false, PROJECT_NOTE)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
   }
@@ -1132,6 +1135,7 @@ function renderCompare(c, routes){
       <tbody>
         ${row('Rute', x=>x.path)}
         ${row('Titik transit', x=>`<span class="val">${x.transit}</span>`)}
+        ${SEG_VIS.project ? row('Note', x=>x.kind==='project' ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
         ${row('Lead time Darat', x=>x.kind==='project' ? (D.land==null?todo:ltCell(D.land,false)) : ltCell(x.T.land,x.partial))}
         ${row('Lead time Laut', x=>x.kind==='project' ? (D.sea==null?todo:ltCell(D.sea,false)) : ltCell(x.T.sea,x.partial))}
         ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
@@ -1141,7 +1145,7 @@ function renderCompare(c, routes){
     ${SEG_VIS.project ? '<div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>' : '<div class="seg-cmp-note seg-cmp-hint">Project rute disembunyikan, jadi baris Selisih tidak ditampilkan.</div>'}
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
-      ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial)).join('')}
+      ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project'?PROJECT_NOTE:'')).join('')}
     </div>
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
