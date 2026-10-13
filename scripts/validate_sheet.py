@@ -305,6 +305,61 @@ def check_bu(bu, cache, rep):
                 bad_cost.append(f'"{x}" ({r[0]}) tidak ada di Name of Facility')
     if bad_cost: rep.add('WARN', P + 'Cost F2F: nama fasilitas tak dikenal (typo/beda nama?)', sorted(set(bad_cost)))
 
+    # --- Rute Numbered (opsional): tab "Rute Numbered <BU>" berisi Rute 2, 3, ... per kab/kota
+    try:
+        rt = fetch(f'Rute Numbered {bu}', cache)
+    except Exception:
+        rt = ''
+    rh, rdata = table(rt)
+    rcols = [c for c in rh if re.match(r'^rute\s*\d+$', c.strip(), re.I)]
+    if 'Kabupaten/Kota' not in rh or not rcols:
+        rep.add('INFO', P + 'tab "Rute Numbered ' + bu + '" belum ada / belum berisi (opsional; dipakai untuk Rute 2, 3, ... per kab/kota)')
+        return
+    served = {}          # kab/kota (tanpa provinsi) -> nama fasilitas yang melayani (HUB/SDC/RDC)
+    for t in ('HUB', 'SDC', 'RDC'):
+        for k, v in cov.get(t, {}).items():
+            served.setdefault('|'.join(k.split('|')[:2]), {})[t] = norm_fac(v['name'])
+    nroute, bad_name, bad_first, bad_last, bad_kab, miss = 0, [], [], [], [], []
+    for r in rdata:
+        kab = (r.get('Kabupaten/Kota') or '').strip()
+        if not kab:
+            continue
+        kk = '|'.join(kab_key(kab, '').split('|')[:2])
+        if kk not in served and not any(kk == '|'.join(k.split('|')[:2]) for k in cov.get('NDC', {})):
+            bad_kab.append(f'{kab}: tidak ada di tab coverage BU {bu}')
+        for col in rcols:
+            raw = (r.get(col) or '').strip()
+            if not raw:
+                continue
+            if int(re.search(r'\d+', col).group()) < 2:
+                rep.add('WARN', P + f'Rute Numbered: kolom "{col}" diabaikan (Rute 1 = rantai coverage yang sekarang, mulai dari Rute 2)', [kab])
+                continue
+            names = [x.strip() for x in re.split(r'\s*(?:→|->|=>|>|–|—|\s-\s)\s*', raw) if x.strip()]
+            while names and re.match(r'^(cust\s*/?\s*sto|customer|tujuan)$', names[-1], re.I):
+                names.pop()
+            if len(names) < 2:
+                continue
+            nroute += 1
+            ctx = f'{kab} {col}'
+            for n in names:
+                if norm_fac(n) not in fac_names:
+                    bad_name.append(f'{ctx}: "{n}" tidak ada di Name of Facility')
+            if fac_type.get(norm_fac(names[0])) != 'NDC':
+                bad_first.append(f'{ctx}: langkah pertama "{names[0]}" bukan NDC')
+            if kk in served and norm_fac(names[-1]) not in served[kk].values():
+                bad_last.append(f'{ctx}: "{names[-1]}" bukan fasilitas yang melayani kab/kota ini ({", ".join(f"{t} {n}" for t, n in served[kk].items())}) -> last mile kosong')
+            for x, y in zip(names, names[1:]):
+                v = legs.get(f'{norm_fac(x)}|{norm_fac(y)}')
+                if v is None or (v[0] is None and v[1] is None):
+                    miss.append(f'{x} -> {y}  (untuk {ctx})')
+    if bad_kab: rep.add('ERROR', P + 'Rute Numbered: kab/kota tidak dikenal', bad_kab)
+    if bad_name: rep.add('ERROR', P + 'Rute Numbered: nama fasilitas tidak ada di "Name of Facility"', bad_name)
+    if bad_first: rep.add('ERROR', P + 'Rute Numbered: langkah pertama harus NDC', bad_first)
+    if bad_last: rep.add('WARN', P + 'Rute Numbered: langkah terakhir bukan fasilitas yang melayani kab/kota', bad_last)
+    miss = sorted(set(miss))
+    rep.add('WARN' if miss else 'OK', P + f'Rute Numbered: {len(miss)} leg belum punya lead time (isi di tab Lead Time Facility to Facility {bu})' if miss else P + f'Rute Numbered: {nroute} rute, semua leg punya lead time', miss)
+    rep.add('INFO', P + f'Rute Numbered: {nroute} rute tambahan terbaca')
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--bu', choices=['HCI', 'AHI'])

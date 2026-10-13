@@ -22,6 +22,8 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 13. Perbandingan rute di Delivery Segment: **Project rute** (= direct NDC → Cust / Sto, data dari tab NDC) + **Rute 1** + **Opsional rute**, satu rute per NDC yang meng-cover kab/kota, semuanya lewat rantai fasilitas yang sama. Rute 1 = asal `NDC Reguler` (atau NDC project kalau kolom itu kosong); **Opsional rute** = NDC lain di BU (hanya pulau di `OTHER_RUTE_PULAU` = Kalimantan & Sulawesi, hanya kalau ada HUB/SDC/RDC); kalau ada >1 NDC lain jadi "Opsional rute 1, 2, …". Pakai istilah ini di UI dan dokumen.
 14. Urutan kolom/breakdown/legend di Perbandingan rute: **Rute 1 (dst.) → Opsional rute → Project rute** (tersegmen, ada pemisah). **Opsional rute & Project rute punya toggle tampil/sembunyi** (`SEG_VIS`, disimpan di `localStorage['seg-route-vis']`); Rute 1 selalu tampil. Baris Selisih (vs Project rute) hanya muncul kalau Project rute ditampilkan.
 
+15. **Rute numbered (Rute 2, 3, …)** = rantai fasilitas alternatif per kab/kota, dibaca dari tab opsional **`Rute Numbered <BU>`** (`ROUTE_SHEETS`, `buildRouteAlt`, `ROUTE_ALT`, `resolveAltRoute`). Jangan hardcode rute per kab/kota di `index.html`. Urutan tampil: Rute 1, Rute 2, … → Opsional rute → Project rute (Rute 2+ selalu tampil, tidak ada toggle).
+
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
 |---|---|
@@ -30,13 +32,14 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 | Nama & matching | `normName`, `cleanSpacedLetters`, `joinKey`, `resolveGeo`, **`normFacName` + `FAC_ALIAS`**, `legKey` |
 | Model data | `buildFacilities`, `resolveLatLon`, `buildCoverage` (`COVERAGE[bu][key][tier]`), `buildLeadTime`, `buildHubFeeder/applyHubFeeder` (`HUB.via`) |
 | Tampilan | `addBasemap/initMap`, `renderChoropleth`, `renderFacilityMarkers`, `renderTable`, `exportTableCSV`, `renderF2F`, `openDetail` |
-| Delivery Segment | `renderSegmentRoute` (peta mini), `routeNdcNames`, `buildSegments` (per segmen: lead time + cost), `totalsOf`, `renderCompare` (tabel perbandingan + breakdown per segmen), `buildCostLeg`, `parseMoney` |
+| Delivery Segment | `renderSegmentRoute` (peta mini), `routeNdcNames`, `buildSegments` (per segmen: lead time + cost), `totalsOf`, `renderCompare` (tabel perbandingan + breakdown per segmen), `buildCostLeg`, `parseMoney`, `buildRouteAlt`/`resolveAltRoute`/`altKey`/`splitRouteChain` (Rute 2+), `NUMBERED_STYLES` |
 | Bootstrap | `loadAll` → `rerenderAll` |
 
 ## Skema gsheet (detail kolom: `docs/PANDUAN_GSHEET.md`)
 `Name of Facility` · `Hub|SDC|RDC|NDC` × `AHI|HCI` · `Matriks Facility to Facility AHI|HCI` · `Lead Time Facility to Facility AHI|HCI` · `Cost Facility to Facility AHI|HCI` (format sama dengan Lead Time: Remark, Facility, Facility, Cost Land, Cost Sea; dibaca ke `COST_LEG`).
 Tab `NDC <BU>`: kolom `NDC` = asal **Project rute** (+ nilai di Tabel Coverage + lead time/cost project). Kolom **opsional** `NDC Reguler` (alias: `Reguler NDC`, `NDC Rute Reguler`) = asal **Rute 1** kalau beda dari NDC project (nama kolom di sheet tidak diganti supaya data lama tetap jalan). Dibaca ke `COVERAGE[bu][key].NDC.reguler`; `regulerDiffers(c)` menentukan; hanya berlaku bila kab/kota punya HUB/SDC/RDC.
 **Opsional rute** (hanya pulau di `OTHER_RUTE_PULAU` = Kalimantan & Sulawesi, hanya kalau ada HUB/SDC/RDC): rantai yang sama dengan Rute 1 tapi mulai dari NDC lain (id rute: `Rute 1`, `Opsional rute` / `Opsional rute N`). `routeNdcNames(c, hasMid)` = [asal Rute 1, lalu semua NDC lain di BU, atau satu NDC dari override kolom opsional `NDC Other`]; `renderCompare(c, routes)` membuat kolom + breakdown per rute (urut Rute → Opsional → Project, filter `SEG_VIS`; toggle memanggil ulang `renderSegmentRoute(c,{keepView:true})`); peta: satu garis per rute (`ROUTE_STYLES`) + legend.
+**Rute numbered**: tab `Rute Numbered HCI|AHI` (opsional): `Kabupaten/Kota` (dicocokkan lewat `altKey` = tipe+nama, provinsi diabaikan), `Provinsi` (info), `Rute 2`, `Rute 3`, … ; sel = fasilitas dipisah ` - ` / `>` / `→`, NDC di awal, fasilitas pelayan kab/kota di akhir (last mile-nya diambil dari `c[tier]`), "Cust / Sto" opsional. Leg antar fasilitas pakai `LEAD_TIME`/`COST_LEG` yang sama dengan Rute 1. **Quirk:** gviz untuk tab yang belum ada mengembalikan sheet pertama (Name of Facility) → `buildRouteAlt` hanya menerima kalau header memuat `Kabupaten/Kota` dan `Rute N`.
 Kolom wajib per tab coverage: `No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan, <Tier>, Lead Time land, Cost` (NDC: `Lead Time Land/Sea`, `Cost Land/Sea`). Header sering di-rename Apip → selalu baca lewat `pickField(...alias)`.
 
 ## Quirk yang sudah pernah bikin bug
