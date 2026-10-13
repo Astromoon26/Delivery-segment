@@ -196,6 +196,51 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('NDC Reguler: tanpa JS error', err2.length === 0, err2.join(' | '));
   await ctx2.close();
 
+  // --- Rute numbered (Rute 2, 3, ...): tab opsional "Rute Numbered HCI" disuntik lewat intercept (live sheet belum tentu punya tab itu)
+  const ctx3 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p3 = await ctx3.newPage();
+  const err3 = [];
+  p3.on('pageerror', e => err3.push(e.message));
+  await p3.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Kabupaten/Kota","Provinsi","Rute 2","Rute 3"\n' +
+    '"Kota Dumai","Riau","Jakarta - Pekanbaru - Dumai","Jakarta - Tamora - Dumai - Cust / Sto"\n' +
+    '"Kota Padang","Sumatera Barat","Jakarta > Tamora > Padang",""\n' +
+    '"Kabupaten Padang Pariaman","Sumatera Barat","Jakarta - Fasilitas Ngawur - Padang",""\n' }));
+  // tab AHI belum ada -> gviz mengembalikan sheet pertama (Name of Facility): harus diabaikan, bukan dianggap rute
+  await p3.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Bussines Unit","Type","Name Site","Long","Lat"\n"HCI & AHI","NDC","Jakarta","-6.3","107.1"\n' }));
+  await p3.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p3.waitForTimeout(3500);
+  check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 3), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
+  await p3.click('.tab[data-tab="segment"]');
+  const openSeg = async q => { await p3.fill('#seg-search-input', q); await p3.waitForTimeout(400); await p3.click('#seg-ac-list .autocomplete-item'); await p3.waitForTimeout(1200); };
+  const heads3 = async () => p3.$$eval('#seg-compare .seg-cmp > table thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const bd3 = async () => p3.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
+  await openSeg('Kota Dumai');
+  const hd = await heads3(), tx = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('rute numbered Dumai: kolom Rute 1 -> Rute 2 -> Rute 3 -> Project rute', hd.length === 4 && /Rute 1$/.test(hd[0]) && /Rute 2$/.test(hd[1]) && /Rute 3$/.test(hd[2]) && /Project rute$/.test(hd[3]), JSON.stringify(hd));
+  check('rute numbered Dumai: Rute 2 = Jakarta → Pekanbaru → Dumai → Cust / Sto', /Jakarta → Pekanbaru → Dumai → Cust \/ Sto/.test(tx), tx.slice(0, 400));
+  const bdt = await bd3();
+  check('rute numbered Dumai: breakdown Rute 2 & 3 ada, Project rute terakhir', bdt.length === 4 && /^Rute 2 \(mulai dari NDC Jakarta\)/.test(bdt[1]) && /^Rute 3/.test(bdt[2]) && /^Project rute/.test(bdt[3]), JSON.stringify(bdt));
+  check('rute numbered Dumai: leg Jakarta → Pekanbaru & Pekanbaru → Dumai masuk breakdown', /Jakarta → Pekanbaru/.test(await p3.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)) && /Pekanbaru → Dumai/.test(await p3.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)));
+  const lgd = await p3.$eval('.seg-legend', e => e.textContent);
+  check('rute numbered Dumai: legend urut Rute 1 -> Rute 2 -> Rute 3 -> Project rute', lgd.indexOf('Rute 1') < lgd.indexOf('Rute 2') && lgd.indexOf('Rute 2') < lgd.indexOf('Rute 3') && lgd.indexOf('Rute 3') < lgd.indexOf('Project rute'), lgd);
+  check('rute numbered Dumai: peta menggambar garis tiap rute', (await p3.$$eval('#seg-map .leaflet-interactive', e => e.length)) >= 6);
+  check('rute numbered Dumai: tanpa horizontal overflow', await p3.evaluate(() => { const l = document.querySelector('.seg-left'); return l.scrollWidth <= l.clientWidth + 1; }));
+  await p3.screenshot({ path: path.join(OUT, '7_rute_numbered_dumai.png') });
+  await openSeg('Kota Padang');
+  const txP = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('rute numbered Padang: Rute 2 = Jakarta → Tamora → Padang → Cust / Sto', /Jakarta → Tamora → Padang → Cust \/ Sto/.test(txP) && /Jakarta → Padang → Cust \/ Sto/.test(txP), txP.slice(0, 300));
+  check('rute numbered Padang: leg Tamora → Padang masuk breakdown', /Tamora → Padang/.test(await p3.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)));
+  await p3.screenshot({ path: path.join(OUT, '8_rute_numbered_padang.png') });
+  await openSeg('Kabupaten Padang Pariaman');
+  const txW = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('rute numbered: fasilitas tidak dikenal -> ada peringatan, tidak error', /Rute 2: fasilitas "Fasilitas Ngawur" tidak ditemukan/.test(txW), txW.slice(-300));
+  await openSeg('Kota Palu');
+  check('rute numbered: kab/kota lain tidak berubah (Palu tanpa Rute 2)', !(await heads3()).some(h => /Rute 2/.test(h)));
+  check('rute numbered: tanpa JS error', err3.length === 0, err3.join(' | '));
+  await ctx3.close();
+
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;

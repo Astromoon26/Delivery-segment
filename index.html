@@ -336,6 +336,12 @@ const COST_SHEETS = {
   AHI: 'Cost Facility to Facility AHI',
   HCI: 'Cost Facility to Facility HCI'
 };
+// Rute numbered (Rute 2, 3, ...): rantai fasilitas alternatif per kab/kota, ditulis di tab opsional ini
+// (kolom: Kabupaten/Kota, Provinsi, Rute 2, Rute 3, ... ; isi sel mis. "Jakarta - Pekanbaru - Dumai").
+const ROUTE_SHEETS = {
+  AHI: 'Rute Numbered AHI',
+  HCI: 'Rute Numbered HCI'
+};
 const TOPO_BASE = 'https://cdn.jsdelivr.net/gh/ghapsara/indonesia-atlas@master/kabupaten-kota/All/';
 const TOPO_FILES = ["aceh-simplified-topo.json","bali-simplified-topo.json","banten-simplified-topo.json","bengkulu-simplified-topo.json","gorontalo-simplified-topo.json","jakarta-simplified-topo.json","jambi-simplified-topo.json","jawa-barat-simplified-topo.json","jawa-tengah-simplified-topo.json","jawa-timur-simplified-topo.json","kalimantan-barat-simplified-topo.json","kalimantan-selatan-simplified-topo.json","kalimantan-tengah-simplified-topo.json","kalimantan-timur-simplified-topo.json","kalimantan-utara-simplified-topo.json","kepulauan-bangka-belitung-simplified-topo.json","kepulauan-riau-simplified-topo.json","kepulauan-seribu-simplified-topo.json","lampung-simplified-topo.json","maluku-simplified-topo.json","maluku-utara-simplified-topo.json","nusa-tenggara-barat-simplified-topo.json","nusa-tenggara-timur-simplified-topo.json","papua-barat-simplified-topo.json","papua-simplified-topo.json","riau-simplified-topo.json","sulawesi-barat-simplified-topo.json","sulawesi-selatan-simplified-topo.json","sulawesi-tengah-simplified-topo.json","sulawesi-tenggara-simplified-topo.json","sulawesi-utara-simplified-topo.json","sumatera-barat-simplified-topo.json","sumatera-selatan-simplified-topo.json","sumatera-utara-simplified-topo.json","yogyakarta-simplified-topo.json"];
 const TYPE_COLOR = {NDC:'#f59e0b',RDC:'#3b82f6',SDC:'#a78bfa',HUB:'#34d399'};
@@ -352,6 +358,7 @@ let FACILITIES = [];
 let COVERAGE = {HCI:{}, AHI:{}};
 let F2F = {HCI:[], AHI:[]};
 let LEAD_TIME = {HCI:{}, AHI:{}};
+let ROUTE_ALT = {HCI:{}, AHI:{}};   // bu -> altKey(kab/kota) -> [{n, id, raw, names[]}] dari tab Rute Numbered
 let COST_LEG = {HCI:{}, AHI:{}};   // same layout as the Lead Time sheet: Cost Land / Cost Sea per leg
 let MERGED_GEO = null;
 let geoIdx = {}, geoIdxNoSp = {};
@@ -674,6 +681,84 @@ function buildCostLeg(bu, text){
     for(const r of parseLegSheet(text)){ map[legKey(r.a, r.b)] = {land:r.land, sea:r.sea}; }
   }
   COST_LEG[bu] = map;
+}
+// ---- Rute numbered (tab opsional "Rute Numbered <BU>") ----
+// Kunci kab/kota tanpa provinsi: "kota||dumai" (Provinsi di tab ini opsional, hanya info).
+function altKey(kabkota){ return joinKey(kabkota, '').split('||').slice(0,2).join('||'); }
+// "Jakarta - Pekanbaru - Dumai - Cust / Sto" / "Jakarta > Pekanbaru" / "Jakarta → Pekanbaru" -> ['Jakarta','Pekanbaru','Dumai']
+function splitRouteChain(cell){
+  const parts = String(cell||'').split(/\s*(?:→|->|=>|>|–|—|\s-\s)\s*/).map(x=>x.trim()).filter(Boolean);
+  while(parts.length && /^(cust\s*\/?\s*sto|customer|tujuan)$/i.test(parts[parts.length-1])) parts.pop();
+  return parts;
+}
+function buildRouteAlt(bu, text){
+  const map = {};
+  const t = (text||'').trim();
+  // gviz untuk tab yang belum ada mengembalikan sheet pertama -> hanya dipakai kalau header-nya cocok
+  const head = (t.split('\n')[0]||'').toLowerCase();
+  if(head.includes('kabupaten/kota') && /rute\s*\d/.test(head)){
+    for(const r of parseCSV(t)){
+      const kab = (r['Kabupaten/Kota']||'').trim();
+      if(!kab) continue;
+      for(const h of Object.keys(r)){
+        const m = h.trim().match(/^rute\s*(\d+)$/i);
+        if(!m || +m[1] < 2) continue;                       // Rute 1 = rantai coverage yang sekarang, bukan dari tab ini
+        const raw = (r[h]||'').trim();
+        if(!raw) continue;
+        const names = splitRouteChain(raw);
+        if(names.length < 2) continue;
+        (map[altKey(kab)] = map[altKey(kab)] || []).push({n:+m[1], id:'Rute '+(+m[1]), raw, names});
+      }
+    }
+    for(const k in map) map[k].sort((a,b)=>a.n-b.n);
+  }
+  ROUTE_ALT[bu] = map;
+}
+// Cari fasilitas by nama (prioritas BU aktif). tiers = urutan tipe yang dicoba.
+function findFacility(name, tiers){
+  const nn = normFacName(name);
+  for(const tp of tiers){
+    const hits = FACILITIES.filter(f=>f.type===tp && normFacName(f.name)===nn);
+    if(hits.length) return hits.find(f=>(f.bu||'').includes(currentBU)) || hits[0];
+  }
+  return null;
+}
+// Ubah "Jakarta - Tamora - Padang" jadi langkah rute (sama bentuknya dengan steps Rute 1) + peringatan kalau ada yang tidak cocok.
+function resolveAltRoute(c, alt){
+  const warn = [], steps = [];
+  // nama tanpa spasi di sekitar "-" (mis. "Jakarta-Tamora") dipecah kalau potongannya dikenal sebagai fasilitas
+  const names = [];
+  alt.names.forEach(n=>{
+    if(!findFacility(n, ['NDC','RDC','SDC','HUB']) && n.includes('-')){
+      const sp = n.split('-').map(x=>x.trim()).filter(Boolean);
+      if(sp.length>1 && sp.every(x=>findFacility(x, ['NDC','RDC','SDC','HUB']))) { names.push(...sp); return; }
+    }
+    names.push(n);
+  });
+  names.forEach((n,i)=>{
+    const last = i===names.length-1;
+    if(i===0){
+      const f = findFacility(n, ['NDC']);
+      if(!f) warn.push(`${alt.id}: "${n}" bukan NDC di Name of Facility (langkah pertama harus NDC).`);
+      steps.push({tier:'NDC', d:{...(c.NDC||{}), name: f ? f.name : n}, unresolved:!f});
+      return;
+    }
+    if(last){
+      // langkah terakhir = fasilitas yang melayani kab/kota (ambil last mile-nya dari tab Hub/SDC/RDC)
+      for(const tp of ['RDC','SDC','HUB']){
+        if(c[tp] && normFacName(c[tp].name)===normFacName(n)){ steps.push({tier:tp, d:c[tp]}); return; }
+      }
+      const f = findFacility(n, ['HUB','SDC','RDC']);
+      warn.push(f ? `${alt.id}: ${f.name} bukan ${['HUB','SDC','RDC'].filter(tp=>c[tp]).map(tp=>tp+' '+c[tp].name).join(' / ')||'fasilitas'} yang melayani ${c.kabkota}, jadi last mile (lead time/cost) kosong.`
+                  : `${alt.id}: fasilitas "${n}" tidak ditemukan di Name of Facility.`);
+      steps.push({tier: f ? f.type : 'HUB', d:{name: f ? f.name : n}, unresolved:!f});
+      return;
+    }
+    const f = findFacility(n, ['RDC','SDC','HUB']);
+    if(!f) warn.push(`${alt.id}: fasilitas "${n}" tidak ditemukan di Name of Facility.`);
+    steps.push({tier: f ? f.type : 'HUB', d:{name: f ? f.name : n}, unresolved:!f});
+  });
+  return {steps, warn};
 }
 // Short "Darat Xh · Laut Yh" label for the lead time between two facilities, blank if unknown.
 function legMeta(bu, a, b){
@@ -1041,7 +1126,7 @@ function totalsOf(segs){
 function renderCompare(c, routes){
   const el = document.getElementById('seg-compare');
   const {directSeg, routeSegs} = buildSegments(c, routes);
-  const same = routes[0].steps.length<=1;          // tidak ada HUB/SDC/RDC: Rute 1 = Project rute
+  const same = routes.length===1 && routes[0].steps.length<=1;   // tidak ada HUB/SDC/RDC dan tidak ada rute lain: Rute 1 = Project rute
   const D = totalsOf([directSeg]);
   const R = routeSegs.map(totalsOf);
   const na = '<span class="na">—</span>';
@@ -1107,6 +1192,7 @@ function renderCompare(c, routes){
   const notes = [];
   if(SEG_VIS.project && !same && D.land==null && D.sea==null)
     notes.push('Lead time Project rute belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
+  routes.forEach(r=>{ (r.warn||[]).forEach(w=>notes.push(escapeHtml(w))); });
   cols.forEach(x=>{
     if(x.kind!=='project' && x.partial) notes.push('* '+x.id+' belum lengkap, belum ada lead time: '+x.T.unknown.map(escapeHtml).join('; ')+'.');
   });
@@ -1165,6 +1251,8 @@ function regulerDiffers(c){
 }
 
 // Gaya garis/warna per rute (Rute 1, Opsional rute, ... berulang kalau lebih dari 4)
+// gaya garis untuk Rute 2, 3, ... (Opsional rute tetap pakai ROUTE_STYLES)
+const NUMBERED_STYLES = [{color:'#f472b6',dash:'6,3,1,3'},{color:'#a3e635',dash:'1,5'},{color:'#c084fc',dash:'3,3'},{color:'#2dd4bf',dash:'8,3,2,3'}];
 const ROUTE_STYLES = [
   {color:'#ffffff', dash:'4,6'}, {color:'#22d3ee', dash:'2,7'}, {color:'#f472b6', dash:'6,3,1,3'}, {color:'#a3e635', dash:'1,5'}
 ];
@@ -1202,6 +1290,12 @@ function renderSegmentRoute(c, opts){
     color:ROUTE_STYLES[i%ROUTE_STYLES.length].color, dash:ROUTE_STYLES[i%ROUTE_STYLES.length].dash,
     steps:[{tier:'NDC', d:{...c.NDC, name:n}}, ...mid]
   }));
+  // Rute 2, 3, ... dari tab "Rute Numbered <BU>" (rantai fasilitas alternatif untuk kab/kota ini); disisipkan tepat setelah Rute 1
+  const alts = ((ROUTE_ALT[currentBU]||{})[altKey(c.kabkota)]||[]).map((a,i)=>{
+    const rr = resolveAltRoute(c, a), st = NUMBERED_STYLES[i%NUMBERED_STYLES.length];
+    return {id:a.id, kind:'rute', first:false, ndc:rr.steps[0].d.name, color:st.color, dash:st.dash, steps:rr.steps, warn:rr.warn};
+  });
+  routes.splice(1, 0, ...alts);
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
@@ -1210,7 +1304,8 @@ function renderSegmentRoute(c, opts){
 
   // yang ikut digambar = yang ditampilkan di perbandingan (toggle)
   const showRoutes = routes.filter(r=>r.kind==='rute' || SEG_VIS.opsional);
-  const showProject = SEG_VIS.project || !hasMid;     // tanpa HUB/SDC/RDC, Project rute = Rute 1 -> tidak bisa disembunyikan
+  const hasAlt = alts.length>0;
+  const showProject = SEG_VIS.project || (!hasMid && !hasAlt);     // tanpa HUB/SDC/RDC dan tanpa rute lain, Project rute = Rute 1 -> tidak bisa disembunyikan
 
   // mini map: markers for every facility + destination boundary + one line per route
   segLayer.clearLayers();
@@ -1235,8 +1330,11 @@ function renderSegmentRoute(c, opts){
   }
   const pointOf = s => { const f = FACILITY_INDEX[facilityKey(s.tier, s.d.name)]; return f ? [f.lat, f.lon] : null; };
 
-  // facility markers (mid-chain is shared by all routes -> draw once)
-  routes[0].steps.slice(1).forEach(s=>{
+  // facility markers (fasilitas yang dipakai beberapa rute digambar sekali)
+  const seenFac = {};
+  showRoutes.flatMap(r=>r.steps.slice(1)).forEach(s=>{
+    if(s.unresolved || seenFac[s.tier+'|'+normFacName(s.d.name)]) return;
+    seenFac[s.tier+'|'+normFacName(s.d.name)] = 1;
     const pt = pointOf(s); if(!pt) return;
     bounds.push(pt);
     const r = TYPE_RADIUS[s.tier]||6;
@@ -1257,13 +1355,13 @@ function renderSegmentRoute(c, opts){
   const projFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
   if(projFac && showProject){
     bounds.push([projFac.lat, projFac.lon]);
-    if(hasMid && destCenter)
+    if((hasMid||hasAlt) && destCenter)
       L.polyline([[projFac.lat, projFac.lon], destCenter], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'}).bindTooltip('Project rute → Cust / Sto').addTo(segLayer);
-    if(hasMid && !showRoutes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
+    if((hasMid||hasAlt) && !showRoutes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
       L.marker([projFac.lat, projFac.lon], {icon:ndcIcon(DIRECT_COLOR, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${c.NDC.name} (asal Project rute)`).addTo(segLayer);
   }
   // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute)
-  setSegLegend(hasMid
+  setSegLegend((hasMid||hasAlt)
     ? showRoutes.map(r=>({label:r.id, color:r.color, dash:r.dash})).concat(showProject ? [{label:'Project rute', color:DIRECT_COLOR, dash:'8,6'}] : [])
     : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
   if(bounds.length && !opts.keepView) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
@@ -1510,6 +1608,12 @@ async function loadAll(){
     const [costAhi, costHci] = await Promise.all([fetchCostText("AHI"), fetchCostText("HCI")]);
     buildCostLeg('AHI', costAhi);
     buildCostLeg('HCI', costHci);
+
+    // rute numbered (Rute 2, 3, ...): tab opsional, gagal fetch / tab belum ada tidak boleh merusak dashboard
+    const fetchRouteText = async bu => { try{ return await (await fetch(gvizUrl(ROUTE_SHEETS[bu])+'&_ts='+Date.now())).text(); }catch(e){ return ''; } };
+    const [routeAhi, routeHci] = await Promise.all([fetchRouteText('AHI'), fetchRouteText('HCI')]);
+    buildRouteAlt('AHI', routeAhi);
+    buildRouteAlt('HCI', routeHci);
 
     // compute unmatched kab/kota (for gap note) — based on currently selected BU's list (same 514 either way)
     unmatchedKabkota = [];

@@ -2,6 +2,12 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (sore, 2)
+- **Rute numbered (Rute 2, 3, …)**: kab/kota bisa punya rantai rute alternatif, mis. Dumai: Rute 1 = Jakarta → Tamora → Pekanbaru → Dumai, Rute 2 = Jakarta → Pekanbaru → Dumai; Padang: Rute 1 = Jakarta → Padang, Rute 2 = Jakarta → Tamora → Padang. Didefinisikan di tab gsheet baru **`Rute Numbered HCI/AHI`** (opsional; kolom `Kabupaten/Kota`, `Provinsi`, `Rute 2`, `Rute 3`, …; isi sel "Jakarta - Pekanbaru - Dumai"). Tidak ada data yang di-hardcode di `index.html`.
+- Tampil sebagai kolom/breakdown/legend/garis peta sendiri tepat setelah Rute 1 (urutan: Rute 1, 2, … → Opsional rute → Project rute). Lead time & cost memakai leg yang sama dengan Rute 1 (tab Lead Time/Cost Facility to Facility) + last mile dari tab Hub/SDC/RDC; leg yang belum ada → total partial + catatan. Nama fasilitas tak dikenal / langkah pertama bukan NDC / langkah terakhir bukan fasilitas yang melayani kab/kota → catatan peringatan di bawah perbandingan.
+- Tab yang belum ada ditangani: gviz mengembalikan sheet pertama, jadi dibaca hanya kalau header cocok (`Kabupaten/Kota` + `Rute N`).
+- `validate_sheet.py`: cek tab Rute Numbered (kab/kota, nama fasilitas, NDC di awal, fasilitas pelayan di akhir, leg lead time yang hilang). Template: `docs/templates/Rute_Numbered_HCI.csv`. Smoke test +13 cek (60 total).
+
 ## 2026-10-13 (sore)
 - **Note Project rute**: "Note : Pengiriman direct Cust / Sto" ditambahkan di kolom Project rute (baris Note) dan di bawah judul breakdown Project rute (termasuk kasus Project rute = Rute 1). Smoke test +1 cek (47 total).
 - **Perbandingan rute disegmentasi**: urutan kolom (dan breakdown per segmen, dan legend peta) sekarang **Rute 1 (dst.) → Opsional rute → Project rute**, tiap kelompok diberi label kecil di header + garis pemisah.
