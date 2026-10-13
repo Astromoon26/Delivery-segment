@@ -110,6 +110,36 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Opsional rute 2: NDC tambahan di BU otomatis jadi rute baru', nRoutes.before === 2 && nRoutes.after === 3 && nRoutes.last === 'Medan Tes', JSON.stringify(nRoutes));
   await page.screenshot({ path: path.join(OUT, '5_other_rute_palu.png') });
 
+  // --- urutan kolom + toggle: Rute 1 -> Opsional rute -> Project rute
+  const heads = async () => page.$$eval('#seg-compare .seg-cmp > table thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const bdTitles = async () => page.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
+  const legTxt = async () => page.$eval('.seg-legend', e => e.textContent);
+  const hd0 = await heads();
+  check('urutan kolom: Rute 1 -> Opsional rute -> Project rute', hd0.length === 3 && /Rute 1$/.test(hd0[0]) && /Opsional rute$/.test(hd0[1]) && /Project rute$/.test(hd0[2]), JSON.stringify(hd0));
+  const bd0 = await bdTitles();
+  check('urutan breakdown: Rute 1 -> Opsional rute -> Project rute', bd0.length === 3 && /^Rute 1/.test(bd0[0]) && /^Opsional rute/.test(bd0[1]) && /^Project rute/.test(bd0[2]), JSON.stringify(bd0));
+  const lg0 = await legTxt();
+  check('urutan legend peta: Rute 1 -> Opsional rute -> Project rute', lg0.indexOf('Rute 1') < lg0.indexOf('Opsional rute') && lg0.indexOf('Opsional rute') < lg0.indexOf('Project rute'), lg0);
+  check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-cmp > table thead th.grp')).length === 2);
+  check('toggle: ada checkbox Opsional rute & Project rute', (await page.$$('#seg-compare .seg-toggles input')).length === 2);
+  check('note Project rute: tabel + breakdown memuat "Pengiriman direct Cust / Sto"', (await page.$eval('#seg-compare .seg-cmp > table', e => e.innerText)).includes('Pengiriman direct Cust / Sto') && (await page.$$eval('#seg-compare .seg-bd-note', e => e.map(x => x.textContent))).some(t => t.trim() === 'Note : Pengiriman direct Cust / Sto'));
+  const view0 = await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); });
+
+  await page.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await page.waitForTimeout(300);
+  const hd1 = await heads();
+  check('toggle Opsional off: kolom, breakdown & legend Opsional hilang', hd1.length === 2 && !hd1.some(h => /Opsional/.test(h)) && !(await bdTitles()).some(t => /Opsional/.test(t)) && !/Opsional/.test(await legTxt()), JSON.stringify(hd1));
+  check('toggle Opsional off: Rute 1 & Project rute tetap ada', /Rute 1$/.test(hd1[0]) && /Project rute$/.test(hd1[1]));
+  check('toggle: posisi/zoom peta tidak loncat', view0 === await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); }));
+  await page.click('#seg-compare label.seg-toggle:has(input[data-vis="project"])'); await page.waitForTimeout(300);
+  const cmpOff = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  const hd2 = await heads();
+  check('toggle Project off: tinggal Rute 1, baris Selisih hilang', hd2.length === 1 && /Rute 1$/.test(hd2[0]) && !/Selisih Darat/.test(cmpOff), JSON.stringify(hd2));
+  check('toggle Project off: legend & breakdown tanpa Project rute', !/Project rute/.test(await legTxt()) && !(await bdTitles()).some(t => /^Project rute/.test(t)));
+  check('toggle: pilihan tersimpan di localStorage', await page.evaluate(() => localStorage.getItem('seg-route-vis')) === '{"opsional":false,"project":false}');
+  await page.screenshot({ path: path.join(OUT, '6_toggle_off.png') });
+  await page.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await page.click('#seg-compare label.seg-toggle:has(input[data-vis="project"])'); await page.waitForTimeout(300);
+  check('toggle on lagi: 3 kolom kembali', (await heads()).length === 3);
+
   // --- layout panel Delivery Segment: cukup lebar, tidak overflow horizontal, bisa digeser
   const geo = async () => page.evaluate(() => {
     const l = document.querySelector('.seg-left'), t = document.querySelector('.seg-cmp table'), m = document.getElementById('seg-map');
