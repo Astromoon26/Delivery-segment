@@ -88,6 +88,10 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-resizer::after{content:"";position:absolute;left:1px;top:50%;width:5px;height:34px;margin-top:-17px;border-radius:3px;background:var(--border2);opacity:.9}
 .seg-resizer:hover::after,.seg-resizer.drag::after{background:#3b82f6}
 body.resizing{cursor:col-resize;user-select:none}
+.seg-legend{background:rgba(15,19,28,.88);border:1px solid var(--border2);border-radius:8px;padding:8px 11px 7px;margin:0 0 14px 10px!important;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);backdrop-filter:blur(3px)}
+.seg-legend-title{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:5px}
+.seg-legend-row{display:flex;align-items:center;gap:8px;padding:2px 0;white-space:nowrap}
+.seg-legend-row svg{flex:none}
 body.resizing #seg-map{pointer-events:none}
 #seg-map{flex:1;min-width:0;width:100%}
 /* tab Delivery Segment: sidebar global (ringkasan/legenda peta coverage) tidak relevan -> lebih lega */
@@ -237,11 +241,11 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
           <div class="sidebar-top">
             <div class="search-wrap" id="seg-search-wrap">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="seg-search-input" placeholder="Cari kota tujuan..." autocomplete="off"/>
+              <input type="text" id="seg-search-input" placeholder="Cari kab/kota Cust / Sto..." autocomplete="off"/>
               <div class="autocomplete-list" id="seg-ac-list"></div>
             </div>
           </div>
-          <div id="seg-empty" class="seg-empty">Cari kabupaten/kota tujuan buat liat fasilitas apa aja yang dilewatin dari origin (NDC) sampai tujuan.</div>
+          <div id="seg-empty" class="seg-empty">Cari kabupaten/kota Cust / Sto buat liat fasilitas apa aja yang dilewatin dari origin (NDC) sampai Cust / Sto.</div>
           <div id="seg-route" style="display:none">
             <div class="seg-dest-header">
               <div class="seg-dest-title" id="seg-dest-title"></div>
@@ -341,7 +345,7 @@ let geoIdx = {}, geoIdxNoSp = {};
 let currentBU = 'HCI';
 let visibleTypes = new Set(['NDC','RDC','SDC','HUB']);
 let map, facilityLayer, choroLayer;
-let segMap, segLayer;
+let segMap, segLayer, segLegendEl;
 let FACILITY_INDEX = {};
 let currentSegKey = null;
 let unmatchedKabkota = [];
@@ -740,6 +744,18 @@ function initMap(){
   segMap = L.map('seg-map', {zoomControl:true}).setView([-2.5,118],5);
   addBasemap(segMap);
   segLayer = L.layerGroup().addTo(segMap);
+  // legend garis rute, pojok kiri bawah peta (diisi ulang tiap kab/kota di setSegLegend)
+  const legend = L.control({position:'bottomleft'});
+  legend.onAdd = ()=>{ segLegendEl = L.DomUtil.create('div','seg-legend'); segLegendEl.style.display='none'; L.DomEvent.disableClickPropagation(segLegendEl); return segLegendEl; };
+  legend.addTo(segMap);
+}
+// items: [{label, color, dash}] atau null (sembunyikan)
+function setSegLegend(items){
+  if(!segLegendEl) return;
+  if(!items || !items.length){ segLegendEl.style.display = 'none'; return; }
+  segLegendEl.innerHTML = '<div class="seg-legend-title">Legend rute</div>' + items.map(i=>
+    `<div class="seg-legend-row"><svg width="34" height="8" aria-hidden="true"><line x1="1" y1="4" x2="33" y2="4" stroke="${i.color}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="${i.dash}"/></svg><span>${i.label}</span></div>`).join('');
+  segLegendEl.style.display = 'block';
 }
 
 function renderChoropleth(){
@@ -963,7 +979,7 @@ function chainSegs(steps){
   }
   const last = steps[steps.length-1];
   segs.push({
-    label: last.d.name+' → Tujuan', kind: 'last mile '+last.tier,
+    label: last.d.name+' → Cust / Sto', kind: 'last mile '+last.tier,
     land: numOrNull(last.d.sla), sea: null, costLand: last.d.cost||'', costSea: ''
   });
   return segs;
@@ -971,7 +987,7 @@ function chainSegs(steps){
 function buildSegments(c, steps, otherSteps){
   const nd = c.NDC;
   const directSeg = {
-    label: nd.name+' → Tujuan', kind: 'direct',
+    label: nd.name+' → Cust / Sto', kind: 'direct',
     land: nd ? numOrNull(nd.slaLand) : null, sea: nd ? numOrNull(nd.slaSea) : null,
     costLand: nd ? (nd.costLand||'') : '', costSea: nd ? (nd.costSea||'') : ''
   };
@@ -1082,7 +1098,7 @@ function renderCompare(c, steps, otherSteps){
 
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
-      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(c.NDC.name)} → tujuan.</div>
+      <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi reguler rute = direct NDC ${escapeHtml(c.NDC.name)} → Cust / Sto.</div>
       <div class="seg-bd-wrap">${bdTable('Direct NDC = Reguler rute', DIRECT_COLOR, [directSeg], D, false, false)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
@@ -1090,11 +1106,11 @@ function renderCompare(c, steps, otherSteps){
   el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
     <table>
       <thead><tr><th></th>
-        <th><span class="sw" style="border-color:${DIRECT_COLOR}"></span>Direct NDC</th>
-        <th><span class="sw" style="border-color:${FLOW_COLOR};opacity:.7"></span>Reguler rute</th>
-        ${hasO?`<th><span class="sw" style="border-color:${OTHER_COLOR}"></span>Other rute</th>`:''}</tr></thead>
+        <th>Direct NDC</th>
+        <th>Reguler rute</th>
+        ${hasO?`<th>Other rute</th>`:''}</tr></thead>
       <tbody>
-        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Tujuan</td><td>${names} → Tujuan</td>${oc(othNames+' → Tujuan')}</tr>
+        <tr><td>Rute</td><td>${escapeHtml(c.NDC.name)} → Cust / Sto</td><td>${names} → Cust / Sto</td>${oc(othNames+' → Cust / Sto')}</tr>
         <tr><td>Titik transit</td><td><span class="val">0</span></td><td><span class="val">${steps.length-1}</span></td>${oc(`<span class="val">${hasO?otherSteps.length-1:0}</span>`)}</tr>
         <tr><td>Lead time Darat</td><td>${D.land==null?todo:ltCell(D.land,false)}</td><td>${ltCell(R.land, rPartialLT)}</td>${oc(hasO?ltCell(O.land,oPartialLT):'')}</tr>
         <tr><td>Lead time Laut</td><td>${D.sea==null?todo:ltCell(D.sea,false)}</td><td>${ltCell(R.sea, rPartialLT)}</td>${oc(hasO?ltCell(O.sea,oPartialLT):'')}</tr>
@@ -1215,9 +1231,12 @@ function renderSegmentRoute(c){
     if(steps.length>1 && ndcFac && geoFeats && geoFeats.length){
       const center = destCenter;
       L.polyline([[ndcFac.lat, ndcFac.lon], center], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'})
-        .bindTooltip('Direct NDC → tujuan').addTo(segLayer);
+        .bindTooltip('Direct NDC → Cust / Sto').addTo(segLayer);
     }
   }
+  setSegLegend(steps.length>1
+    ? [{label:'Direct NDC', color:DIRECT_COLOR, dash:'8,6'}, {label:'Reguler rute', color:FLOW_COLOR, dash:'4,6'}].concat(otherFac ? [{label:'Other rute', color:OTHER_COLOR, dash:'2,7'}] : [])
+    : [{label:'Direct NDC = Reguler rute', color:FLOW_COLOR, dash:'4,6'}]);
   if(latlngs.length){
     const bounds = L.latLngBounds(latlngs);
     if(directFac) bounds.extend([directFac.lat, directFac.lon]);
@@ -1406,6 +1425,7 @@ function rerenderAll(){
     currentSegKey = null;
     document.getElementById('seg-route').style.display = 'none';
     document.getElementById('seg-empty').style.display = 'block';
+    setSegLegend(null);
   }
 }
 

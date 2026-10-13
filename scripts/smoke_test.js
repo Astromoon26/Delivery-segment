@@ -77,6 +77,10 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('segmen Dumai: breakdown per segmen memuat Pekanbaru → Dumai (hub-to-hub)', /breakdown per segmen/i.test(cmp) && /Pekanbaru → Dumai/.test(cmp), cmp.slice(0, 160));
   check('segmen Dumai: ada baris last mile + Total', /last mile/.test(cmp) && /Total/.test(cmp));
   check('segmen Dumai (Sumatra): TIDAK ada Other rute', !/Other rute/.test(cmp));
+  check('label "Tujuan" diganti "Cust / Sto" di Delivery Segment', /Cust \/ Sto/.test(cmp) && !/tujuan/i.test(await page.$eval('#view-segment', e => e.textContent)));
+  const lg = await page.$eval('.seg-legend', e => ({ txt: e.textContent.replace(/\s+/g, ' '), vis: getComputedStyle(e).display !== 'none', inMap: !!e.closest('#seg-map'), x: Math.round(e.getBoundingClientRect().left - document.getElementById('seg-map').getBoundingClientRect().left), bottomGap: Math.round(document.getElementById('seg-map').getBoundingClientRect().bottom - e.getBoundingClientRect().bottom) }));
+  check('legend rute: di peta, kiri bawah, memuat Direct NDC & Reguler rute', lg.vis && lg.inMap && lg.x < 40 && lg.bottomGap < 60 && /Direct NDC/.test(lg.txt) && /Reguler rute/.test(lg.txt), JSON.stringify(lg));
+  check('legend rute: tidak ada lagi di tabel Perbandingan rute', (await page.$$('#seg-compare .seg-cmp thead .sw')).length === 0);
   check('daftar rute lama (#seg-steps) sudah dihapus', (await page.$('#seg-steps')) === null);
   const legend = await page.$$eval('#seg-map .leaflet-interactive', e => e.length);
   check('peta segmen: ada garis/poligon', legend > 0, `${legend} layer`);
@@ -87,6 +91,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.click('#seg-ac-list .autocomplete-item'); await page.waitForTimeout(1200);
   const cmpPalu = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   check('Other rute Palu: kolom Other rute tampil', /Other rute/.test(cmpPalu), cmpPalu.slice(0, 200));
+  check('legend rute Palu: ada entri Other rute', /Other rute/.test(await page.$eval('.seg-legend', e => e.textContent)));
   // tidak bergantung isi sheet: Reguler & Other harus mulai dari dua NDC yang BERBEDA (Jakarta / Sidoarjo)
   const othNdc = (cmpPalu.match(/Other rute \(mulai dari NDC (\w+)\)/) || [])[1];
   const regNdc = (cmpPalu.match(/Reguler rute Segmen.*?(Jakarta|Sidoarjo) →/) || [])[1];
@@ -139,7 +144,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p2.fill('#seg-search-input', 'Kota Palu'); await p2.waitForTimeout(400);
   await p2.click('#seg-ac-list .autocomplete-item'); await p2.waitForTimeout(1200);
   const cmp2 = await p2.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
-  check('NDC Reguler: Palu direct = "Sidoarjo → Tujuan"', /Sidoarjo → Tujuan/.test(cmp2), cmp2.slice(0, 200));
+  check('NDC Reguler: Palu direct = "Sidoarjo → Cust / Sto"', /Sidoarjo → Cust \/ Sto/.test(cmp2), cmp2.slice(0, 200));
   check('NDC Reguler: reguler rute Palu mulai dari Jakarta', /Rute\s+\S.*?Jakarta →/.test(cmp2) && /Jakarta → \S+/.test(cmp2), cmp2.slice(0, 260));
   check('NDC Reguler + Other rute: other otomatis = Sidoarjo', /Other rute \(mulai dari NDC Sidoarjo\)/.test(cmp2), cmp2.slice(0, 200));
   await p2.screenshot({ path: path.join(OUT, '4_segmen_palu_reguler.png') });
