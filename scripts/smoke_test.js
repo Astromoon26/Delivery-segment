@@ -49,6 +49,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
   // --- load & errors
   check('tidak ada JS error / alert', pageErrors.length === 0 && dialogs.length === 0, [...pageErrors, ...dialogs].join(' | '));
+  check('gviz memaksa 1 baris header (headers=1) agar baris awal bertanda "-" tidak ikut terbaca sebagai header', /[?&]headers=1\b/.test(await page.evaluate(() => gvizUrl('Cost Facility to Facility HCI'))), '');
   check('tidak ada HTTP >= 400', badHttp.length === 0, badHttp.slice(0, 3).join(' | '));
 
   // --- basemap (CARTO sekarang minta API key -> watermark; jangan balik ke sana)
@@ -63,7 +64,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
   // --- tabel + hub feeder
   await page.click('.tab[data-tab="table"]');
-  await page.fill('#table-search', 'dumai'); await page.waitForTimeout(500);
+  await page.fill('#table-search', 'dumai'); await page.waitForFunction(() => document.querySelectorAll('#table-body tr').length < 50, { timeout: 15000 }); await page.waitForTimeout(300);
   const dumai = await page.$$eval('#table-body tr', r => r.map(x => x.innerText.replace(/\s+/g, ' ')));
   check('tabel: Dumai tampil "via Pekanbaru" (hub-to-hub)', dumai.length > 0 && dumai.every(t => /via Pekanbaru/.test(t)), `${dumai.length} baris`);
   await page.fill('#table-search', ''); await page.waitForTimeout(400);
@@ -305,6 +306,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p5.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2"\n"Kota Banda Aceh","Aceh","Tamora - Aceh","Jakarta - Tamora - Aceh"\n"Kota Pekanbaru","Riau","Tamora",""\n"Kota Palu","Sulawesi Tengah","","Tamora"\n' }));
   await p5.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
+  // tab Armada di gsheet asli sudah ada -> simulasikan 'tidak ada' (gviz mengembalikan sheet pertama)
+  await p5.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Name of Facility","Type"\n"Jakarta","NDC"\n' }));
   await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
   await p5.click('.tab[data-tab="segment"]');
@@ -353,8 +356,32 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const tx8 = await p6.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   const ac = await p6.evaluate(() => armadaCols('HCI').map(c => c.label + (c.modeLabel ? ' ' + c.modeLabel : '') + ' ' + c.ar.eff));
   check('armada: kolom dikenali dari header (CDDL, Fuso, Cont-20 Laut), kolom lain diabaikan, kapasitas efektif 85%', JSON.stringify(ac) === JSON.stringify(['CDDL 13.6', 'Fuso 27.2', 'Cont-20 Laut 21.25']), JSON.stringify(ac));
-  check('armada: bagian Cost per armada tampil dengan kapasitas efektif (13,6 / 27,2 / 21,25 cbm)', /Cost per armada/i.test(tx8) && /13,6 cbm/.test(tx8) && /27,2 cbm/.test(tx8) && /Laut · 21,25 cbm/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("cost per armada"), tx8.toLowerCase().indexOf("cost per armada") + 300));
-  check('armada: total CDDL = 12.000.000 (leg Pekanbaru → Dumai kosong -> partial ≥ …*) dan cost/cbm = 12.000.000 / 13,6', /≥Rp 12\.000\.000\*/.test(tx8) && /≥Rp 882\.353\/cbm\*/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("total per armada"), tx8.toLowerCase().indexOf("total per armada") + 400));
+  check('armada: bagian Cost per armada tampil, header armada TANPA kapasitas (cbm)', /Cost per armada/i.test(tx8) && !/\d[\d,.]* cbm/.test(tx8) && /Laut/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf('cost per armada'), tx8.toLowerCase().indexOf('cost per armada') + 400));
+  const mainTx = await p6.$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl)', e => e.innerText.replace(/\s+/g, ' '));
+  check('tabel perbandingan: tanpa baris Cost Darat / Cost Laut, lead time tetap ada', !/Cost (Darat|Laut)/i.test(mainTx) && /Lead time Darat/i.test(mainTx) && /Lead time Laut/i.test(mainTx), mainTx.slice(0, 300));
+  const bdTx = await p6.$eval('#seg-compare .seg-bd-wrap', e => e.innerText.replace(/\s+/g, ' '));
+  check('breakdown per segmen: tanpa cost (tidak ada Rp / "cost —")', /Breakdown per segmen/i.test(bdTx) && !/Rp\s?\d|cost —/i.test(bdTx), bdTx.slice(0, 300));
+  // --- pilih armada per segmen: total rute = Cost/Trip & Cost/CBM dari armada yang terpilih
+  const totTx = () => p6.$eval('#seg-armada tr.tot', e => e.innerText.replace(/\s+/g, ' '));
+  const pos = await p6.evaluate(() => { const w = document.querySelector('#seg-compare'), bd = w.querySelector('.seg-bd-wrap'), df = w.querySelector('.seg-diff-wrap'), ar = w.querySelector('#seg-armada');
+    return { diffAfterBd: !!(bd.compareDocumentPosition(df) & Node.DOCUMENT_POSITION_FOLLOWING), armAfterDiff: !!(df.compareDocumentPosition(ar) & Node.DOCUMENT_POSITION_FOLLOWING), diffTxt: df.innerText.replace(/\s+/g, ' ') }; });
+  check('urutan: Breakdown per segmen -> Selisih LT -> Cost per armada; Selisih tanpa cost', pos.diffAfterBd && pos.armAfterDiff && /Selisih LT/i.test(pos.diffTxt) && !/Cost:|lebih (murah|mahal)/i.test(pos.diffTxt), pos.diffTxt.slice(0, 200));
+  check('Cost per armada: tabel "Total per armada" per rute dihapus', !/Total per armada/i.test(tx8), '');
+  check('armada: sebelum ada pilihan, total menunjuk "belum ada armada dipilih"', /belum ada armada dipilih/i.test(await totTx()), await totTx());
+  await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(2)');                       // Jakarta -> Tamora = CDDL
+  const t1 = await totTx();
+  check('armada: klik segmen CDDL -> total Cost/Trip ≥Rp 10.000.000* & Cost/CBM ≥Rp 735.294/cbm* (1 dari 3 segmen)', /Cost\/Trip ≥Rp 10\.000\.000\*/.test(t1) && /Cost\/CBM ≥Rp 735\.294\/cbm\*/.test(t1) && /1 dari 3 segmen/.test(t1), t1);
+  check('armada: sel terpilih ditandai (aria-pressed / kelas sel)', await p6.$eval('#seg-armada tbody tr:nth-child(1) td:nth-child(2)', e => e.classList.contains('sel') && e.getAttribute('aria-pressed') === 'true'), '');
+  await p6.click('#seg-armada thead th.arm-colpick:nth-child(2)');                           // header CDDL = semua segmen yang punya CDDL
+  const t2 = await totTx();
+  check('armada: klik header CDDL -> semua segmen ber-CDDL terpilih: ≥Rp 12.000.000* & ≥Rp 882.353/cbm* (2 dari 3)', /≥Rp 12\.000\.000\*/.test(t2) && /≥Rp 882\.353\/cbm\*/.test(t2) && /2 dari 3 segmen/.test(t2), t2);
+  await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(4)');                       // Jakarta -> Tamora pindah ke Cont-20 Laut
+  const t3 = await totTx();
+  check('armada: ganti armada satu segmen (Cont-20 Laut) -> total Rp 10.000.000 & Rp 523.529/cbm (campur armada)', /≥Rp 10\.000\.000\*/.test(t3) && /≥Rp 523\.529\/cbm\*/.test(t3), t3);
+  await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(4)');                       // klik lagi = batal
+  const t4 = await totTx();
+  check('armada: klik lagi = batal pilihan (tinggal Tamora → Pekanbaru CDDL ≥Rp 2.000.000*, 1 dari 3)', /≥Rp 2\.000\.000\*/.test(t4) && /1 dari 3 segmen/.test(t4), t4);
+  check('armada: segmen tanpa harga armada (Pekanbaru → Dumai) tidak bisa dipilih', await p6.$$eval('#seg-armada tbody tr:nth-child(3) td.arm-pick', n => n.length) === 0, '');
   await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   await ctx6.close();

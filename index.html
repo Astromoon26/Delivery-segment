@@ -189,6 +189,14 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .seg-bd td:first-child{color:var(--text);font-size:11.5px}
 .seg-bd tr.tot td{font-weight:600;border-top:1px solid var(--border2);background:rgba(255,255,255,.03)}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
+.seg-arm-tbl td.arm-pick{cursor:pointer;transition:background .12s}
+.seg-arm-tbl td.arm-pick:hover{background:rgba(255,255,255,.05)}
+.seg-arm-tbl td.arm-pick.sel{background:rgba(59,130,246,.18);box-shadow:inset 0 0 0 1.5px #3b82f6}
+.seg-arm-tbl td.arm-pick:focus-visible,.seg-arm-tbl th.arm-colpick:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
+.seg-arm-tbl th.arm-colpick{cursor:pointer}
+.seg-arm-tbl th.arm-colpick:hover{color:var(--text)}
+.seg-arm-tbl .arm-tot{display:inline-flex;align-items:baseline;gap:6px;margin-right:14px;white-space:nowrap}
+.seg-arm-tbl tr.tot .sub{white-space:nowrap}
 .osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
 </style>
 </head>
@@ -378,6 +386,8 @@ let map, facilityLayer, choroLayer;
 let segMap, segLayer, segLegendEl;
 // toggle tampil/sembunyi di Perbandingan rute (Rute 1 selalu tampil); diingat per-browser
 let SEG_VIS = {opsional:true, project:true};
+// armada terpilih per segmen per rute: kunci 'BU|id rute|legKey' -> idx kolom armada di tab Cost F2F (hanya di memori, tidak disimpan)
+const SEG_ARM = {};
 try{ const v = JSON.parse(localStorage.getItem('seg-route-vis')||'null'); if(v) SEG_VIS = {opsional:v.opsional!==false, project:v.project!==false}; }catch(e){}
 let FACILITY_INDEX = {};
 let currentSegKey = null;
@@ -428,7 +438,7 @@ function normName(s, isGsheet){
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function gvizUrl(sheetName){
-  return `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  return `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheetName)}`;
 }
 function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
@@ -1127,7 +1137,6 @@ function parseMoney(v){
   return isNaN(n) ? null : n;
 }
 function fmtMoney(n){ return n==null ? '—' : 'Rp ' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
-function costText(raw){ const n = parseMoney(raw); return n!=null ? fmtMoney(n) : String(raw||'').trim(); }
 
 // One row per delivery segment (leg between two facilities, plus the last mile to the destination).
 // land/sea = lead time (hari), costLand/costSea = raw cost cells. Darat and Laut are alternatives per
@@ -1225,36 +1234,31 @@ function renderCompare(c, routes, projects){
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
 
   const ltCell = (v, partial) => v==null ? na : `<span class="val">${partial?'≥':''}${fmtD(v)}${partial?'*':''}</span>`;
-  const costCell = (v, partial, emptyHtml) => v==null ? emptyHtml : `<span class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</span>`;
   const row = (label, fn) => `<tr><td>${label}</td>${cols.map((x,i)=>`<td class="${grp(x,i).trim()}">${fn(x)}</td>`).join('')}</tr>`;
 
-  // Selisih = rute − Project rute (hanya kalau Project rute ditampilkan), only for numbers both sides actually have
-  const diff = (v, dir, partial, isMoney) => {
+  // Selisih lead time (hari): hanya angka yang dimiliki kedua sisi, rute yang belum lengkap tidak dibandingkan
+  const diff = (v, dir, partial) => {
     if(v==null || dir==null || partial) return null;
     const d = v - dir;
     if(d===0) return 'sama';
-    const txt = isMoney ? fmtMoney(Math.abs(d)) : fmtD(Math.abs(d));
-    const less = isMoney ? 'lebih murah' : 'lebih cepat', more = isMoney ? 'lebih mahal' : 'lebih lama';
-    return d<0 ? `<span class="good">${less} ${txt}</span>` : `<span class="bad">${more} ${txt}</span>`;
+    return d<0 ? `<span class="good">lebih cepat ${fmtD(Math.abs(d))}</span>` : `<span class="bad">lebih lama ${fmtD(Math.abs(d))}</span>`;
   };
 
   // --- breakdown tables
-  const subCost = raw => raw ? escapeHtml(costText(raw)) : 'cost —';
-  const dCell = s => s.land==null ? `<div class="val">—</div><div class="sub">${subCost(s.costLand)}</div>`
-                                  : `<div class="val">${fmtD(s.land)}</div><div class="sub">${subCost(s.costLand)}</div>`;
+  const dCell = s => `<div class="val">${s.land==null?'—':fmtD(s.land)}</div>`;
   const makeSeaCell = anySea => s => {
     if(!anySea) return `<div class="val">—</div>`;
-    if(s.sea!=null) return `<div class="val">${fmtD(s.sea)}</div><div class="sub">${subCost(s.costSea)}</div>`;
-    if(s.land!=null) return `<div class="val">${fmtD(s.land)} <span class="na" title="tidak ada opsi laut, pakai darat">(darat)</span></div><div class="sub">${subCost(s.costLand)}</div>`;
-    return `<div class="val">—</div><div class="sub">cost —</div>`;
+    if(s.sea!=null) return `<div class="val">${fmtD(s.sea)}</div>`;
+    if(s.land!=null) return `<div class="val">${fmtD(s.land)} <span class="na" title="tidak ada opsi laut, pakai darat">(darat)</span></div>`;
+    return `<div class="val">—</div>`;
   };
   const PROJECT_NOTE = 'Note : Pengiriman direct Cust / Sto';
   const bdTable = (title, color, segs, T, showTotal, partialLT, note) => {
     const sea = makeSeaCell(T.anySea);
     const rows = segs.map(s=>`<tr><td><div>${escapeHtml(s.label)}</div><div class="sub">${escapeHtml(s.kind)}</div></td><td>${dCell(s)}</td><td>${sea(s)}</td></tr>`).join('');
     const totalRow = showTotal ? `<tr class="tot"><td>Total</td>
-        <td><div class="val">${T.land==null?'—':(partialLT?'≥':'')+fmtD(T.land)+(partialLT?'*':'')}</div><div class="sub">${T.costLand==null?'cost —':(T.costLandPartial?'≥':'')+fmtMoney(T.costLand)+(T.costLandPartial?'*':'')}</div></td>
-        <td><div class="val">${T.sea==null?'—':(partialLT?'≥':'')+fmtD(T.sea)+(partialLT?'*':'')}</div><div class="sub">${T.costSea==null?'cost —':(T.costSeaPartial?'≥':'')+fmtMoney(T.costSea)+(T.costSeaPartial?'*':'')}</div></td></tr>` : '';
+        <td><div class="val">${T.land==null?'—':(partialLT?'≥':'')+fmtD(T.land)+(partialLT?'*':'')}</div></td>
+        <td><div class="val">${T.sea==null?'—':(partialLT?'≥':'')+fmtD(T.sea)+(partialLT?'*':'')}</div></td></tr>` : '';
     return `<div class="seg-bd-title"><span class="sw" style="border-color:${color}"></span>${title}</div>
       ${note?`<div class="seg-bd-note">${note}</div>`:''}
       <table class="seg-bd"><thead><tr><th>Segmen</th><th>Darat</th><th>Laut</th></tr></thead><tbody>${rows}${totalRow}</tbody></table>`;
@@ -1281,53 +1285,61 @@ function renderCompare(c, routes, projects){
     return;
   }
 
-  // Selisih LT & cost antar rute yang ditampilkan (ikut toggle), SETELAH Breakdown per segmen.
+  // Selisih LT antar rute yang ditampilkan (ikut toggle), tepat SETELAH Breakdown per segmen (sebelum Cost per armada).
   // Matriks: tiap baris dibanding tiap kolom (baris − kolom). Hanya angka yang dimiliki kedua sisi.
   const pairCell = (a, b, kind) => {
     if(a===b) return na;
-    const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
-    const parts = [];
-    const lt = diff(a.T[f[0]], b.T[f[0]], a.partial || b.partial, false);
-    const cs = diff(a.T[f[1]], b.T[f[1]], a.T[f[2]] || b.T[f[2]], true);
-    if(lt) parts.push('LT: '+lt);
-    if(cs) parts.push('Cost: '+cs);
-    return `<span class="val">${parts.length?parts.join('<br>'):na}</span>`;
+    const lt = diff(a.T[kind], b.T[kind], a.partial || b.partial);
+    return `<span class="val">${lt || na}</span>`;
   };
   const matrix = (title, kind) => `<div class="seg-diff-title">${title}</div>
     <div class="seg-tbl-scroll"><table class="seg-main-tbl seg-diff-tbl"${cols.length>4?` style="min-width:${84+cols.length*104}px"`:''}>
       <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}"><span class="gtag">dibanding</span>${x.id}</th>`).join('')}</tr></thead>
       <tbody>${cols.map(a=>`<tr><td><span class="sw" style="border-color:${a.color}"></span>${a.id}</td>${cols.map((b,i)=>`<td class="${grp(b,i).trim()}">${pairCell(a,b,kind)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   const diffHtml = cols.length<2 ? '' :
-    `<div class="seg-diff-wrap"><div class="seg-cmp-subtitle">Selisih LT &amp; cost antar rute</div>
+    `<div class="seg-diff-wrap"><div class="seg-cmp-subtitle">Selisih LT antar rute</div>
       <div class="seg-cmp-note seg-cmp-hint">Membandingkan rute yang sedang ditampilkan: baris dibanding kolom (mis. baris Rute 1, kolom Project rute = Rute 1 dibanding Project rute).</div>
       ${matrix('Selisih Darat','land')}${matrix('Selisih Laut','sea')}</div>`;
 
   // Cost per armada (kolom armada di tab Cost Facility to Facility x kapasitas efektif di tab Armada):
-  // cost/trip per leg + cost/cbm = cost/trip / (kapasitas x utilisasi). Hanya leg antar fasilitas (last mile & direct NDC belum per armada).
+  // tiap segmen antar fasilitas bisa diklik untuk memilih armadanya; total rute = jumlah armada terpilih (Cost/Trip & Cost/CBM).
+  // cost/cbm = cost/trip / (kapasitas x utilisasi). Last mile & direct NDC belum per armada.
   const aCols = armadaCols(currentBU);
   const armLegs = x => { const o=[]; for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)}); return o; };
   const armVal = (k, col) => { const e = (COST_LEG[currentBU]||{})[k]; return e && e.ext ? parseMoney(e.ext[col.idx]) : null; };
-  const armTotal = (legs, col) => { let sum=0, n=0; legs.forEach(l=>{ const v=armVal(l.k,col); if(v!=null){ sum+=v; n++; } }); return {v:n?sum:null, partial:n>0 && n<legs.length}; };
-  const fmtCbm = n => n.toLocaleString('id-ID',{maximumFractionDigits:2});
-  const armCell = (v, col, partial) => v==null ? `<div class="val"><span class="na">—</span></div>`
-    : `<div class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</div><div class="sub">${partial?'≥':''}${fmtMoney(v/col.ar.eff)}/cbm${partial?'*':''}</div>`;
-  const armHead = col => `<th>${escapeHtml(col.label)}<div class="sub">${col.modeLabel?col.modeLabel+' · ':''}${fmtCbm(col.ar.eff)} cbm</div></th>`;
+  const selKey = (x, l) => currentBU+'|'+x.id+'|'+l.k;
+  const armPick = (x, l) => { const i = SEG_ARM[selKey(x,l)]; return i==null ? null : (aCols.find(c=>c.idx===i) || null); };
+  const armTotal = x => {
+    const legs = armLegs(x); let trip=0, cbm=0, n=0;
+    legs.forEach(l=>{ const c=armPick(x,l); if(!c) return; const v=armVal(l.k,c); if(v==null) return; trip+=v; cbm+=v/c.ar.eff; n++; });
+    return {n, of:legs.length, trip:n?trip:null, cbm:n?cbm:null};
+  };
+  const armCell = (x, l, col) => {
+    const v = armVal(l.k, col);
+    if(v==null) return `<td><div class="val"><span class="na">—</span></div></td>`;
+    const on = armPick(x,l) === col;
+    return `<td class="arm-pick${on?' sel':''}" role="button" tabindex="0" aria-pressed="${on}" data-r="${escapeHtml(x.id)}" data-k="${escapeHtml(l.k)}" data-c="${col.idx}" title="${on?'Klik lagi untuk batal':'Pilih '+escapeHtml(col.label)+' untuk segmen ini'}"><div class="val">${fmtMoney(v)}</div><div class="sub">${fmtMoney(v/col.ar.eff)}/cbm</div></td>`;
+  };
+  const armHead = (x, col) => `<th class="arm-colpick" role="button" tabindex="0" data-r="${escapeHtml(x.id)}" data-c="${col.idx}" title="Pilih ${escapeHtml(col.label)} untuk semua segmen rute ini">${escapeHtml(col.label)}${col.modeLabel?`<div class="sub">${col.modeLabel}</div>`:''}</th>`;
   const armXcols = cols.filter(x=>armLegs(x).length>0);
-  const armadaHtml = (!aCols.length || !armXcols.length) ? '' : (() => {
+  const armTotRow = x => {
+    const t = armTotal(x);
+    if(!t.n) return `<tr class="tot"><td>Total armada terpilih</td><td colspan="${aCols.length}"><span class="na">belum ada armada dipilih — klik sel armada di tiap segmen</span></td></tr>`;
+    const pt = t.n < t.of, pre = pt?'≥':'', suf = pt?'*':'';
+    return `<tr class="tot"><td>Total armada terpilih</td><td colspan="${aCols.length}"><span class="arm-tot"><span class="sub">Cost/Trip</span><span class="val">${pre}${fmtMoney(t.trip)}${suf}</span></span><span class="arm-tot"><span class="sub">Cost/CBM</span><span class="val">${pre}${fmtMoney(t.cbm)}/cbm${suf}</span></span><span class="sub">${t.n} dari ${t.of} segmen terpilih</span></td></tr>`;
+  };
+  const armadaInner = () => {
     const mw = `min-width:${110+aCols.length*96}px`;
-    const summary = `<div class="seg-diff-title">Total per armada (leg antar fasilitas)</div>
-      <div class="seg-tbl-scroll"><table class="seg-bd" style="${mw}"><thead><tr><th>Rute</th>${aCols.map(armHead).join('')}</tr></thead><tbody>
-      ${armXcols.map(x=>{ const legs=armLegs(x); return `<tr><td><span class="sw" style="border-color:${x.color}"></span>${x.id}</td>${aCols.map(c=>{ const t=armTotal(legs,c); return `<td>${armCell(t.v,c,t.partial)}</td>`; }).join('')}</tr>`; }).join('')}
-      </tbody></table></div>`;
     const detail = armXcols.map(x=>{ const legs=armLegs(x); return `<div class="seg-diff-title"><span class="sw" style="border-color:${x.color}"></span>${x.id}</div>
-      <div class="seg-tbl-scroll"><table class="seg-bd" style="${mw}"><thead><tr><th>Segmen</th>${aCols.map(armHead).join('')}</tr></thead><tbody>
-      ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div></td>${aCols.map(c=>`<td>${armCell(armVal(l.k,c),c,false)}</td>`).join('')}</tr>`).join('')}
-      <tr class="tot"><td>Total</td>${aCols.map(c=>{ const t=armTotal(legs,c); return `<td>${armCell(t.v,c,t.partial)}</td>`; }).join('')}</tr>
+      <div class="seg-tbl-scroll"><table class="seg-bd seg-arm-tbl" style="${mw}"><thead><tr><th>Segmen</th>${aCols.map(c=>armHead(x,c)).join('')}</tr></thead><tbody>
+      ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div></td>${aCols.map(c=>armCell(x,l,c)).join('')}</tr>`).join('')}
+      ${armTotRow(x)}
       </tbody></table></div>`; }).join('');
-    return `<div class="seg-bd-wrap"><div class="seg-cmp-subtitle">Cost per armada</div>
-      <div class="seg-cmp-note seg-cmp-hint">Cost/trip per armada dari tab Cost Facility to Facility; cost/cbm = cost/trip ÷ kapasitas efektif (kapasitas × utilisasi, tab Armada). * = ada leg yang belum diisi. Last mile &amp; direct NDC belum termasuk (belum per armada).</div>
-      ${summary}${detail}</div>`;
-  })();
+    return `<div class="seg-cmp-subtitle">Cost per armada</div>
+      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilih armadanya (klik lagi untuk batal); klik nama armada di header untuk memilihnya di semua segmen rute itu. Total Cost/Trip &amp; Cost/CBM rute = jumlah armada yang terpilih; cost/cbm per segmen = cost/trip ÷ kapasitas efektif (kapasitas × utilisasi, tab Armada). * = ada segmen yang belum dipilih / belum diisi. Last mile &amp; direct NDC belum termasuk (belum per armada).</div>
+      ${detail}`;
+  };
+  const armadaHtml = (!aCols.length || !armXcols.length) ? '' : `<div class="seg-bd-wrap" id="seg-armada">${armadaInner()}</div>`;
 
   const toggle = (key, label, color, on) => `<label class="seg-toggle${on?' on':''}" style="--c:${color}"><input type="checkbox" data-vis="${key}"${on?' checked':''}><span class="dot"></span>${label}</label>`;
   el.innerHTML = `<div class="seg-cmp${cols.length>4?' many':''}"><div class="seg-cmp-title">Perbandingan rute</div>
@@ -1343,16 +1355,44 @@ function renderCompare(c, routes, projects){
         ${SEG_VIS.project && cols.some(x=>x.kind==='project' && x.direct) ? row('Note', x=>x.kind==='project' && x.direct ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
         ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
         ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
-        ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
-        ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
       </tbody></table></div>
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
       ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
-    ${armadaHtml}
     ${diffHtml}
+    ${armadaHtml}
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
+
+  // pilih armada per segmen / per rute (hanya gambar ulang bagian Cost per armada)
+  const armEl = el.querySelector('#seg-armada');
+  if(armEl){
+    const act = t => {
+      const cell = t.closest('.arm-pick'), head = t.closest('.arm-colpick');
+      if(cell){
+        const key = currentBU+'|'+cell.dataset.r+'|'+cell.dataset.k, ci = +cell.dataset.c;
+        if(SEG_ARM[key]===ci) delete SEG_ARM[key]; else SEG_ARM[key]=ci;
+        return {r:cell.dataset.r, k:cell.dataset.k, c:cell.dataset.c, head:false};
+      }
+      if(head){
+        const x = armXcols.find(v=>v.id===head.dataset.r), ci = +head.dataset.c, col = aCols.find(c=>c.idx===ci);
+        if(!x || !col) return null;
+        const legs = armLegs(x).filter(l=>armVal(l.k,col)!=null);
+        const all = legs.length>0 && legs.every(l=>SEG_ARM[selKey(x,l)]===ci);
+        legs.forEach(l=>{ if(all) delete SEG_ARM[selKey(x,l)]; else SEG_ARM[selKey(x,l)]=ci; });
+        return {r:head.dataset.r, c:head.dataset.c, head:true};
+      }
+      return null;
+    };
+    const redraw = (info, refocus) => {
+      armEl.innerHTML = armadaInner();
+      if(!refocus) return;
+      const q = info.head ? `.arm-colpick[data-r="${CSS.escape(info.r)}"][data-c="${info.c}"]` : `.arm-pick[data-r="${CSS.escape(info.r)}"][data-k="${CSS.escape(info.k)}"][data-c="${info.c}"]`;
+      const n = armEl.querySelector(q); if(n) n.focus();
+    };
+    armEl.onclick = e => { const info = act(e.target); if(info) redraw(info, false); };
+    armEl.onkeydown = e => { if(e.key!=='Enter' && e.key!==' ') return; const info = act(e.target); if(info){ e.preventDefault(); redraw(info, true); } };
+  }
 
   // toggle: simpan pilihan, gambar ulang tabel + peta (tanpa menggeser posisi peta)
   el.querySelectorAll('.seg-toggles input').forEach(inp=>{

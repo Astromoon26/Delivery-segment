@@ -2,6 +2,20 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (dini hari, 3)
+- **Selisih LT** dipindah tepat di bawah *Breakdown per segmen* (sebelum Cost per armada) dan sekarang **hanya lead time** (selisih cost dihapus; sel hanya "lebih cepat / lebih lama X hari").
+- **Cost per armada:** tabel "Total per armada" (baris rute × kolom armada) dihapus. Di tiap rute, **sel armada per segmen bisa diklik** untuk memilih armada segmen itu (klik lagi = batal; klik nama armada di header = pilih untuk semua segmen rute itu; juga bisa lewat keyboard Enter/Spasi). Total rute hanya **Cost/Trip & Cost/CBM dari armada terpilih** (jumlah per segmen; cost/cbm = jumlah cost/trip ÷ kapasitas efektif tiap segmen; `≥…*` + "n dari m segmen terpilih" kalau belum semua segmen dipilih / ada yang kosong). Pilihan disimpan di memori halaman saja (`SEG_ARM`), hilang saat refresh.
+- Smoke test: +8 tes (urutan bagian, selisih tanpa cost, pilih/ganti/batal armada, header pilih semua, segmen kosong tidak bisa dipilih) (95 total).
+
+## 2026-10-14 (dini hari, 2)
+- **Revisi tab Delivery Segment:** (1) tabel **Perbandingan rute** tidak lagi menampilkan baris *Cost Darat* dan *Cost Laut* (Lead time Darat / Laut tetap); (2) **Breakdown per segmen** tanpa cost di tiap segmen maupun baris Total (tinggal lead time); (3) **Cost per armada** tanpa kapasitas armada di header (nama armada + Darat/Laut saja). Cost/trip dan cost/cbm di sel tetap tampil; kapasitas efektif tetap dipakai menghitung cost/cbm dari tab `Armada`.
+- Bagian "Selisih LT & cost antar rute" tidak berubah (masih memuat selisih cost).
+- Smoke test: tes kapasitas diganti (header tanpa cbm), +2 tes (tabel utama tanpa cost, breakdown tanpa cost), tes Dumai menunggu filter tabel selesai (flaky saat data live lambat) (87 total).
+
+## 2026-10-14 (dini hari, 1)
+- **Fix: tab Cost HCI kehilangan 15 baris pertama.** gviz menebak jumlah baris header; di tab dengan kolom berisi tanda "-" di baris-baris awal (mis. `Cont-20 Darat`) beberapa baris data ikut terbaca sebagai header. `gvizUrl` sekarang menambah `&headers=1` (tepat 1 baris header) untuk semua tab.
+- Smoke test: tes "tanpa tab Armada" men-stub tab Armada (tab asli di gsheet sudah dibuat) + cek `headers=1` (85 total).
+
 ## 2026-10-13 (malam, 6)
 - **Cost per armada** (cost/trip + cost/cbm) di Delivery Segment, bagian baru **setelah Breakdown per segmen** (sebelum Selisih): tabel "Total per armada" (baris = rute, kolom = armada) + rincian per segmen per rute.
   - **Tab baru `Armada`** (opsional): `Armada`, `Kapasitas (cbm)`, `Utilisasi (%)` (default 85). Kapasitas efektif = kapasitas × utilisasi (CDDL 16 → 13,6 · Fuso 32 → 27,2 · Wingbox 42 → 35,7 · Cont-20 25 → 21,25 · Cont-40 50 → 42,5). Kapasitas diubah di gsheet, bukan di kode. Template: `docs/templates/Armada.csv`.
