@@ -311,7 +311,7 @@ def check_bu(bu, cache, rep):
     except Exception:
         rt = ''
     rh, rdata = table(rt)
-    rcols = [c for c in rh if re.match(r'^(rute\s*\d+|opsional(\s*rute)?\s*\d*)$', c.strip(), re.I)]
+    rcols = [c for c in rh if re.match(r'^(rute\s*\d+|opsional(\s*rute)?\s*\d*|project(\s*rute)?\s*\d*)$', c.strip(), re.I)]
     if 'Kabupaten/Kota' not in rh or not rcols:
         rep.add('INFO', P + 'tab "Rute Numbered ' + bu + '" belum ada / belum berisi (opsional; dipakai untuk Rute 2, 3, ... per kab/kota)')
         return
@@ -331,13 +331,11 @@ def check_bu(bu, cache, rep):
             raw = (r.get(col) or '').strip()
             if not raw:
                 continue
-            if re.match(r'^rute', col.strip(), re.I) and int(re.search(r'\d+', col).group()) < 2:
-                rep.add('WARN', P + f'Rute Numbered: kolom "{col}" diabaikan (Rute 1 = rantai coverage yang sekarang, mulai dari Rute 2)', [kab])
-                continue
             names = [x.strip() for x in re.split(r'\s*(?:→|->|=>|>|–|—|\s-\s)\s*', raw) if x.strip()]
             while names and re.match(r'^(cust\s*/?\s*sto|customer|tujuan)$', names[-1], re.I):
                 names.pop()
-            if len(names) < 2:
+            is_proj = bool(re.match(r'^project', col.strip(), re.I))
+            if len(names) < (1 if is_proj else 2):
                 continue
             nroute += 1
             ctx = f'{kab} {col}'
@@ -346,7 +344,7 @@ def check_bu(bu, cache, rep):
                     bad_name.append(f'{ctx}: "{n}" tidak ada di Name of Facility')
             if fac_type.get(norm_fac(names[0])) != 'NDC':
                 bad_first.append(f'{ctx}: langkah pertama "{names[0]}" bukan NDC')
-            if kk in served and norm_fac(names[-1]) not in served[kk].values():
+            if len(names) > 1 and kk in served and norm_fac(names[-1]) not in served[kk].values():
                 bad_last.append(f'{ctx}: "{names[-1]}" bukan fasilitas yang melayani kab/kota ini ({", ".join(f"{t} {n}" for t, n in served[kk].items())}) -> last mile kosong')
             for x, y in zip(names, names[1:]):
                 v = legs.get(f'{norm_fac(x)}|{norm_fac(y)}')

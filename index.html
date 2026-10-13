@@ -699,24 +699,26 @@ function buildRouteAlt(bu, text){
   const t = (text||'').trim();
   // gviz untuk tab yang belum ada mengembalikan sheet pertama -> hanya dipakai kalau header-nya cocok
   const head = (t.split('\n')[0]||'').toLowerCase();
-  if(head.includes('kabupaten/kota') && /(rute\s*\d|opsional)/.test(head)){
+  if(head.includes('kabupaten/kota') && /(rute\s*\d|opsional|project)/.test(head)){
     for(const r of parseCSV(t)){
       const kab = (r['Kabupaten/Kota']||'').trim();
       if(!kab) continue;
       for(const h of Object.keys(r)){
         // "Rute 2", "Rute 3", ... = rute numbered; "Opsional rute", "Opsional rute 1", "Opsional rute 2", ... = Opsional rute custom
-        const m = h.trim().match(/^rute\s*(\d+)$/i), o = h.trim().match(/^opsional(?:\s*rute)?\s*(\d*)$/i);
-        if(!m && !o) continue;
-        if(m && +m[1] < 2) continue;                        // Rute 1 = rantai coverage yang sekarang, bukan dari tab ini
+        const m = h.trim().match(/^rute\s*(\d+)$/i), o = h.trim().match(/^opsional(?:\s*rute)?\s*(\d*)$/i), pj = h.trim().match(/^project(?:\s*rute)?\s*(\d*)$/i);
+        if(!m && !o && !pj) continue;
         const raw = (r[h]||'').trim();
         if(!raw) continue;
         const names = splitRouteChain(raw);
-        if(names.length < 2) continue;
-        const n = m ? +m[1] : (+o[1] || 1);
-        (map[altKey(kab)] = map[altKey(kab)] || []).push({kind: m ? 'rute' : 'opsional', n, id: m ? 'Rute '+n : 'Opsional rute '+n, raw, names});
+        // Project rute boleh cuma NDC (= direct NDC -> Cust / Sto); Rute dan Opsional minimal NDC + 1 fasilitas
+        if(names.length < (pj ? 1 : 2)) continue;
+        const kind = m ? 'rute' : o ? 'opsional' : 'project', n = m ? +m[1] : (+(o||pj)[1] || 1);
+        const label = {rute:'Rute', opsional:'Opsional rute', project:'Project rute'}[kind];
+        (map[altKey(kab)] = map[altKey(kab)] || []).push({kind, n, id: label+' '+n, raw, names});
       }
     }
-    for(const k in map) map[k].sort((a,b)=>(a.kind===b.kind ? 0 : a.kind==='rute' ? -1 : 1) || a.n-b.n);
+    const ord = {rute:0, opsional:1, project:2};
+    for(const k in map) map[k].sort((a,b)=>(ord[a.kind]-ord[b.kind]) || a.n-b.n);
   }
   ROUTE_ALT[bu] = map;
 }
@@ -1091,7 +1093,7 @@ function chainSegs(steps){
   });
   return segs;
 }
-function buildSegments(c, routes){
+function buildSegments(c, routes, projects){
   const nd = c.NDC;
   const directSeg = {
     label: nd.name+' → Cust / Sto', kind: 'project',
@@ -1100,7 +1102,14 @@ function buildSegments(c, routes){
   };
   // satu rute per NDC; kalau tidak ada HUB/SDC/RDC maka Rute 1 = Project rute
   const routeSegs = routes.map(r=> r.steps.length>1 ? chainSegs(r.steps) : [directSeg]);
-  return {directSeg, routeSegs};
+  // Project rute: cuma NDC = direct NDC -> Cust / Sto (data dari tab NDC; hanya ada untuk NDC project di tab itu);
+  // kalau ditulis rantai di tab Rute Numbered = rantai fasilitas seperti rute biasa
+  const projSegs = projects.map(pr=>{
+    if(pr.steps.length>1) return chainSegs(pr.steps);
+    const same = normFacName(pr.steps[0].d.name)===normFacName(nd.name);
+    return [same ? directSeg : {label: pr.steps[0].d.name+' → Cust / Sto', kind:'project', land:null, sea:null, costLand:'', costSea:''}];
+  });
+  return {directSeg, routeSegs, projSegs};
 }
 
 function totalsOf(segs){
@@ -1129,11 +1138,12 @@ function totalsOf(segs){
   };
 }
 
-function renderCompare(c, routes){
+function renderCompare(c, routes, projects){
   const el = document.getElementById('seg-compare');
-  const {directSeg, routeSegs} = buildSegments(c, routes);
-  const same = routes.length===1 && routes[0].steps.length<=1;   // tidak ada HUB/SDC/RDC dan tidak ada rute lain: Rute 1 = Project rute
-  const D = totalsOf([directSeg]);
+  const {directSeg, routeSegs, projSegs} = buildSegments(c, routes, projects);
+  const same = routes.length===1 && routes[0].steps.length<=1 && projects.length===1 && !projects[0].custom;   // tidak ada HUB/SDC/RDC dan tidak ada rute lain: Rute 1 = Project rute
+  const P = projSegs.map(totalsOf);
+  const D = P[0];                                  // pembanding Selisih = Project rute pertama
   const R = routeSegs.map(totalsOf);
   const na = '<span class="na">—</span>';
   const todo = '<span class="na">belum diisi</span>';
@@ -1145,8 +1155,13 @@ function renderCompare(c, routes){
                                    path:pathOf(r)+' → Cust / Sto', transit:r.steps.length-1, title:r.id+' (mulai dari NDC '+escapeHtml(r.steps[0].d.name)+')', showTotal:true}))
                     .filter(x=>x.kind==='rute' || SEG_VIS.opsional);
   if(SEG_VIS.project)
-    cols.push({kind:'project', id:'Project rute', color:DIRECT_COLOR, T:D, segs:[directSeg], partial:false,
-               path:escapeHtml(c.NDC.name)+' → Cust / Sto', transit:0, title:'Project rute', showTotal:false});
+    projects.forEach((pr,pi)=>{
+      const direct = pr.steps.length<=1;
+      cols.push({kind:'project', id:pr.id, color:pr.color, T:P[pi], segs:projSegs[pi], isBase:pi===0, direct,
+                 partial: !direct && P[pi].unknown.length>0,
+                 path: direct ? escapeHtml(pr.steps[0].d.name)+' → Cust / Sto' : pathOf(pr)+' → Cust / Sto', transit: pr.steps.length-1,
+                 title: pr.id + (direct ? '' : ' (mulai dari NDC '+escapeHtml(pr.steps[0].d.name)+')'), showTotal:!direct});
+    });
   const kindLabel = {rute:'Rute', opsional:'Opsional', project:'Project'};
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
 
@@ -1164,7 +1179,7 @@ function renderCompare(c, routes){
     return d<0 ? `<span class="good">${less} ${txt}</span>` : `<span class="bad">${more} ${txt}</span>`;
   };
   const diffCell = (x, kind) => {
-    if(x.kind==='project') return na;
+    if(x.kind==='project' && x.isBase) return na;
     const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
     const parts = [];
     const lt = diff(x.T[f[0]], D[f[0]], x.partial, false), cs = diff(x.T[f[1]], D[f[1]], x.T[f[2]], true);
@@ -1196,13 +1211,13 @@ function renderCompare(c, routes){
   };
 
   const notes = [];
-  if(SEG_VIS.project && !same && D.land==null && D.sea==null)
+  if(SEG_VIS.project && !same && projects[0].steps.length<=1 && D.land==null && D.sea==null && normFacName(projects[0].steps[0].d.name)===normFacName(c.NDC.name))
     notes.push('Lead time Project rute belum diisi di tab "NDC '+currentBU+'" (kolom Lead Time Land / Sea), jadi selisih belum bisa dihitung.');
-  routes.forEach(r=>{ (r.warn||[]).forEach(w=>notes.push(escapeHtml(w))); });
+  routes.concat(projects).forEach(r=>{ (r.warn||[]).forEach(w=>notes.push(escapeHtml(w))); });
   cols.forEach(x=>{
-    if(x.kind!=='project' && x.partial) notes.push('* '+x.id+' belum lengkap, belum ada lead time: '+x.T.unknown.map(escapeHtml).join('; ')+'.');
+    if(x.partial) notes.push('* '+x.id+' belum lengkap, belum ada lead time: '+x.T.unknown.map(escapeHtml).join('; ')+'.');
   });
-  const blocked = cols.filter(x=>x.kind!=='project' && x.T.landBlocked).map(x=>x.id);
+  const blocked = cols.filter(x=>x.T.landBlocked).map(x=>x.id);
   if(blocked.length)
     notes.push('Ada segmen yang cuma punya jalur laut, jadi total Darat tidak tersedia ('+blocked.join(' & ')+').');
   if(cols.some(x=>x.segs.some(s=>!s.costLand && !s.costSea)))
@@ -1227,9 +1242,9 @@ function renderCompare(c, routes){
       <tbody>
         ${row('Rute', x=>x.path)}
         ${row('Titik transit', x=>`<span class="val">${x.transit}</span>`)}
-        ${SEG_VIS.project ? row('Note', x=>x.kind==='project' ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
-        ${row('Lead time Darat', x=>x.kind==='project' ? (D.land==null?todo:ltCell(D.land,false)) : ltCell(x.T.land,x.partial))}
-        ${row('Lead time Laut', x=>x.kind==='project' ? (D.sea==null?todo:ltCell(D.sea,false)) : ltCell(x.T.sea,x.partial))}
+        ${SEG_VIS.project && cols.some(x=>x.kind==='project' && x.direct) ? row('Note', x=>x.kind==='project' && x.direct ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
+        ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
+        ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
         ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
         ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
         ${SEG_VIS.project ? row('Selisih Darat', x=>diffCell(x,'land')) + row('Selisih Laut', x=>diffCell(x,'sea')) : ''}
@@ -1237,7 +1252,7 @@ function renderCompare(c, routes){
     ${SEG_VIS.project ? '<div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>' : '<div class="seg-cmp-note seg-cmp-hint">Project rute disembunyikan, jadi baris Selisih tidak ditampilkan.</div>'}
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
-      ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project'?PROJECT_NOTE:'')).join('')}
+      ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
@@ -1261,13 +1276,15 @@ function regulerDiffers(c){
 const NUMBERED_STYLES = [{color:'#f472b6',dash:'6,3,1,3'},{color:'#a3e635',dash:'1,5'},{color:'#c084fc',dash:'3,3'},{color:'#2dd4bf',dash:'8,3,2,3'}];
 // gaya garis Opsional rute (urut: Opsional rute 1, 2, ...) — sengaja beda dari NUMBERED_STYLES supaya tidak ada warna kembar
 const OPSIONAL_STYLES = [{color:'#22d3ee',dash:'2,7'},{color:'#f87171',dash:'4,4'},{color:'#fde047',dash:'1,6'},{color:'#60a5fa',dash:'5,3,1,3'}];
+// gaya garis Project rute (Project rute 1 = oranye putus-putus seperti biasa)
+const PROJECT_STYLES = [{color:DIRECT_COLOR,dash:'8,6'},{color:'#f97316',dash:'3,3'},{color:'#facc15',dash:'1,5'}];
 const ROUTE_STYLES = [
   {color:'#ffffff', dash:'4,6'}, {color:'#22d3ee', dash:'2,7'}, {color:'#f472b6', dash:'6,3,1,3'}, {color:'#a3e635', dash:'1,5'}
 ];
 // NDC asal rute-rute selain Project rute, berurutan: Rute 1 = asal Reguler (kolom "NDC Reguler" atau NDC project),
 // Opsional rute = NDC lain yang ada di BU ini (khusus kab/kota di OTHER_RUTE_PULAU; override satu NDC lewat kolom "NDC Other").
-function routeNdcNames(c, hasMid){
-  const first = (hasMid && regulerDiffers(c)) ? c.NDC.reguler : c.NDC.name;
+function routeNdcNames(c, hasMid, firstOverride){
+  const first = firstOverride || ((hasMid && regulerDiffers(c)) ? c.NDC.reguler : c.NDC.name);
   const names = [first];
   if(!hasMid || !OTHER_RUTE_PULAU.some(p=>(c.pulau||'').toLowerCase().includes(p))) return names;
   const taken = new Set([normFacName(first)]);
@@ -1290,21 +1307,28 @@ function renderSegmentRoute(c, opts){
     if(t==='HUB' && c.HUB.via) mid.push({tier:'HUB', d:{name:c.HUB.via}, feeder:true});
     mid.push({tier:t, d:c[t]});
   }
-  // satu rute per NDC (coverage NDC). Rute 1 = rute utama (asal NDC Reguler / NDC project);
+  // Tab "Rute Numbered <BU>": rantai yang ditulis per kab/kota untuk tiap kelompok rute
+  // (Rute 1, 2, ... / Opsional rute 1, 2, ... / Project rute 1, 2, ...). Yang tidak ditulis memakai logika otomatis dari coverage.
+  const altDefs = (ROUTE_ALT[currentBU]||{})[altKey(c.kabkota)]||[];
+  const r1Def = altDefs.find(a=>a.kind==='rute' && a.n===1);
+  const r1Res = r1Def ? resolveAltRoute(c, r1Def) : null;
+
+  // otomatis: satu rute per NDC (coverage NDC). Rute 1 = rute utama (asal NDC Reguler / NDC project);
   // NDC lain = "Opsional rute" (Opsional rute 1, 2, ... kalau lebih dari satu)
-  const ndcNames = routeNdcNames(c, hasMid);
+  const ndcNames = routeNdcNames(c, hasMid, r1Res ? r1Res.steps[0].d.name : null);
   const routes = ndcNames.map((n,i)=>({
     id: i===0 ? 'Rute 1' : (ndcNames.length>2 ? 'Opsional rute '+i : 'Opsional rute'), kind: i===0 ? 'rute' : 'opsional', first:i===0, ndc:n,
     color:(i===0 ? ROUTE_STYLES[0] : OPSIONAL_STYLES[(i-1)%OPSIONAL_STYLES.length]).color, dash:(i===0 ? ROUTE_STYLES[0] : OPSIONAL_STYLES[(i-1)%OPSIONAL_STYLES.length]).dash,
     steps:[{tier:'NDC', d:{...c.NDC, name:n}}, ...mid]
   }));
-  // Rute 2, 3, ... dari tab "Rute Numbered <BU>" (rantai fasilitas alternatif untuk kab/kota ini); disisipkan tepat setelah Rute 1
-  const altDefs = (ROUTE_ALT[currentBU]||{})[altKey(c.kabkota)]||[];
-  const alts = altDefs.filter(a=>a.kind==='rute').map((a,i)=>{
+  // Rute 1 custom menggantikan rantai Rute 1 dari coverage
+  if(r1Res) Object.assign(routes[0], {steps:r1Res.steps, ndc:r1Res.steps[0].d.name, warn:r1Res.warn});
+  // Rute 2, 3, ... disisipkan tepat setelah Rute 1
+  const alts = altDefs.filter(a=>a.kind==='rute' && a.n>=2).map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = NUMBERED_STYLES[i%NUMBERED_STYLES.length];
     return {id:a.id, kind:'rute', first:false, ndc:rr.steps[0].d.name, color:st.color, dash:st.dash, steps:rr.steps, warn:rr.warn};
   });
-  // Opsional rute custom dari tab yang sama: kalau kab/kota ini punya, menggantikan Opsional rute otomatis (NDC lain)
+  // Opsional rute custom: kalau kab/kota ini punya, menggantikan Opsional rute otomatis (NDC lain)
   const opsDefs = altDefs.filter(a=>a.kind==='opsional');
   const opsCustom = opsDefs.map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = OPSIONAL_STYLES[i%OPSIONAL_STYLES.length];
@@ -1315,16 +1339,24 @@ function renderSegmentRoute(c, opts){
     routes.push(...opsCustom);
   }
   routes.splice(1, 0, ...alts);
-  alts.push(...opsCustom);      // hasAlt: ada rute dari tab Rute Numbered
+
+  // Project rute: default = direct NDC -> Cust / Sto (data tab NDC); custom (tab Rute Numbered) = satu atau beberapa Project rute
+  const projDefs = altDefs.filter(a=>a.kind==='project');
+  const projects = projDefs.length ? projDefs.map((a,i)=>{
+    const rr = resolveAltRoute(c, a), st = PROJECT_STYLES[i%PROJECT_STYLES.length], warn = rr.warn.slice();
+    if(rr.steps.length<=1 && normFacName(rr.steps[0].d.name)!==normFacName(c.NDC.name))
+      warn.push(`${a.id}: lead time/cost direct dari NDC ${rr.steps[0].d.name} belum tersedia (tab NDC ${currentBU} hanya menyimpan data NDC ${c.NDC.name}); tulis rantai fasilitasnya di tab Rute Numbered kalau perlu.`);
+    return {id: projDefs.length>1 ? a.id : 'Project rute', kind:'project', custom:true, color:st.color, dash:st.dash, steps:rr.steps, warn};
+  }) : [{id:'Project rute', kind:'project', custom:false, color:DIRECT_COLOR, dash:'8,6', steps:[{tier:'NDC', d:c.NDC}], warn:[]}];
+  const hasAlt = alts.length>0 || opsCustom.length>0 || !!r1Res || projDefs.length>0;
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
 
-  renderCompare(c, routes);
+  renderCompare(c, routes, projects);
 
   // yang ikut digambar = yang ditampilkan di perbandingan (toggle)
   const showRoutes = routes.filter(r=>r.kind==='rute' || SEG_VIS.opsional);
-  const hasAlt = alts.length>0;
   const showProject = SEG_VIS.project || (!hasMid && !hasAlt);     // tanpa HUB/SDC/RDC dan tanpa rute lain, Project rute = Rute 1 -> tidak bisa disembunyikan
 
   // mini map: markers for every facility + destination boundary + one line per route
@@ -1352,7 +1384,7 @@ function renderSegmentRoute(c, opts){
 
   // facility markers (fasilitas yang dipakai beberapa rute digambar sekali)
   const seenFac = {};
-  showRoutes.flatMap(r=>r.steps.slice(1)).forEach(s=>{
+  showRoutes.concat(showProject ? projects : []).flatMap(r=>r.steps.slice(1)).forEach(s=>{
     if(s.unresolved || seenFac[s.tier+'|'+normFacName(s.d.name)]) return;
     seenFac[s.tier+'|'+normFacName(s.d.name)] = 1;
     const pt = pointOf(s); if(!pt) return;
@@ -1371,18 +1403,20 @@ function renderSegmentRoute(c, opts){
     const o = pointOf(r.steps[0]);
     if(o){ bounds.push(o); L.marker(o, {icon:ndcIcon(r.first?'rgba(255,255,255,.85)':r.color, r.color+'44', false)}).bindTooltip(`NDC: ${r.ndc} (asal ${r.id})`).addTo(segLayer); }
   });
-  // Project rute: NDC -> Cust / Sto langsung
-  const projFac = FACILITY_INDEX[facilityKey('NDC', c.NDC.name)];
-  if(projFac && showProject){
-    bounds.push([projFac.lat, projFac.lon]);
-    if((hasMid||hasAlt) && destCenter)
-      L.polyline([[projFac.lat, projFac.lon], destCenter], {color:DIRECT_COLOR, weight:2.5, opacity:.85, dashArray:'8,6'}).bindTooltip('Project rute → Cust / Sto').addTo(segLayer);
-    if((hasMid||hasAlt) && !showRoutes.some(r=>normFacName(r.ndc)===normFacName(c.NDC.name)))
-      L.marker([projFac.lat, projFac.lon], {icon:ndcIcon(DIRECT_COLOR, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${c.NDC.name} (asal Project rute)`).addTo(segLayer);
-  }
+  // Project rute: direct NDC -> Cust / Sto, atau rantai kalau ditulis di tab Rute Numbered
+  if(showProject) projects.forEach(pr=>{
+    const pts = pr.steps.map(pointOf).filter(Boolean);
+    const o = pointOf(pr.steps[0]);
+    if(o) bounds.push(o);
+    if(!(hasMid||hasAlt) || !o) return;      // Project rute = Rute 1 (tanpa HUB/SDC/RDC): garisnya sudah digambar sebagai Rute 1
+    if(destCenter) pts.push(destCenter);
+    if(pts.length>1) L.polyline(pts, {color:pr.color, weight:2.5, opacity:.85, dashArray:pr.dash}).bindTooltip(pr.id+(pr.steps.length<=1?' → Cust / Sto':'')).addTo(segLayer);
+    if(!showRoutes.some(r=>normFacName(r.ndc)===normFacName(pr.steps[0].d.name)))
+      L.marker(o, {icon:ndcIcon(pr.color, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${pr.steps[0].d.name} (asal ${pr.id})`).addTo(segLayer);
+  });
   // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute)
   setSegLegend((hasMid||hasAlt)
-    ? showRoutes.map(r=>({label:r.id, color:r.color, dash:r.dash})).concat(showProject ? [{label:'Project rute', color:DIRECT_COLOR, dash:'8,6'}] : [])
+    ? showRoutes.map(r=>({label:r.id, color:r.color, dash:r.dash})).concat(showProject ? projects.map(pr=>({label:pr.id, color:pr.color, dash:pr.dash})) : [])
     : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
   if(bounds.length && !opts.keepView) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
 }

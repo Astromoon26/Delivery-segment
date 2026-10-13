@@ -2,6 +2,13 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (malam, 2)
+- **Semua kelompok rute bisa ditulis di tab `Rute Numbered <BU>`**: kolom `Rute 1`, `Rute 2`, … · `Opsional rute 1`, `Opsional rute 2`, … · `Project rute 1`, `Project rute 2`, … (satu kolom `Opsional rute` / `Project rute` tanpa angka juga boleh). Format sel sama (`Jakarta - Pekanbaru - Dumai`).
+  - **Rute 1** ditulis → menggantikan rantai Rute 1 dari coverage (dan Opsional rute otomatis dihitung dari NDC selain asal Rute 1 itu).
+  - **Project rute** ditulis → menggantikan Project rute default (direct NDC → Cust / Sto). Boleh cuma NDC (`Jakarta` = direct; lead time/cost dari tab NDC, hanya kalau NDC-nya sama dengan NDC di tab itu, kalau beda muncul peringatan) atau rantai fasilitas (`Sidoarjo - Pekanbaru - Dumai`). Lebih dari satu → Project rute 1, 2, …; toggle Project rute menyembunyikan semuanya; Selisih dibandingkan ke Project rute 1; note "Pengiriman direct Cust / Sto" hanya untuk Project rute direct.
+  - Yang tidak ditulis tetap memakai logika otomatis. Peta/legend/breakdown ikut.
+- `validate_sheet.py` cek kolom baru (Project rute boleh 1 fasilitas). Smoke test: tab Rute Numbered di-stub kosong untuk test lama (gsheet sudah berisi data sungguhan) + 9 cek slot (71 total).
+
 ## 2026-10-13 (malam)
 - **Opsional rute custom per kab/kota**: tab `Rute Numbered <BU>` sekarang juga boleh punya kolom **`Opsional rute 1`**, **`Opsional rute 2`**, … (atau satu kolom `Opsional rute`), format sel sama dengan Rute 2 (`Sidoarjo - Tallo - Palu`). Kalau kab/kota punya isian di kolom ini, Opsional rute otomatis (NDC lain) untuk kab/kota itu **diganti** oleh isian tersebut; berlaku untuk pulau mana pun dan ikut toggle Opsional rute. Kab/kota yang tidak diisi tetap pakai Opsional rute otomatis.
 - Tabel perbandingan: kalau kolom > 4 tabel bisa digeser horizontal (kolom label tetap di kiri) supaya teks tidak ke-wrap per huruf.

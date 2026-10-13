@@ -41,6 +41,9 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     if (r.status() >= 400 && !/favicon/.test(u)) badHttp.push(r.status() + ' ' + u.slice(0, 100));
   });
 
+  // tab "Rute Numbered" di gsheet sudah berisi data sungguhan -> test lain tidak boleh bergantung padanya (distub kosong)
+  const emptyRouteTabs = async pg => { for (const bu of ['HCI', 'AHI']) await pg.route(new RegExp('sheet=Rute%20Numbered%20' + bu), r => r.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' })); };
+  await emptyRouteTabs(page);
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.waitForTimeout(3500);
 
@@ -179,6 +182,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     const out = lines.map((l, i) => i === 0 ? l + ',"NDC Reguler"' : (l.includes('"Kota Palu"') ? l + ',"Jakarta"' : (l ? l + ',""' : l)));
     await route.fulfill({ response: res, body: out.join('\n') });
   });
+  await emptyRouteTabs(p2);
   await p2.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p2.waitForTimeout(3500);
   await p2.click('.tab[data-tab="segment"]');
@@ -248,6 +252,47 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Opsional rute custom (Palu) menggantikan Opsional rute otomatis', hdPalu.filter(h => /Opsional/.test(h)).length === 1 && /Sidoarjo → Palu → Cust \/ Sto/.test(txPalu) && !/Sidoarjo → Tallo → Palu/.test(txPalu) && bdPalu.some(t => /^Opsional rute \(mulai dari NDC Sidoarjo\)/.test(t)), JSON.stringify(bdPalu));
   check('rute numbered: tanpa JS error', err3.length === 0, err3.join(' | '));
   await ctx3.close();
+
+  // --- slot Rute 1 & Project rute dari tab Rute Numbered (Rute 1 / Opsional rute N / Project rute N bisa ditulis per kab/kota)
+  const ctx4 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p4 = await ctx4.newPage();
+  const err4 = [];
+  p4.on('pageerror', e => err4.push(e.message));
+  await p4.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Kabupaten/Kota","Provinsi","Rute 1","Rute 2","Opsional rute 1","Project rute 1","Project rute 2"\n' +
+    '"Kota Dumai","Riau","Jakarta - Pekanbaru - Dumai","Jakarta - Tamora - Pekanbaru - Dumai","","Jakarta","Sidoarjo - Pekanbaru - Dumai"\n' +
+    '"Kota Padang","Sumatera Barat","","","","Sidoarjo",""\n' +
+    '"Kota Palu","Sulawesi Tengah","Sidoarjo - Tallo - Palu","","","",""\n' }));
+  await p4.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
+  await p4.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p4.waitForTimeout(3500);
+  await p4.click('.tab[data-tab="segment"]');
+  const open4 = async q => { await p4.fill('#seg-search-input', q); await p4.waitForTimeout(400); await p4.click('#seg-ac-list .autocomplete-item'); await p4.waitForTimeout(1200); };
+  const heads4 = async () => p4.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const bd4 = async () => p4.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
+  await open4('Kota Dumai');
+  const h4 = await heads4(), tx4 = await p4.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' ')), b4 = await bd4();
+  check('slot: Dumai kolom = Rute 1, Rute 2, Project rute 1, Project rute 2', h4.length === 4 && /Rute 1$/.test(h4[0]) && /Rute 2$/.test(h4[1]) && /Project rute 1$/.test(h4[2]) && /Project rute 2$/.test(h4[3]), JSON.stringify(h4));
+  check('slot: Rute 1 custom (Jakarta → Pekanbaru → Dumai) menggantikan rantai coverage', /Jakarta → Pekanbaru → Dumai → Cust \/ Sto Jakarta → Tamora → Pekanbaru → Dumai → Cust \/ Sto/.test(tx4), tx4.slice(0, 420));
+  check('slot: Project rute 1 = NDC saja (direct) + note, Project rute 2 = rantai dengan Total', /Pengiriman direct Cust \/ Sto/.test(tx4) && b4.length === 4 && /^Project rute 1$/.test(b4[2]) && /^Project rute 2 \(mulai dari NDC Sidoarjo\)/.test(b4[3]), JSON.stringify(b4));
+  const lg4 = await p4.$eval('.seg-legend', e => e.textContent);
+  check('slot: legend Rute 1 -> Rute 2 -> Project rute 1 -> Project rute 2', ['Rute 1', 'Rute 2', 'Project rute 1', 'Project rute 2'].every((x, i, arr) => i === 0 || lg4.indexOf(arr[i - 1]) < lg4.indexOf(x)), lg4);
+  await p4.screenshot({ path: path.join(OUT, '9_slot_dumai.png') });
+  await p4.click('#seg-compare label.seg-toggle:has(input[data-vis="project"])'); await p4.waitForTimeout(300);
+  const h4off = await heads4();
+  check('slot: toggle Project off menyembunyikan semua Project rute', h4off.length === 2 && !h4off.some(h => /Project/.test(h)) && !(await p4.$eval('.seg-legend', e => e.textContent)).includes('Project'), JSON.stringify(h4off));
+  await p4.click('#seg-compare label.seg-toggle:has(input[data-vis="project"])'); await p4.waitForTimeout(300);
+  await open4('Kota Padang');
+  const tx4p = await p4.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('slot: Project rute NDC lain (Sidoarjo) -> peringatan data belum tersedia', /Project rute 1: lead time\/cost direct dari NDC Sidoarjo belum tersedia/.test(tx4p) && /Sidoarjo → Cust \/ Sto/.test(tx4p), tx4p.slice(-260));
+  await open4('Kota Palu');
+  const b4pl = await bd4(), tx4pl = await p4.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('slot: Rute 1 custom di Palu (Sidoarjo) -> Opsional rute otomatis pindah ke NDC lain (Jakarta)', /^Rute 1 \(mulai dari NDC Sidoarjo\)/.test(b4pl[0]) && b4pl.some(x => /^Opsional rute \(mulai dari NDC Jakarta\)/.test(x)), JSON.stringify(b4pl));
+  await open4('Kota Pekanbaru');
+  const h4pk = await heads4();
+  check('slot: kab/kota tanpa isian tetap default (Rute 1 + Project rute saja)', h4pk.length === 2 && /Rute 1$/.test(h4pk[0]) && /Project rute$/.test(h4pk[1]), JSON.stringify(h4pk));
+  check('slot: tanpa JS error', err4.length === 0, err4.join(' | '));
+  await ctx4.close();
 
   await browser.close();
   if (server) server.kill();
