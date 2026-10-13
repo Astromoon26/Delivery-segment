@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13
+- Delivery Segment: istilah "Tujuan" diganti **"Cust / Sto"** (rute, breakdown, catatan, kolom pencarian, teks kosong, tooltip peta).
+- Legend garis rute (Direct NDC / Reguler rute / Other rute, putus-putus berwarna) dipindah dari header tabel Perbandingan rute ke **pojok kiri bawah peta** (`setSegLegend`); entri Other rute hanya muncul kalau berlaku. Smoke test +4 cek.
+
 ## 2026-10-12 (malam, 3)
 - **Layout tab Delivery Segment**: panel kiri lebih lebar (default `clamp(460px, 38vw, 640px)`, sebelumnya 390px fix) sehingga tabel 3 kolom (Direct / Reguler / Other) tidak ke-wrap; garis pemisah panel–peta **bisa digeser** (drag, tombol ←/→, klik 2x = reset; lebar disimpan di browser); kolom pencarian sticky saat scroll; sidebar global (ringkasan + legenda peta coverage) disembunyikan di tab ini (tampil lagi di tab lain); di layar ≤ 900px panel dan peta ditumpuk atas–bawah. Smoke test +5 cek layout.
 

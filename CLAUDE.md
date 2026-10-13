@@ -18,6 +18,7 @@ Dashboard jaringan pengiriman Kawan Lama Group (BU **HCI** & **AHI**): coverage 
 9. Tab Delivery Segment **tidak menampilkan daftar langkah rute lagi** (dihapus atas permintaan Apip). Rincian ada di *Perbandingan rute → Breakdown per segmen* (lead time Darat/Laut + cost per segmen).
 10. Direct NDC dan awal Reguler rute boleh beda NDC (kolom opsional `NDC Reguler` di tab NDC); jangan hardcode pengecualian per kab/kota di `index.html`.
 11. Tab Delivery Segment punya 3 jenis rute: **Direct NDC**, **Reguler rute**, dan **Other rute** (mulai dari NDC lain; khusus Kalimantan & Sulawesi). Pakai istilah ini.
+12. Di tab Delivery Segment, titik akhir rute disebut **"Cust / Sto"** (bukan "Tujuan"). Legend garis rute ada di pojok kiri bawah peta (`setSegLegend`), bukan di tabel.
 
 ## Peta kode `index.html` (cari via nama fungsi)
 | Bagian | Fungsi utama |
