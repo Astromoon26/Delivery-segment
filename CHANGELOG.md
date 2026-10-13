@@ -2,6 +2,9 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (siang)
+- **Perbandingan rute**: "Direct NDC" → **Project rute**; "Reguler rute" → **Rute 1**; "Other rute" → **Rute 2**, dan seterusnya (satu rute per NDC di BU yang meng-cover kab/kota; tiap NDC tambahan otomatis jadi Rute 3, 4, …). Selisih sekarang dibandingkan terhadap Project rute. Legend, peta, breakdown, Tabel Coverage ("Rute 1 dari …") ikut. Nama kolom sheet (`NDC`, `NDC Reguler`, `NDC Other`) tidak berubah.
+
 ## 2026-10-13
 - Delivery Segment: istilah "Tujuan" diganti **"Cust / Sto"** (rute, breakdown, catatan, kolom pencarian, teks kosong, tooltip peta).
 - Legend garis rute (Direct NDC / Reguler rute / Other rute, putus-putus berwarna) dipindah dari header tabel Perbandingan rute ke **pojok kiri bawah peta** (`setSegLegend`); entri Other rute hanya muncul kalau berlaku. Smoke test +4 cek.

@@ -178,7 +178,7 @@ def check_bu(bu, cache, rep):
                             bad_reg.add(rv)
                 if bad_reg:
                     rep.add('ERROR', P + 'tab NDC: "NDC Reguler" berisi nama tak ada di "Name of Facility"', sorted(bad_reg))
-                rep.add('INFO', P + f'tab NDC: kolom "{rcol}" terisi {n_reg} kab/kota (asal Reguler rute beda dari Direct NDC)')
+                rep.add('INFO', P + f'tab NDC: kolom "{rcol}" terisi {n_reg} kab/kota (asal Rute 1 beda dari NDC project rute)')
             ocol = next((c for c in h if c.strip().lower() in ('ndc other', 'other ndc', 'ndc other rute', 'ndc rute other')), None)
             if ocol:
                 bad_oth, n_oth = set(), 0
@@ -190,10 +190,10 @@ def check_bu(bu, cache, rep):
                             bad_oth.add(ov)
                 if bad_oth:
                     rep.add('ERROR', P + 'tab NDC: "NDC Other" berisi nama tak ada di "Name of Facility"', sorted(bad_oth))
-                rep.add('INFO', P + f'tab NDC: kolom "{ocol}" terisi {n_oth} kab/kota (override asal Other rute)')
+                rep.add('INFO', P + f'tab NDC: kolom "{ocol}" terisi {n_oth} kab/kota (override asal Rute 2)')
             ndcs = sorted(f['Name Site'].strip() for f in facs if (f.get('Type') or '').strip().upper() == 'NDC')
             if len(ndcs) != 2:
-                rep.add('WARN', P + f'Other rute otomatis butuh tepat 2 NDC di Name of Facility untuk BU ini; ketemu {len(ndcs)} -> isi kolom "NDC Other" per kab/kota', ndcs)
+                rep.add('WARN', P + f'Rute 2/3 otomatis dari NDC lain di Name of Facility; BU ini punya {len(ndcs)} NDC (normal: 2) — cek, atau isi kolom "NDC Other" per kab/kota', ndcs)
         if dup:
             rep.add('WARN', P + f'tab {t}: kab/kota dobel', dup)
         if unknown:
