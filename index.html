@@ -81,6 +81,9 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
 .seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:10px;opacity:.8}
 .seg-bd-note{padding:0 10px 6px;font-size:10.5px;color:var(--muted);font-style:italic}
+.seg-tbl-scroll{overflow-x:auto}
+.seg-cmp.many .seg-main-tbl{width:100%}
+.seg-cmp.many .seg-main-tbl td:first-child,.seg-cmp.many .seg-main-tbl th:first-child{min-width:84px;position:sticky;left:0;background:var(--surface);z-index:1}
 .seg-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 10px;border-bottom:1px solid var(--border)}
 .seg-toggles .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-right:2px}
 .seg-toggle{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border:1px solid var(--border2);border-radius:999px;font-size:11px;cursor:pointer;user-select:none;color:var(--muted);transition:all .15s}
@@ -696,21 +699,24 @@ function buildRouteAlt(bu, text){
   const t = (text||'').trim();
   // gviz untuk tab yang belum ada mengembalikan sheet pertama -> hanya dipakai kalau header-nya cocok
   const head = (t.split('\n')[0]||'').toLowerCase();
-  if(head.includes('kabupaten/kota') && /rute\s*\d/.test(head)){
+  if(head.includes('kabupaten/kota') && /(rute\s*\d|opsional)/.test(head)){
     for(const r of parseCSV(t)){
       const kab = (r['Kabupaten/Kota']||'').trim();
       if(!kab) continue;
       for(const h of Object.keys(r)){
-        const m = h.trim().match(/^rute\s*(\d+)$/i);
-        if(!m || +m[1] < 2) continue;                       // Rute 1 = rantai coverage yang sekarang, bukan dari tab ini
+        // "Rute 2", "Rute 3", ... = rute numbered; "Opsional rute", "Opsional rute 1", "Opsional rute 2", ... = Opsional rute custom
+        const m = h.trim().match(/^rute\s*(\d+)$/i), o = h.trim().match(/^opsional(?:\s*rute)?\s*(\d*)$/i);
+        if(!m && !o) continue;
+        if(m && +m[1] < 2) continue;                        // Rute 1 = rantai coverage yang sekarang, bukan dari tab ini
         const raw = (r[h]||'').trim();
         if(!raw) continue;
         const names = splitRouteChain(raw);
         if(names.length < 2) continue;
-        (map[altKey(kab)] = map[altKey(kab)] || []).push({n:+m[1], id:'Rute '+(+m[1]), raw, names});
+        const n = m ? +m[1] : (+o[1] || 1);
+        (map[altKey(kab)] = map[altKey(kab)] || []).push({kind: m ? 'rute' : 'opsional', n, id: m ? 'Rute '+n : 'Opsional rute '+n, raw, names});
       }
     }
-    for(const k in map) map[k].sort((a,b)=>a.n-b.n);
+    for(const k in map) map[k].sort((a,b)=>(a.kind===b.kind ? 0 : a.kind==='rute' ? -1 : 1) || a.n-b.n);
   }
   ROUTE_ALT[bu] = map;
 }
@@ -1211,12 +1217,12 @@ function renderCompare(c, routes){
   }
 
   const toggle = (key, label, color, on) => `<label class="seg-toggle${on?' on':''}" style="--c:${color}"><input type="checkbox" data-vis="${key}"${on?' checked':''}><span class="dot"></span>${label}</label>`;
-  el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
+  el.innerHTML = `<div class="seg-cmp${cols.length>4?' many':''}"><div class="seg-cmp-title">Perbandingan rute</div>
     <div class="seg-toggles"><span class="lbl">Tampilkan</span>
       ${hasOpsional ? toggle('opsional','Opsional rute', routes.find(r=>r.kind==='opsional').color, SEG_VIS.opsional) : ''}
       ${toggle('project','Project rute', DIRECT_COLOR, SEG_VIS.project)}
     </div>
-    <table>
+    <div class="seg-tbl-scroll"><table class="seg-main-tbl"${cols.length>4?` style="min-width:${84+cols.length*104}px"`:''}>
       <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}"><span class="gtag">${kindLabel[x.kind]}</span>${x.id}</th>`).join('')}</tr></thead>
       <tbody>
         ${row('Rute', x=>x.path)}
@@ -1227,7 +1233,7 @@ function renderCompare(c, routes){
         ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
         ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
         ${SEG_VIS.project ? row('Selisih Darat', x=>diffCell(x,'land')) + row('Selisih Laut', x=>diffCell(x,'sea')) : ''}
-      </tbody></table>
+      </tbody></table></div>
     ${SEG_VIS.project ? '<div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>' : '<div class="seg-cmp-note seg-cmp-hint">Project rute disembunyikan, jadi baris Selisih tidak ditampilkan.</div>'}
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
@@ -1253,6 +1259,8 @@ function regulerDiffers(c){
 // Gaya garis/warna per rute (Rute 1, Opsional rute, ... berulang kalau lebih dari 4)
 // gaya garis untuk Rute 2, 3, ... (Opsional rute tetap pakai ROUTE_STYLES)
 const NUMBERED_STYLES = [{color:'#f472b6',dash:'6,3,1,3'},{color:'#a3e635',dash:'1,5'},{color:'#c084fc',dash:'3,3'},{color:'#2dd4bf',dash:'8,3,2,3'}];
+// gaya garis Opsional rute (urut: Opsional rute 1, 2, ...) — sengaja beda dari NUMBERED_STYLES supaya tidak ada warna kembar
+const OPSIONAL_STYLES = [{color:'#22d3ee',dash:'2,7'},{color:'#f87171',dash:'4,4'},{color:'#fde047',dash:'1,6'},{color:'#60a5fa',dash:'5,3,1,3'}];
 const ROUTE_STYLES = [
   {color:'#ffffff', dash:'4,6'}, {color:'#22d3ee', dash:'2,7'}, {color:'#f472b6', dash:'6,3,1,3'}, {color:'#a3e635', dash:'1,5'}
 ];
@@ -1287,15 +1295,27 @@ function renderSegmentRoute(c, opts){
   const ndcNames = routeNdcNames(c, hasMid);
   const routes = ndcNames.map((n,i)=>({
     id: i===0 ? 'Rute 1' : (ndcNames.length>2 ? 'Opsional rute '+i : 'Opsional rute'), kind: i===0 ? 'rute' : 'opsional', first:i===0, ndc:n,
-    color:ROUTE_STYLES[i%ROUTE_STYLES.length].color, dash:ROUTE_STYLES[i%ROUTE_STYLES.length].dash,
+    color:(i===0 ? ROUTE_STYLES[0] : OPSIONAL_STYLES[(i-1)%OPSIONAL_STYLES.length]).color, dash:(i===0 ? ROUTE_STYLES[0] : OPSIONAL_STYLES[(i-1)%OPSIONAL_STYLES.length]).dash,
     steps:[{tier:'NDC', d:{...c.NDC, name:n}}, ...mid]
   }));
   // Rute 2, 3, ... dari tab "Rute Numbered <BU>" (rantai fasilitas alternatif untuk kab/kota ini); disisipkan tepat setelah Rute 1
-  const alts = ((ROUTE_ALT[currentBU]||{})[altKey(c.kabkota)]||[]).map((a,i)=>{
+  const altDefs = (ROUTE_ALT[currentBU]||{})[altKey(c.kabkota)]||[];
+  const alts = altDefs.filter(a=>a.kind==='rute').map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = NUMBERED_STYLES[i%NUMBERED_STYLES.length];
     return {id:a.id, kind:'rute', first:false, ndc:rr.steps[0].d.name, color:st.color, dash:st.dash, steps:rr.steps, warn:rr.warn};
   });
+  // Opsional rute custom dari tab yang sama: kalau kab/kota ini punya, menggantikan Opsional rute otomatis (NDC lain)
+  const opsDefs = altDefs.filter(a=>a.kind==='opsional');
+  const opsCustom = opsDefs.map((a,i)=>{
+    const rr = resolveAltRoute(c, a), st = OPSIONAL_STYLES[i%OPSIONAL_STYLES.length];
+    return {id: opsDefs.length>1 ? a.id : 'Opsional rute', kind:'opsional', first:false, ndc:rr.steps[0].d.name, color:st.color, dash:st.dash, steps:rr.steps, warn:rr.warn};
+  });
+  if(opsCustom.length){
+    for(let i=routes.length-1;i>=1;i--) if(routes[i].kind==='opsional') routes.splice(i,1);
+    routes.push(...opsCustom);
+  }
   routes.splice(1, 0, ...alts);
+  alts.push(...opsCustom);      // hasAlt: ada rute dari tab Rute Numbered
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;

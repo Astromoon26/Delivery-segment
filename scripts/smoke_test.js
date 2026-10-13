@@ -111,7 +111,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.screenshot({ path: path.join(OUT, '5_other_rute_palu.png') });
 
   // --- urutan kolom + toggle: Rute 1 -> Opsional rute -> Project rute
-  const heads = async () => page.$$eval('#seg-compare .seg-cmp > table thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const heads = async () => page.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bdTitles = async () => page.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   const legTxt = async () => page.$eval('.seg-legend', e => e.textContent);
   const hd0 = await heads();
@@ -120,9 +120,9 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('urutan breakdown: Rute 1 -> Opsional rute -> Project rute', bd0.length === 3 && /^Rute 1/.test(bd0[0]) && /^Opsional rute/.test(bd0[1]) && /^Project rute/.test(bd0[2]), JSON.stringify(bd0));
   const lg0 = await legTxt();
   check('urutan legend peta: Rute 1 -> Opsional rute -> Project rute', lg0.indexOf('Rute 1') < lg0.indexOf('Opsional rute') && lg0.indexOf('Opsional rute') < lg0.indexOf('Project rute'), lg0);
-  check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-cmp > table thead th.grp')).length === 2);
+  check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-main-tbl thead th.grp')).length === 2);
   check('toggle: ada checkbox Opsional rute & Project rute', (await page.$$('#seg-compare .seg-toggles input')).length === 2);
-  check('note Project rute: tabel + breakdown memuat "Pengiriman direct Cust / Sto"', (await page.$eval('#seg-compare .seg-cmp > table', e => e.innerText)).includes('Pengiriman direct Cust / Sto') && (await page.$$eval('#seg-compare .seg-bd-note', e => e.map(x => x.textContent))).some(t => t.trim() === 'Note : Pengiriman direct Cust / Sto'));
+  check('note Project rute: tabel + breakdown memuat "Pengiriman direct Cust / Sto"', (await page.$eval('#seg-compare .seg-main-tbl', e => e.innerText)).includes('Pengiriman direct Cust / Sto') && (await page.$$eval('#seg-compare .seg-bd-note', e => e.map(x => x.textContent))).some(t => t.trim() === 'Note : Pengiriman direct Cust / Sto'));
   const view0 = await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); });
 
   await page.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await page.waitForTimeout(300);
@@ -202,32 +202,38 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const err3 = [];
   p3.on('pageerror', e => err3.push(e.message));
   await p3.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
-    '"Kabupaten/Kota","Provinsi","Rute 2","Rute 3"\n' +
-    '"Kota Dumai","Riau","Jakarta - Pekanbaru - Dumai","Jakarta - Tamora - Dumai - Cust / Sto"\n' +
-    '"Kota Padang","Sumatera Barat","Jakarta > Tamora > Padang",""\n' +
-    '"Kabupaten Padang Pariaman","Sumatera Barat","Jakarta - Fasilitas Ngawur - Padang",""\n' }));
+    '"Kabupaten/Kota","Provinsi","Rute 2","Rute 3","Opsional rute 1","Opsional rute 2"\n' +
+    '"Kota Dumai","Riau","Jakarta - Pekanbaru - Dumai","Jakarta - Tamora - Dumai - Cust / Sto","Sidoarjo - Pekanbaru - Dumai","Sidoarjo - Tamora - Dumai"\n' +
+    '"Kota Padang","Sumatera Barat","Jakarta > Tamora > Padang","","",""\n' +
+    '"Kabupaten Padang Pariaman","Sumatera Barat","Jakarta - Fasilitas Ngawur - Padang","","",""\n' +
+    '"Kota Palu","Sulawesi Tengah","","","Sidoarjo - Palu",""\n' }));
   // tab AHI belum ada -> gviz mengembalikan sheet pertama (Name of Facility): harus diabaikan, bukan dianggap rute
   await p3.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Bussines Unit","Type","Name Site","Long","Lat"\n"HCI & AHI","NDC","Jakarta","-6.3","107.1"\n' }));
   await p3.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p3.waitForTimeout(3500);
-  check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 3), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
+  check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 4), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
   await p3.click('.tab[data-tab="segment"]');
   const openSeg = async q => { await p3.fill('#seg-search-input', q); await p3.waitForTimeout(400); await p3.click('#seg-ac-list .autocomplete-item'); await p3.waitForTimeout(1200); };
-  const heads3 = async () => p3.$$eval('#seg-compare .seg-cmp > table thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const heads3 = async () => p3.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bd3 = async () => p3.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   await openSeg('Kota Dumai');
   const hd = await heads3(), tx = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
-  check('rute numbered Dumai: kolom Rute 1 -> Rute 2 -> Rute 3 -> Project rute', hd.length === 4 && /Rute 1$/.test(hd[0]) && /Rute 2$/.test(hd[1]) && /Rute 3$/.test(hd[2]) && /Project rute$/.test(hd[3]), JSON.stringify(hd));
+  check('rute numbered Dumai: kolom Rute 1 -> Rute 2 -> Rute 3 -> Opsional rute 1 -> Opsional rute 2 -> Project rute', hd.length === 6 && /Rute 1$/.test(hd[0]) && /Rute 2$/.test(hd[1]) && /Rute 3$/.test(hd[2]) && /Opsional rute 1$/.test(hd[3]) && /Opsional rute 2$/.test(hd[4]) && /Project rute$/.test(hd[5]), JSON.stringify(hd));
   check('rute numbered Dumai: Rute 2 = Jakarta → Pekanbaru → Dumai → Cust / Sto', /Jakarta → Pekanbaru → Dumai → Cust \/ Sto/.test(tx), tx.slice(0, 400));
   const bdt = await bd3();
-  check('rute numbered Dumai: breakdown Rute 2 & 3 ada, Project rute terakhir', bdt.length === 4 && /^Rute 2 \(mulai dari NDC Jakarta\)/.test(bdt[1]) && /^Rute 3/.test(bdt[2]) && /^Project rute/.test(bdt[3]), JSON.stringify(bdt));
+  check('rute numbered Dumai: breakdown Rute 2, 3, Opsional rute 1 (NDC Sidoarjo) & 2, Project rute terakhir', bdt.length === 6 && /^Rute 2 \(mulai dari NDC Jakarta\)/.test(bdt[1]) && /^Rute 3/.test(bdt[2]) && /^Opsional rute 1 \(mulai dari NDC Sidoarjo\)/.test(bdt[3]) && /^Opsional rute 2/.test(bdt[4]) && /^Project rute/.test(bdt[5]), JSON.stringify(bdt));
   check('rute numbered Dumai: leg Jakarta → Pekanbaru & Pekanbaru → Dumai masuk breakdown', /Jakarta → Pekanbaru/.test(await p3.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)) && /Pekanbaru → Dumai/.test(await p3.$eval('#seg-compare .seg-bd-wrap', e => e.innerText)));
   const lgd = await p3.$eval('.seg-legend', e => e.textContent);
-  check('rute numbered Dumai: legend urut Rute 1 -> Rute 2 -> Rute 3 -> Project rute', lgd.indexOf('Rute 1') < lgd.indexOf('Rute 2') && lgd.indexOf('Rute 2') < lgd.indexOf('Rute 3') && lgd.indexOf('Rute 3') < lgd.indexOf('Project rute'), lgd);
+  check('rute numbered Dumai: legend urut Rute 1 -> 2 -> 3 -> Opsional rute 1 -> 2 -> Project rute', ['Rute 1', 'Rute 2', 'Rute 3', 'Opsional rute 1', 'Opsional rute 2', 'Project rute'].every((x, i, a) => i === 0 || lgd.indexOf(a[i - 1]) < lgd.indexOf(x)), lgd);
   check('rute numbered Dumai: peta menggambar garis tiap rute', (await p3.$$eval('#seg-map .leaflet-interactive', e => e.length)) >= 6);
   check('rute numbered Dumai: tanpa horizontal overflow', await p3.evaluate(() => { const l = document.querySelector('.seg-left'); return l.scrollWidth <= l.clientWidth + 1; }));
   await p3.screenshot({ path: path.join(OUT, '7_rute_numbered_dumai.png') });
+  // toggle Opsional rute menyembunyikan semua Opsional rute (otomatis maupun custom), Rute 1-3 tetap
+  await p3.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await p3.waitForTimeout(300);
+  const hdOff = await heads3();
+  check('rute numbered: toggle Opsional off menyembunyikan Opsional rute 1 & 2', hdOff.length === 4 && !hdOff.some(h => /Opsional/.test(h)) && !(await p3.$eval('.seg-legend', e => e.textContent)).includes('Opsional'), JSON.stringify(hdOff));
+  await p3.click('#seg-compare label.seg-toggle:has(input[data-vis="opsional"])'); await p3.waitForTimeout(300);
   await openSeg('Kota Padang');
   const txP = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   check('rute numbered Padang: Rute 2 = Jakarta → Tamora → Padang → Cust / Sto', /Jakarta → Tamora → Padang → Cust \/ Sto/.test(txP) && /Jakarta → Padang → Cust \/ Sto/.test(txP), txP.slice(0, 300));
@@ -237,7 +243,9 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const txW = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   check('rute numbered: fasilitas tidak dikenal -> ada peringatan, tidak error', /Rute 2: fasilitas "Fasilitas Ngawur" tidak ditemukan/.test(txW), txW.slice(-300));
   await openSeg('Kota Palu');
-  check('rute numbered: kab/kota lain tidak berubah (Palu tanpa Rute 2)', !(await heads3()).some(h => /Rute 2/.test(h)));
+  const hdPalu = await heads3(), txPalu = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' ')), bdPalu = await bd3();
+  check('rute numbered: kab/kota lain tidak berubah (Palu tanpa Rute 2)', !hdPalu.some(h => /Rute 2/.test(h)));
+  check('Opsional rute custom (Palu) menggantikan Opsional rute otomatis', hdPalu.filter(h => /Opsional/.test(h)).length === 1 && /Sidoarjo → Palu → Cust \/ Sto/.test(txPalu) && !/Sidoarjo → Tallo → Palu/.test(txPalu) && bdPalu.some(t => /^Opsional rute \(mulai dari NDC Sidoarjo\)/.test(t)), JSON.stringify(bdPalu));
   check('rute numbered: tanpa JS error', err3.length === 0, err3.join(' | '));
   await ctx3.close();
 

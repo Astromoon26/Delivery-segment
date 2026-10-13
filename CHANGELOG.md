@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (malam)
+- **Opsional rute custom per kab/kota**: tab `Rute Numbered <BU>` sekarang juga boleh punya kolom **`Opsional rute 1`**, **`Opsional rute 2`**, … (atau satu kolom `Opsional rute`), format sel sama dengan Rute 2 (`Sidoarjo - Tallo - Palu`). Kalau kab/kota punya isian di kolom ini, Opsional rute otomatis (NDC lain) untuk kab/kota itu **diganti** oleh isian tersebut; berlaku untuk pulau mana pun dan ikut toggle Opsional rute. Kab/kota yang tidak diisi tetap pakai Opsional rute otomatis.
+- Tabel perbandingan: kalau kolom > 4 tabel bisa digeser horizontal (kolom label tetap di kiri) supaya teks tidak ke-wrap per huruf.
+- Warna garis Opsional rute (`OPSIONAL_STYLES`) dibedakan dari Rute 2+ (`NUMBERED_STYLES`) — sebelumnya "Rute 2" dan "Opsional rute 2" sama-sama pink. Smoke test +2 cek (62 total).
+
 ## 2026-10-13 (sore, 2)
 - **Rute numbered (Rute 2, 3, …)**: kab/kota bisa punya rantai rute alternatif, mis. Dumai: Rute 1 = Jakarta → Tamora → Pekanbaru → Dumai, Rute 2 = Jakarta → Pekanbaru → Dumai; Padang: Rute 1 = Jakarta → Padang, Rute 2 = Jakarta → Tamora → Padang. Didefinisikan di tab gsheet baru **`Rute Numbered HCI/AHI`** (opsional; kolom `Kabupaten/Kota`, `Provinsi`, `Rute 2`, `Rute 3`, …; isi sel "Jakarta - Pekanbaru - Dumai"). Tidak ada data yang di-hardcode di `index.html`.
 - Tampil sebagai kolom/breakdown/legend/garis peta sendiri tepat setelah Rute 1 (urutan: Rute 1, 2, … → Opsional rute → Project rute). Lead time & cost memakai leg yang sama dengan Rute 1 (tab Lead Time/Cost Facility to Facility) + last mile dari tab Hub/SDC/RDC; leg yang belum ada → total partial + catatan. Nama fasilitas tak dikenal / langkah pertama bukan NDC / langkah terakhir bukan fasilitas yang melayani kab/kota → catatan peringatan di bawah perbandingan.
