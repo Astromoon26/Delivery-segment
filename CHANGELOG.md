@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (dini hari, 3)
+- **Selisih LT** dipindah tepat di bawah *Breakdown per segmen* (sebelum Cost per armada) dan sekarang **hanya lead time** (selisih cost dihapus; sel hanya "lebih cepat / lebih lama X hari").
+- **Cost per armada:** tabel "Total per armada" (baris rute × kolom armada) dihapus. Di tiap rute, **sel armada per segmen bisa diklik** untuk memilih armada segmen itu (klik lagi = batal; klik nama armada di header = pilih untuk semua segmen rute itu; juga bisa lewat keyboard Enter/Spasi). Total rute hanya **Cost/Trip & Cost/CBM dari armada terpilih** (jumlah per segmen; cost/cbm = jumlah cost/trip ÷ kapasitas efektif tiap segmen; `≥…*` + "n dari m segmen terpilih" kalau belum semua segmen dipilih / ada yang kosong). Pilihan disimpan di memori halaman saja (`SEG_ARM`), hilang saat refresh.
+- Smoke test: +8 tes (urutan bagian, selisih tanpa cost, pilih/ganti/batal armada, header pilih semua, segmen kosong tidak bisa dipilih) (95 total).
+
 ## 2026-10-14 (dini hari, 2)
 - **Revisi tab Delivery Segment:** (1) tabel **Perbandingan rute** tidak lagi menampilkan baris *Cost Darat* dan *Cost Laut* (Lead time Darat / Laut tetap); (2) **Breakdown per segmen** tanpa cost di tiap segmen maupun baris Total (tinggal lead time); (3) **Cost per armada** tanpa kapasitas armada di header (nama armada + Darat/Laut saja). Cost/trip dan cost/cbm di sel tetap tampil; kapasitas efektif tetap dipakai menghitung cost/cbm dari tab `Armada`.
 - Bagian "Selisih LT & cost antar rute" tidak berubah (masih memuat selisih cost).
