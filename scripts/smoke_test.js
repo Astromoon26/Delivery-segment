@@ -64,7 +64,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
   // --- tabel + hub feeder
   await page.click('.tab[data-tab="table"]');
-  await page.fill('#table-search', 'dumai'); await page.waitForTimeout(500);
+  await page.fill('#table-search', 'dumai'); await page.waitForFunction(() => document.querySelectorAll('#table-body tr').length < 50, { timeout: 15000 }); await page.waitForTimeout(300);
   const dumai = await page.$$eval('#table-body tr', r => r.map(x => x.innerText.replace(/\s+/g, ' ')));
   check('tabel: Dumai tampil "via Pekanbaru" (hub-to-hub)', dumai.length > 0 && dumai.every(t => /via Pekanbaru/.test(t)), `${dumai.length} baris`);
   await page.fill('#table-search', ''); await page.waitForTimeout(400);
@@ -356,7 +356,11 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const tx8 = await p6.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   const ac = await p6.evaluate(() => armadaCols('HCI').map(c => c.label + (c.modeLabel ? ' ' + c.modeLabel : '') + ' ' + c.ar.eff));
   check('armada: kolom dikenali dari header (CDDL, Fuso, Cont-20 Laut), kolom lain diabaikan, kapasitas efektif 85%', JSON.stringify(ac) === JSON.stringify(['CDDL 13.6', 'Fuso 27.2', 'Cont-20 Laut 21.25']), JSON.stringify(ac));
-  check('armada: bagian Cost per armada tampil dengan kapasitas efektif (13,6 / 27,2 / 21,25 cbm)', /Cost per armada/i.test(tx8) && /13,6 cbm/.test(tx8) && /27,2 cbm/.test(tx8) && /Laut · 21,25 cbm/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("cost per armada"), tx8.toLowerCase().indexOf("cost per armada") + 300));
+  check('armada: bagian Cost per armada tampil, header armada TANPA kapasitas (cbm)', /Cost per armada/i.test(tx8) && !/\d[\d,.]* cbm/.test(tx8) && /Laut/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf('cost per armada'), tx8.toLowerCase().indexOf('cost per armada') + 400));
+  const mainTx = await p6.$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl)', e => e.innerText.replace(/\s+/g, ' '));
+  check('tabel perbandingan: tanpa baris Cost Darat / Cost Laut, lead time tetap ada', !/Cost (Darat|Laut)/i.test(mainTx) && /Lead time Darat/i.test(mainTx) && /Lead time Laut/i.test(mainTx), mainTx.slice(0, 300));
+  const bdTx = await p6.$eval('#seg-compare .seg-bd-wrap', e => e.innerText.replace(/\s+/g, ' '));
+  check('breakdown per segmen: tanpa cost (tidak ada Rp / "cost —")', /Breakdown per segmen/i.test(bdTx) && !/Rp\s?\d|cost —/i.test(bdTx), bdTx.slice(0, 300));
   check('armada: total CDDL = 12.000.000 (leg Pekanbaru → Dumai kosong -> partial ≥ …*) dan cost/cbm = 12.000.000 / 13,6', /≥Rp 12\.000\.000\*/.test(tx8) && /≥Rp 882\.353\/cbm\*/.test(tx8), tx8.slice(tx8.toLowerCase().indexOf("total per armada"), tx8.toLowerCase().indexOf("total per armada") + 400));
   await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));

@@ -1127,7 +1127,6 @@ function parseMoney(v){
   return isNaN(n) ? null : n;
 }
 function fmtMoney(n){ return n==null ? '—' : 'Rp ' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
-function costText(raw){ const n = parseMoney(raw); return n!=null ? fmtMoney(n) : String(raw||'').trim(); }
 
 // One row per delivery segment (leg between two facilities, plus the last mile to the destination).
 // land/sea = lead time (hari), costLand/costSea = raw cost cells. Darat and Laut are alternatives per
@@ -1225,7 +1224,6 @@ function renderCompare(c, routes, projects){
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
 
   const ltCell = (v, partial) => v==null ? na : `<span class="val">${partial?'≥':''}${fmtD(v)}${partial?'*':''}</span>`;
-  const costCell = (v, partial, emptyHtml) => v==null ? emptyHtml : `<span class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</span>`;
   const row = (label, fn) => `<tr><td>${label}</td>${cols.map((x,i)=>`<td class="${grp(x,i).trim()}">${fn(x)}</td>`).join('')}</tr>`;
 
   // Selisih = rute − Project rute (hanya kalau Project rute ditampilkan), only for numbers both sides actually have
@@ -1239,22 +1237,20 @@ function renderCompare(c, routes, projects){
   };
 
   // --- breakdown tables
-  const subCost = raw => raw ? escapeHtml(costText(raw)) : 'cost —';
-  const dCell = s => s.land==null ? `<div class="val">—</div><div class="sub">${subCost(s.costLand)}</div>`
-                                  : `<div class="val">${fmtD(s.land)}</div><div class="sub">${subCost(s.costLand)}</div>`;
+  const dCell = s => `<div class="val">${s.land==null?'—':fmtD(s.land)}</div>`;
   const makeSeaCell = anySea => s => {
     if(!anySea) return `<div class="val">—</div>`;
-    if(s.sea!=null) return `<div class="val">${fmtD(s.sea)}</div><div class="sub">${subCost(s.costSea)}</div>`;
-    if(s.land!=null) return `<div class="val">${fmtD(s.land)} <span class="na" title="tidak ada opsi laut, pakai darat">(darat)</span></div><div class="sub">${subCost(s.costLand)}</div>`;
-    return `<div class="val">—</div><div class="sub">cost —</div>`;
+    if(s.sea!=null) return `<div class="val">${fmtD(s.sea)}</div>`;
+    if(s.land!=null) return `<div class="val">${fmtD(s.land)} <span class="na" title="tidak ada opsi laut, pakai darat">(darat)</span></div>`;
+    return `<div class="val">—</div>`;
   };
   const PROJECT_NOTE = 'Note : Pengiriman direct Cust / Sto';
   const bdTable = (title, color, segs, T, showTotal, partialLT, note) => {
     const sea = makeSeaCell(T.anySea);
     const rows = segs.map(s=>`<tr><td><div>${escapeHtml(s.label)}</div><div class="sub">${escapeHtml(s.kind)}</div></td><td>${dCell(s)}</td><td>${sea(s)}</td></tr>`).join('');
     const totalRow = showTotal ? `<tr class="tot"><td>Total</td>
-        <td><div class="val">${T.land==null?'—':(partialLT?'≥':'')+fmtD(T.land)+(partialLT?'*':'')}</div><div class="sub">${T.costLand==null?'cost —':(T.costLandPartial?'≥':'')+fmtMoney(T.costLand)+(T.costLandPartial?'*':'')}</div></td>
-        <td><div class="val">${T.sea==null?'—':(partialLT?'≥':'')+fmtD(T.sea)+(partialLT?'*':'')}</div><div class="sub">${T.costSea==null?'cost —':(T.costSeaPartial?'≥':'')+fmtMoney(T.costSea)+(T.costSeaPartial?'*':'')}</div></td></tr>` : '';
+        <td><div class="val">${T.land==null?'—':(partialLT?'≥':'')+fmtD(T.land)+(partialLT?'*':'')}</div></td>
+        <td><div class="val">${T.sea==null?'—':(partialLT?'≥':'')+fmtD(T.sea)+(partialLT?'*':'')}</div></td></tr>` : '';
     return `<div class="seg-bd-title"><span class="sw" style="border-color:${color}"></span>${title}</div>
       ${note?`<div class="seg-bd-note">${note}</div>`:''}
       <table class="seg-bd"><thead><tr><th>Segmen</th><th>Darat</th><th>Laut</th></tr></thead><tbody>${rows}${totalRow}</tbody></table>`;
@@ -1308,10 +1304,9 @@ function renderCompare(c, routes, projects){
   const armLegs = x => { const o=[]; for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)}); return o; };
   const armVal = (k, col) => { const e = (COST_LEG[currentBU]||{})[k]; return e && e.ext ? parseMoney(e.ext[col.idx]) : null; };
   const armTotal = (legs, col) => { let sum=0, n=0; legs.forEach(l=>{ const v=armVal(l.k,col); if(v!=null){ sum+=v; n++; } }); return {v:n?sum:null, partial:n>0 && n<legs.length}; };
-  const fmtCbm = n => n.toLocaleString('id-ID',{maximumFractionDigits:2});
   const armCell = (v, col, partial) => v==null ? `<div class="val"><span class="na">—</span></div>`
     : `<div class="val">${partial?'≥':''}${fmtMoney(v)}${partial?'*':''}</div><div class="sub">${partial?'≥':''}${fmtMoney(v/col.ar.eff)}/cbm${partial?'*':''}</div>`;
-  const armHead = col => `<th>${escapeHtml(col.label)}<div class="sub">${col.modeLabel?col.modeLabel+' · ':''}${fmtCbm(col.ar.eff)} cbm</div></th>`;
+  const armHead = col => `<th>${escapeHtml(col.label)}${col.modeLabel?`<div class="sub">${col.modeLabel}</div>`:''}</th>`;
   const armXcols = cols.filter(x=>armLegs(x).length>0);
   const armadaHtml = (!aCols.length || !armXcols.length) ? '' : (() => {
     const mw = `min-width:${110+aCols.length*96}px`;
@@ -1343,8 +1338,6 @@ function renderCompare(c, routes, projects){
         ${SEG_VIS.project && cols.some(x=>x.kind==='project' && x.direct) ? row('Note', x=>x.kind==='project' && x.direct ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
         ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
         ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
-        ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
-        ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
       </tbody></table></div>
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>

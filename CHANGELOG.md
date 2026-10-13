@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (dini hari, 2)
+- **Revisi tab Delivery Segment:** (1) tabel **Perbandingan rute** tidak lagi menampilkan baris *Cost Darat* dan *Cost Laut* (Lead time Darat / Laut tetap); (2) **Breakdown per segmen** tanpa cost di tiap segmen maupun baris Total (tinggal lead time); (3) **Cost per armada** tanpa kapasitas armada di header (nama armada + Darat/Laut saja). Cost/trip dan cost/cbm di sel tetap tampil; kapasitas efektif tetap dipakai menghitung cost/cbm dari tab `Armada`.
+- Bagian "Selisih LT & cost antar rute" tidak berubah (masih memuat selisih cost).
+- Smoke test: tes kapasitas diganti (header tanpa cbm), +2 tes (tabel utama tanpa cost, breakdown tanpa cost), tes Dumai menunggu filter tabel selesai (flaky saat data live lambat) (87 total).
+
 ## 2026-10-14 (dini hari, 1)
 - **Fix: tab Cost HCI kehilangan 15 baris pertama.** gviz menebak jumlah baris header; di tab dengan kolom berisi tanda "-" di baris-baris awal (mis. `Cont-20 Darat`) beberapa baris data ikut terbaca sebagai header. `gvizUrl` sekarang menambah `&headers=1` (tepat 1 baris header) untuk semua tab.
 - Smoke test: tes "tanpa tab Armada" men-stub tab Armada (tab asli di gsheet sudah dibuat) + cek `headers=1` (85 total).
