@@ -311,7 +311,7 @@ def check_bu(bu, cache, rep):
     except Exception:
         rt = ''
     rh, rdata = table(rt)
-    rcols = [c for c in rh if re.match(r'^rute\s*\d+$', c.strip(), re.I)]
+    rcols = [c for c in rh if re.match(r'^(rute\s*\d+|opsional(\s*rute)?\s*\d*)$', c.strip(), re.I)]
     if 'Kabupaten/Kota' not in rh or not rcols:
         rep.add('INFO', P + 'tab "Rute Numbered ' + bu + '" belum ada / belum berisi (opsional; dipakai untuk Rute 2, 3, ... per kab/kota)')
         return
@@ -331,7 +331,7 @@ def check_bu(bu, cache, rep):
             raw = (r.get(col) or '').strip()
             if not raw:
                 continue
-            if int(re.search(r'\d+', col).group()) < 2:
+            if re.match(r'^rute', col.strip(), re.I) and int(re.search(r'\d+', col).group()) < 2:
                 rep.add('WARN', P + f'Rute Numbered: kolom "{col}" diabaikan (Rute 1 = rantai coverage yang sekarang, mulai dari Rute 2)', [kab])
                 continue
             names = [x.strip() for x in re.split(r'\s*(?:→|->|=>|>|–|—|\s-\s)\s*', raw) if x.strip()]
