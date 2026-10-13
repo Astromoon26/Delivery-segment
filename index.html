@@ -180,7 +180,9 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .seg-cmp-subtitle{padding:10px 10px 2px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace}
 .seg-bd-wrap{border-top:1px solid var(--border)}
 .seg-bd-title{padding:8px 10px 2px;font-size:11px;font-weight:600}
+.seg-diff-title{padding:8px 10px 2px;font-size:11px;font-weight:600}
 .seg-bd-title .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle}
+.seg-diff-title .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle}
 .seg-cmp table.seg-bd{margin-bottom:6px}
 .seg-bd th:nth-child(1),.seg-bd td:nth-child(1){width:auto}
 .seg-bd th:nth-child(2),.seg-bd td:nth-child(2),.seg-bd th:nth-child(3),.seg-bd td:nth-child(3){width:26%}
@@ -1193,15 +1195,6 @@ function renderCompare(c, routes, projects){
     const less = isMoney ? 'lebih murah' : 'lebih cepat', more = isMoney ? 'lebih mahal' : 'lebih lama';
     return d<0 ? `<span class="good">${less} ${txt}</span>` : `<span class="bad">${more} ${txt}</span>`;
   };
-  const diffCell = (x, kind) => {
-    if(x.kind==='project' && x.isBase) return na;
-    const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
-    const parts = [];
-    const lt = diff(x.T[f[0]], D[f[0]], x.partial, false), cs = diff(x.T[f[1]], D[f[1]], x.T[f[2]], true);
-    if(lt) parts.push('LT: '+lt);
-    if(cs) parts.push('Cost: '+cs);
-    return `<span class="val">${parts.length?parts.join('<br>'):na}</span>`;
-  };
 
   // --- breakdown tables
   const subCost = raw => raw ? escapeHtml(costText(raw)) : 'cost —';
@@ -1246,6 +1239,27 @@ function renderCompare(c, routes, projects){
     return;
   }
 
+  // Selisih LT & cost antar rute yang ditampilkan (ikut toggle), SETELAH Breakdown per segmen.
+  // Matriks: tiap baris dibanding tiap kolom (baris − kolom). Hanya angka yang dimiliki kedua sisi.
+  const pairCell = (a, b, kind) => {
+    if(a===b) return na;
+    const f = kind==='land' ? ['land','costLand','costLandPartial'] : ['sea','costSea','costSeaPartial'];
+    const parts = [];
+    const lt = diff(a.T[f[0]], b.T[f[0]], a.partial || b.partial, false);
+    const cs = diff(a.T[f[1]], b.T[f[1]], a.T[f[2]] || b.T[f[2]], true);
+    if(lt) parts.push('LT: '+lt);
+    if(cs) parts.push('Cost: '+cs);
+    return `<span class="val">${parts.length?parts.join('<br>'):na}</span>`;
+  };
+  const matrix = (title, kind) => `<div class="seg-diff-title">${title}</div>
+    <div class="seg-tbl-scroll"><table class="seg-main-tbl seg-diff-tbl"${cols.length>4?` style="min-width:${84+cols.length*104}px"`:''}>
+      <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}"><span class="gtag">dibanding</span>${x.id}</th>`).join('')}</tr></thead>
+      <tbody>${cols.map(a=>`<tr><td><span class="sw" style="border-color:${a.color}"></span>${a.id}</td>${cols.map((b,i)=>`<td class="${grp(b,i).trim()}">${pairCell(a,b,kind)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const diffHtml = cols.length<2 ? '' :
+    `<div class="seg-diff-wrap"><div class="seg-cmp-subtitle">Selisih LT &amp; cost antar rute</div>
+      <div class="seg-cmp-note seg-cmp-hint">Membandingkan rute yang sedang ditampilkan: baris dibanding kolom (mis. baris Rute 1, kolom Project rute = Rute 1 dibanding Project rute).</div>
+      ${matrix('Selisih Darat','land')}${matrix('Selisih Laut','sea')}</div>`;
+
   const toggle = (key, label, color, on) => `<label class="seg-toggle${on?' on':''}" style="--c:${color}"><input type="checkbox" data-vis="${key}"${on?' checked':''}><span class="dot"></span>${label}</label>`;
   el.innerHTML = `<div class="seg-cmp${cols.length>4?' many':''}"><div class="seg-cmp-title">Perbandingan rute</div>
     <div class="seg-toggles"><span class="lbl">Tampilkan</span>
@@ -1262,13 +1276,12 @@ function renderCompare(c, routes, projects){
         ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
         ${row('Cost Darat', x=>costCell(x.T.costLand, x.T.costLandPartial, todo))}
         ${row('Cost Laut', x=>costCell(x.T.costSea, x.T.costSeaPartial, todo))}
-        ${SEG_VIS.project ? row('Selisih Darat', x=>diffCell(x,'land')) + row('Selisih Laut', x=>diffCell(x,'sea')) : ''}
       </tbody></table></div>
-    ${SEG_VIS.project ? '<div class="seg-cmp-note seg-cmp-hint">Selisih = rute dibanding Project rute.</div>' : '<div class="seg-cmp-note seg-cmp-hint">Project rute disembunyikan, jadi baris Selisih tidak ditampilkan.</div>'}
     <div class="seg-bd-wrap">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
       ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
+    ${diffHtml}
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
   // toggle: simpan pilihan, gambar ulang tabel + peta (tanpa menggeser posisi peta)

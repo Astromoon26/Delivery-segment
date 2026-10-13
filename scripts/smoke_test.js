@@ -114,7 +114,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.screenshot({ path: path.join(OUT, '5_other_rute_palu.png') });
 
   // --- urutan kolom + toggle: Rute 1 -> Opsional rute -> Project rute
-  const heads = async () => page.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const heads = async () => page.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bdTitles = async () => page.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   const legTxt = async () => page.$eval('.seg-legend', e => e.textContent);
   const hd0 = await heads();
@@ -123,7 +123,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('urutan breakdown: Rute 1 -> Opsional rute -> Project rute', bd0.length === 3 && /^Rute 1/.test(bd0[0]) && /^Opsional rute/.test(bd0[1]) && /^Project rute/.test(bd0[2]), JSON.stringify(bd0));
   const lg0 = await legTxt();
   check('urutan legend peta: Rute 1 -> Opsional rute -> Project rute', lg0.indexOf('Rute 1') < lg0.indexOf('Opsional rute') && lg0.indexOf('Opsional rute') < lg0.indexOf('Project rute'), lg0);
-  check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-main-tbl thead th.grp')).length === 2);
+  check('segmen terpisah: kolom Opsional & Project ada pemisah (grp)', (await page.$$('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th.grp')).length === 2);
   check('toggle: ada checkbox Opsional rute & Project rute', (await page.$$('#seg-compare .seg-toggles input')).length === 2);
   check('note Project rute: tabel + breakdown memuat "Pengiriman direct Cust / Sto"', (await page.$eval('#seg-compare .seg-main-tbl', e => e.innerText)).includes('Pengiriman direct Cust / Sto') && (await page.$$eval('#seg-compare .seg-bd-note', e => e.map(x => x.textContent))).some(t => t.trim() === 'Note : Pengiriman direct Cust / Sto'));
   const view0 = await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); });
@@ -132,11 +132,14 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const hd1 = await heads();
   check('toggle Opsional off: kolom, breakdown & legend Opsional hilang', hd1.length === 2 && !hd1.some(h => /Opsional/.test(h)) && !(await bdTitles()).some(t => /Opsional/.test(t)) && !/Opsional/.test(await legTxt()), JSON.stringify(hd1));
   check('toggle Opsional off: Rute 1 & Project rute tetap ada', /Rute 1$/.test(hd1[0]) && /Project rute$/.test(hd1[1]));
+  const dm = await page.evaluate(() => { const w = document.querySelector('#seg-compare'); const main = w.querySelector('.seg-main-tbl:not(.seg-diff-tbl)'), bd = w.querySelector('.seg-bd-wrap'), df = w.querySelector('.seg-diff-wrap');
+    return { mainHas: /Selisih/.test(main.innerText), after: !!(bd && df && (bd.compareDocumentPosition(df) & Node.DOCUMENT_POSITION_FOLLOWING)), tables: w.querySelectorAll('.seg-diff-tbl').length, rows: [...w.querySelectorAll('.seg-diff-tbl')].map(t => t.querySelectorAll('tbody tr').length), txt: df ? df.innerText.replace(/\s+/g, ' ') : '' }; });
+  check('Selisih: keluar dari tabel perbandingan, ada SETELAH Breakdown per segmen (matriks Darat & Laut, 2x2 untuk rute yang tampil)', !dm.mainHas && dm.after && dm.tables === 2 && dm.rows.every(n => n === 2) && /Selisih Darat/.test(dm.txt) && /Selisih Laut/.test(dm.txt), JSON.stringify(dm).slice(0, 300));
   check('toggle: posisi/zoom peta tidak loncat', view0 === await page.evaluate(() => { const c = segMap.getCenter(); return [c.lat.toFixed(3), c.lng.toFixed(3), segMap.getZoom()].join(','); }));
   await page.click('#seg-compare label.seg-toggle:has(input[data-vis="project"])'); await page.waitForTimeout(300);
   const cmpOff = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   const hd2 = await heads();
-  check('toggle Project off: tinggal Rute 1, baris Selisih hilang', hd2.length === 1 && /Rute 1$/.test(hd2[0]) && !/Selisih Darat/.test(cmpOff), JSON.stringify(hd2));
+  check('toggle Project off: tinggal Rute 1, tidak ada yang dibandingkan -> bagian Selisih hilang', hd2.length === 1 && /Rute 1$/.test(hd2[0]) && !/Selisih Darat/.test(cmpOff), JSON.stringify(hd2));
   check('toggle Project off: legend & breakdown tanpa Project rute', !/Project rute/.test(await legTxt()) && !(await bdTitles()).some(t => /^Project rute/.test(t)));
   check('toggle: pilihan tersimpan di localStorage', await page.evaluate(() => localStorage.getItem('seg-route-vis')) === '{"opsional":false,"project":false}');
   await page.screenshot({ path: path.join(OUT, '6_toggle_off.png') });
@@ -219,7 +222,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 4), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
   await p3.click('.tab[data-tab="segment"]');
   const openSeg = async q => { await p3.fill('#seg-search-input', q); await p3.waitForTimeout(400); await p3.click('#seg-ac-list .autocomplete-item'); await p3.waitForTimeout(1200); };
-  const heads3 = async () => p3.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const heads3 = async () => p3.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bd3 = async () => p3.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   await openSeg('Kota Dumai');
   const hd = await heads3(), tx = await p3.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -268,7 +271,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p4.waitForTimeout(3500);
   await p4.click('.tab[data-tab="segment"]');
   const open4 = async q => { await p4.fill('#seg-search-input', q); await p4.waitForTimeout(400); await p4.click('#seg-ac-list .autocomplete-item'); await p4.waitForTimeout(1200); };
-  const heads4 = async () => p4.$$eval('#seg-compare .seg-main-tbl thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const heads4 = async () => p4.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bd4 = async () => p4.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   await open4('Kota Dumai');
   const h4 = await heads4(), tx4 = await p4.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' ')), b4 = await bd4();

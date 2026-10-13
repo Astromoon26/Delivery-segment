@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-13 (malam, 5)
+- **Selisih LT & cost dikeluarkan dari tabel Perbandingan rute** dan dipindah ke bagian sendiri **setelah Breakdown per segmen** ("Selisih LT & cost antar rute"). Sekarang membandingkan **tiap rute yang tampil** (ikut toggle Opsional/Project): matriks Selisih Darat dan Selisih Laut, baris dibanding kolom (mis. baris Rute 1 × kolom Project rute = Rute 1 dibanding Project rute). Hanya angka yang dimiliki kedua sisi; total partial (*) tidak dibandingkan. Kalau yang tampil cuma satu rute, bagian ini hilang. Sebelumnya hanya dibanding Project rute 1 di baris tabel utama.
+- Smoke test +1 (79 total); selector tes tabel utama pakai `.seg-main-tbl:not(.seg-diff-tbl)`.
+
 ## 2026-10-13 (malam, 4)
 - **Satu nama di sel rute** sekarang valid untuk Rute / Opsional rute / Project rute (sebelumnya Rute & Opsional minimal 2 nama, satu nama diabaikan). NDC saja = direct NDC → Cust / Sto (seperti Project rute default); **RDC/SDC/HUB saja = fasilitas itu → Cust / Sto** (buat priority booking dari RDC/SDC), mis. Rute 1 = `Tamora`. Lead time/cost = last mile fasilitas itu dari tab coverage-nya, hanya kalau fasilitas itu memang yang melayani kab/kota tsb; kalau bukan → peringatan + lead time kosong. Peta: garis fasilitas → Cust / Sto. Helper `isDirectSteps` (satu langkah NDC = direct).
 - `validate_sheet.py` ikut. Smoke test +3 (78 total).
