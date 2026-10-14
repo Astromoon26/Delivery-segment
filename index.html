@@ -1314,7 +1314,7 @@ function renderCompare(c, routes, projects){
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
       <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi Rute 1 = Project rute (NDC ${escapeHtml(c.NDC.name)} → Cust / Sto).</div>
-      <div class="seg-bd-wrap">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false, PROJECT_NOTE)}</div>
+      <div class="seg-bd-wrap" id="seg-breakdown">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false, PROJECT_NOTE)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
   }
@@ -1414,12 +1414,12 @@ function renderCompare(c, routes, projects){
         ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
         ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
       </tbody></table></div>
-    <div class="seg-bd-wrap">
+    ${armadaHtml}
+    <div class="seg-bd-wrap" id="seg-breakdown">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
       ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
     ${diffHtml}
-    ${armadaHtml}
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
   // pilih armada per segmen / per rute (hanya gambar ulang bagian Cost per armada)

@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (siang, 2)
+- **Urutan bagian tab Delivery Segment diubah:** Perbandingan rute → **Cost per armada** → **Breakdown per segmen** → Selisih LT (Selisih tetap tepat di bawah Breakdown). Sebelumnya Cost per armada ada paling bawah.
+- Smoke test: tes urutan disesuaikan (107 total).
+
 ## 2026-10-14 (siang, 1)
 - **Cost Project rute per armada.** Tab `NDC <BU>` sekarang boleh punya (di kanan kolom yang sudah ada) kolom armada seperti Cost F2F / Hub (`CDDL Darat`, `Fuso Darat`, `Cont-20 Laut`, …) dan **`Cost/Trip`** & **`Cost/CBM`** (diisi langsung), sama seperti Hub/SDC/RDC. Di Cost per armada, rute direct NDC (Project rute, atau Rute 1 kalau tidak ada HUB/SDC/RDC) kini punya segmen **"NDC → Cust / Sto"** (label *project NDC (tab NDC)*), bisa dipilih dan ikut total rute. Kolom NDC digabung dengan kolom Hub/SDC/RDC/F2F per nama armada + mode, dan Cost/Trip + Cost/CBM masuk kolom **Langsung**. Hanya dipakai kalau asal rute = NDC project di tab itu (kalau NDC asal beda dari kolom `NDC`, tidak ada angkanya).
 - Code: `LAST_HDR` dan `raw` juga diisi untuk NDC; `armLegs` menambah leg `last|NDC|…`; `costColsAll` ikut membaca NDC. Template: `docs/templates/NDC_cost_header.csv`.
