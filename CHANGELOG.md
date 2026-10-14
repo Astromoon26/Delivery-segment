@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (siang, 3)
+- **Project rute direct dari NDC lain** (mis. Singkawang: Project rute 1 = Jakarta, Project rute 2 = Sidoarjo) sekarang bisa diisi: tambah **baris kedua di tab `NDC <BU>`** untuk kab/kota yang sama dengan kolom `NDC` = NDC itu, isi Lead Time Land/Sea, kolom armada, `Cost/Trip`, `Cost/CBM`. Baris pertama tetap NDC utama (Project rute 1, tabel Coverage); baris dengan NDC berbeda disimpan di `COVERAGE[bu][key].NDC.others` (`ndcData(c, name)`) dan dipakai `buildSegments` + `armLegs`. Sebelumnya datanya tidak ada tempat (selalu "belum diisi"). Peringatan "belum tersedia" sekarang menunjuk ke cara ini.
+- `validate_sheet.py`: baris NDC ke-2 dengan NDC berbeda tidak lagi dihitung "dobel".
+- Smoke test: +7 tes (114 total); `#seg-breakdown` dipakai sebagai selektor breakdown.
+
 ## 2026-10-14 (siang, 2)
 - **Urutan bagian tab Delivery Segment diubah:** Perbandingan rute → **Cost per armada** → **Breakdown per segmen** → Selisih LT (Selisih tetap tepat di bawah Breakdown). Sebelumnya Cost per armada ada paling bawah.
 - Smoke test: tes urutan disesuaikan (107 total).

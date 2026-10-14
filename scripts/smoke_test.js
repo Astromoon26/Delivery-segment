@@ -430,6 +430,50 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   await ctx6.close();
 
+  // --- Project rute 2 direct dari NDC lain (Sidoarjo): baris ke-2 di tab NDC (kab/kota sama, NDC beda) = LT + cost + armada Project rute 2
+  const ctx7 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p7 = await ctx7.newPage();
+  const err7 = [];
+  p7.on('pageerror', e => err7.push(e.message));
+  await emptyRouteTabs(p7);
+  await p7.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Kabupaten/Kota","Provinsi","Project rute 1","Project rute 2"\n"Kota Dumai","Riau","Jakarta","Sidoarjo"\n' }));
+  await p7.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Armada","Kapasitas (cbm)","Utilisasi (%)"\n"CDDL","16","85"\n"Fuso","32","85"\n' }));
+  for (const t of ['HUB', 'SDC', 'RDC'])
+    await p7.route(new RegExp('sheet=' + t + '%20HCI'), route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+      '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","' + t + '","Lead Time land","Cost"\n' +
+      (t === 'HUB' ? '"1","Kota Dumai","Kota","Riau","Sumatra","Dumai","1",""\n' : '') }));
+  await p7.route(/sheet=NDC%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","NDC","Lead Time Land","Lead Time Sea","Cost Land","Cost Sea","NDC Reguler","CDDL","Cost/Trip","Cost/CBM"\n' +
+    '"1","Kota Dumai","Kota","Riau","Sumatra","Jakarta","6","","","","","4.000.000","3.000.000","150.000"\n' +
+    '"2","Kota Dumai","Kota","Riau","Sumatra","Sidoarjo","4","9","","","","3.000.000","2.500.000","100.000"\n' }));
+  await p7.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p7.waitForTimeout(3500);
+  await p7.click('.tab[data-tab="segment"]');
+  await p7.fill('#seg-search-input', 'Kota Dumai'); await p7.waitForTimeout(400);
+  await p7.click('#seg-ac-list .autocomplete-item'); await p7.waitForTimeout(1500);
+  const tx7n = await p7.$eval('#seg-compare', e => e.textContent.replace(/\s+/g, ' '));
+  check('NDC baris ke-2: Project rute 2 (Sidoarjo) direct memakai LT dari baris NDC Sidoarjo, tanpa peringatan "belum tersedia"',
+    /Sidoarjo → Cust \/ Sto/.test(tx7n) && !/belum tersedia/.test(tx7n), tx7n.slice(-300));
+  const ltRows7n = await p7.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) tbody tr', e => e.map(r => [...r.querySelectorAll('td')].map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  const ltDarn = ltRows7n.find(r => /^Lead time Darat/i.test(r[0])), ltLautn = ltRows7n.find(r => /^Lead time Laut/i.test(r[0]));
+  check('NDC baris ke-2: tabel perbandingan Lead time Darat/Laut Project rute 1 = 6h/—, Project rute 2 = 4h/9h', ltDarn && ltLautn && ltDarn.slice(-2).join('|') === '6h|4h' && ltLautn.slice(-1)[0] === '9h', JSON.stringify([ltDarn, ltLautn]));
+  check('NDC baris ke-2: baris pertama tetap NDC utama di Tabel Coverage (Jakarta), bukan Sidoarjo', await p7.evaluate(() => { const c = Object.values(COVERAGE.HCI).find(x => /Dumai/.test(x.kabkota)); return c.NDC.name === 'Jakarta' && !!c.NDC.others[normFacName('Sidoarjo')]; }), '');
+  const ttl7n = await p7.$$eval('#seg-armada .seg-diff-title', e => e.map(x => x.textContent.trim()));
+  const i7n = ttl7n.indexOf('Project rute 2');
+  check('NDC baris ke-2: Cost per armada punya tabel Project rute 2', i7n > -1, JSON.stringify(ttl7n));
+  const tbl7n = p7.locator('#seg-armada table.seg-arm-tbl').nth(i7n);
+  const tt7n = await tbl7n.evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('NDC baris ke-2: Project rute 2 → Sidoarjo → Cust / Sto: CDDL Rp 3.000.000, Langsung Rp 2.500.000 & Rp 100.000/cbm (bukan angka Jakarta)',
+    /Sidoarjo → Cust \/ Sto/.test(tt7n) && /Rp 3\.000\.000/.test(tt7n) && /Rp 2\.500\.000/.test(tt7n) && /Rp 100\.000\/cbm/.test(tt7n) && !/Rp 4\.000\.000/.test(tt7n), tt7n);
+  const heads7n = await tbl7n.locator('thead th').evaluateAll(e => e.map(x => x.textContent.trim()));
+  await tbl7n.locator('tbody tr').nth(0).locator('td').nth(heads7n.findIndex(h => /^Langsung/.test(h))).click();
+  const tot7n = await p7.locator('#seg-armada .arm-total').nth(i7n).evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('NDC baris ke-2: pilih Langsung -> total Project rute 2 = Rp 2.500.000 & Rp 100.000/cbm', /Rp 2\.500\.000/.test(tot7n) && /Rp 100\.000\/cbm/.test(tot7n), tot7n);
+  check('NDC baris ke-2: tanpa JS error', err7.length === 0, err7.join(' | '));
+  await ctx7.close();
+
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;
