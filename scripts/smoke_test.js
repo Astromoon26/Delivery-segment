@@ -362,7 +362,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const bdTx = await p6.$eval('#seg-compare .seg-bd-wrap', e => e.innerText.replace(/\s+/g, ' '));
   check('breakdown per segmen: tanpa cost (tidak ada Rp / "cost —")', /Breakdown per segmen/i.test(bdTx) && !/Rp\s?\d|cost —/i.test(bdTx), bdTx.slice(0, 300));
   // --- pilih armada per segmen: total rute = Cost/Trip & Cost/CBM dari armada yang terpilih
-  const totTx = () => p6.$eval('#seg-armada tr.tot', e => e.innerText.replace(/\s+/g, ' '));
+  const totTx = () => p6.$eval('#seg-armada .arm-total', e => e.innerText.replace(/\s+/g, ' '));
   const pos = await p6.evaluate(() => { const w = document.querySelector('#seg-compare'), bd = w.querySelector('.seg-bd-wrap'), df = w.querySelector('.seg-diff-wrap'), ar = w.querySelector('#seg-armada');
     return { diffAfterBd: !!(bd.compareDocumentPosition(df) & Node.DOCUMENT_POSITION_FOLLOWING), armAfterDiff: !!(df.compareDocumentPosition(ar) & Node.DOCUMENT_POSITION_FOLLOWING), diffTxt: df.innerText.replace(/\s+/g, ' ') }; });
   check('urutan: Breakdown per segmen -> Selisih LT -> Cost per armada; Selisih tanpa cost', pos.diffAfterBd && pos.armAfterDiff && /Selisih LT/i.test(pos.diffTxt) && !/Cost:|lebih (murah|mahal)/i.test(pos.diffTxt), pos.diffTxt.slice(0, 200));

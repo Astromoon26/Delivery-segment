@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (pagi, 1)
+- **Rapikan tampilan Cost per armada:** lebar kolom tidak lagi timpang (aturan lebar kolom 2–3 milik tabel breakdown ikut kena tabel armada: CDDL & Fuso jadi 203 px, kolom lain 63 px, nama segmen terpotong per huruf). Sekarang tabel `table-layout:fixed`: kolom Segmen 150 px (sticky saat scroll ke kanan), tiap kolom armada 104 px rata kanan. **Total armada terpilih** dipindah dari baris tabel ke blok sendiri di bawah tabel (label + jumlah segmen terpilih di kiri, dua kotak Cost/Trip & Cost/CBM di kanan) supaya selalu terlihat dan tidak ikut scroll. Teks petunjuk dipendekkan.
+- Tes: selektor total diganti ke `.arm-total` (95 total).
+
 ## 2026-10-14 (dini hari, 3)
 - **Selisih LT** dipindah tepat di bawah *Breakdown per segmen* (sebelum Cost per armada) dan sekarang **hanya lead time** (selisih cost dihapus; sel hanya "lebih cepat / lebih lama X hari").
 - **Cost per armada:** tabel "Total per armada" (baris rute × kolom armada) dihapus. Di tiap rute, **sel armada per segmen bisa diklik** untuk memilih armada segmen itu (klik lagi = batal; klik nama armada di header = pilih untuk semua segmen rute itu; juga bisa lewat keyboard Enter/Spasi). Total rute hanya **Cost/Trip & Cost/CBM dari armada terpilih** (jumlah per segmen; cost/cbm = jumlah cost/trip ÷ kapasitas efektif tiap segmen; `≥…*` + "n dari m segmen terpilih" kalau belum semua segmen dipilih / ada yang kosong). Pilihan disimpan di memori halaman saja (`SEG_ARM`), hilang saat refresh.
