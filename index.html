@@ -189,14 +189,21 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .seg-bd td:first-child{color:var(--text);font-size:11.5px}
 .seg-bd tr.tot td{font-weight:600;border-top:1px solid var(--border2);background:rgba(255,255,255,.03)}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
+.seg-cmp table.seg-arm-tbl{table-layout:fixed;width:100%;margin-bottom:0}
+.seg-cmp table.seg-arm-tbl th:first-child,.seg-cmp table.seg-arm-tbl td:first-child{width:150px;min-width:150px;position:sticky;left:0;z-index:1;background:var(--surface)}
+.seg-cmp table.seg-arm-tbl th:not(:first-child),.seg-cmp table.seg-arm-tbl td:not(:first-child){width:104px;text-align:right;white-space:nowrap;padding-left:8px;padding-right:10px}
 .seg-arm-tbl td.arm-pick{cursor:pointer;transition:background .12s}
 .seg-arm-tbl td.arm-pick:hover{background:rgba(255,255,255,.05)}
 .seg-arm-tbl td.arm-pick.sel{background:rgba(59,130,246,.18);box-shadow:inset 0 0 0 1.5px #3b82f6}
 .seg-arm-tbl td.arm-pick:focus-visible,.seg-arm-tbl th.arm-colpick:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
 .seg-arm-tbl th.arm-colpick{cursor:pointer}
 .seg-arm-tbl th.arm-colpick:hover{color:var(--text)}
-.seg-arm-tbl .arm-tot{display:inline-flex;align-items:baseline;gap:6px;margin-right:14px;white-space:nowrap}
-.seg-arm-tbl tr.tot .sub{white-space:nowrap}
+.arm-total{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:9px 10px;margin:0 0 4px;border-top:1px solid var(--border2);background:rgba(255,255,255,.03)}
+.arm-total-l{font-size:11.5px;font-weight:600;display:flex;flex-direction:column;gap:1px}
+.arm-total.none{font-size:11px}
+.arm-total-v{display:flex;gap:8px}
+.arm-box{display:flex;flex-direction:column;align-items:flex-end;min-width:128px;padding:5px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--surface)}
+.arm-box .val{font-size:12.5px;font-weight:600;font-family:'DM Mono',monospace;white-space:nowrap}
 .osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
 </style>
 </head>
@@ -1322,21 +1329,22 @@ function renderCompare(c, routes, projects){
   };
   const armHead = (x, col) => `<th class="arm-colpick" role="button" tabindex="0" data-r="${escapeHtml(x.id)}" data-c="${col.idx}" title="Pilih ${escapeHtml(col.label)} untuk semua segmen rute ini">${escapeHtml(col.label)}${col.modeLabel?`<div class="sub">${col.modeLabel}</div>`:''}</th>`;
   const armXcols = cols.filter(x=>armLegs(x).length>0);
-  const armTotRow = x => {
+  const armTotBlock = x => {
     const t = armTotal(x);
-    if(!t.n) return `<tr class="tot"><td>Total armada terpilih</td><td colspan="${aCols.length}"><span class="na">belum ada armada dipilih — klik sel armada di tiap segmen</span></td></tr>`;
+    if(!t.n) return `<div class="arm-total none"><span class="arm-total-l">Total armada terpilih</span><span class="na">belum ada armada dipilih — klik sel armada di tiap segmen</span></div>`;
     const pt = t.n < t.of, pre = pt?'≥':'', suf = pt?'*':'';
-    return `<tr class="tot"><td>Total armada terpilih</td><td colspan="${aCols.length}"><span class="arm-tot"><span class="sub">Cost/Trip</span><span class="val">${pre}${fmtMoney(t.trip)}${suf}</span></span><span class="arm-tot"><span class="sub">Cost/CBM</span><span class="val">${pre}${fmtMoney(t.cbm)}/cbm${suf}</span></span><span class="sub">${t.n} dari ${t.of} segmen terpilih</span></td></tr>`;
+    return `<div class="arm-total"><div class="arm-total-l">Total armada terpilih<span class="sub">${t.n} dari ${t.of} segmen terpilih</span></div>
+      <div class="arm-total-v"><div class="arm-box"><span class="sub">Cost/Trip</span><span class="val">${pre}${fmtMoney(t.trip)}${suf}</span></div>
+      <div class="arm-box"><span class="sub">Cost/CBM</span><span class="val">${pre}${fmtMoney(t.cbm)}/cbm${suf}</span></div></div></div>`;
   };
   const armadaInner = () => {
-    const mw = `min-width:${110+aCols.length*96}px`;
+    const mw = `min-width:${150+aCols.length*104}px`;
     const detail = armXcols.map(x=>{ const legs=armLegs(x); return `<div class="seg-diff-title"><span class="sw" style="border-color:${x.color}"></span>${x.id}</div>
       <div class="seg-tbl-scroll"><table class="seg-bd seg-arm-tbl" style="${mw}"><thead><tr><th>Segmen</th>${aCols.map(c=>armHead(x,c)).join('')}</tr></thead><tbody>
       ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div></td>${aCols.map(c=>armCell(x,l,c)).join('')}</tr>`).join('')}
-      ${armTotRow(x)}
-      </tbody></table></div>`; }).join('');
+      </tbody></table></div>${armTotBlock(x)}`; }).join('');
     return `<div class="seg-cmp-subtitle">Cost per armada</div>
-      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilih armadanya (klik lagi untuk batal); klik nama armada di header untuk memilihnya di semua segmen rute itu. Total Cost/Trip &amp; Cost/CBM rute = jumlah armada yang terpilih; cost/cbm per segmen = cost/trip ÷ kapasitas efektif (kapasitas × utilisasi, tab Armada). * = ada segmen yang belum dipilih / belum diisi. Last mile &amp; direct NDC belum termasuk (belum per armada).</div>
+      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilihnya (klik lagi = batal); klik nama armada di header untuk memilihnya di semua segmen rute itu. Total = jumlah armada terpilih; cost/cbm = cost/trip ÷ kapasitas efektif (tab Armada). * = ada segmen belum dipilih / belum diisi. Last mile &amp; direct NDC belum termasuk.</div>
       ${detail}`;
   };
   const armadaHtml = (!aCols.length || !armXcols.length) ? '' : `<div class="seg-bd-wrap" id="seg-armada">${armadaInner()}</div>`;
