@@ -157,12 +157,16 @@ def check_bu(bu, cache, rep):
             if not (r.get('Kabupaten/Kota') or '').strip():
                 continue
             k = kab_key(r['Kabupaten/Kota'], r.get('Provinsi'))
-            if k in seen:
-                dup.append(f"{r['Kabupaten/Kota']} ({r.get('Provinsi')}) dobel di tab {t}")
-            seen[k] = 1
             nm = (r.get(col) or '').strip()
+            # tab NDC: baris ke-2 dst. dengan NDC BERBEDA = data direct untuk Project rute 2 dst. (bukan dobel);
+            # baris pertama kab/kota = NDC utama
+            sk = (k, norm_fac(nm)) if t == 'NDC' else k
+            if sk in seen:
+                dup.append(f"{r['Kabupaten/Kota']} ({r.get('Provinsi')}) dobel di tab {t}")
+            seen[sk] = 1
             if nm:
-                cov[t][k] = {'name': nm, 'raw': r}
+                if not (t == 'NDC' and k in cov[t]):
+                    cov[t][k] = {'name': nm, 'raw': r}
                 if norm_fac(nm) not in fac_names:
                     unknown.add(nm)
         if t == 'NDC':

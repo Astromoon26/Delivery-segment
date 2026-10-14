@@ -552,7 +552,8 @@ function buildCoverage(bu, tier, rows){
     const name = (r[tier]||'').trim();
     if(name){
       if(tier==='NDC'){
-        COVERAGE[bu][key][tier] = {
+        const cur = COVERAGE[bu][key][tier];
+        const ndcObj = {
           name,
           slaLand: pickField(r,'Lead Time Land','Lead Time land','SLA Land','SLA').trim(),
           slaSea: pickField(r,'Lead Time Sea','Lead Time sea','SLA Sea').trim(),
@@ -564,6 +565,10 @@ function buildCoverage(bu, tier, rows){
           other: pickField(r,'NDC Other','Other NDC','NDC Other Rute','NDC Rute Other').trim(),
           raw: r      // baris mentah: kolom cost per armada & Cost/Trip, Cost/CBM (Project rute: direct NDC -> Cust / Sto)
         };
+        // baris pertama kab/kota = NDC utama (Project rute 1); baris berikutnya dengan NDC LAIN disimpan di .others
+        // (Project rute 2, dst. yang direct dari NDC itu); baris dengan NDC yang sama menimpa seperti biasa
+        if(cur && normFacName(cur.name)!==normFacName(name)){ (cur.others = cur.others||{})[normFacName(name)] = ndcObj; }
+        else { if(cur && cur.others) ndcObj.others = cur.others; COVERAGE[bu][key][tier] = ndcObj; }
       } else {
         COVERAGE[bu][key][tier] = {
           name,
@@ -1195,6 +1200,13 @@ function chainSegs(steps){
   });
   return segs;
 }
+// data direct NDC -> Cust / Sto untuk NDC tertentu: NDC utama (baris pertama di tab NDC) atau baris NDC lain untuk kab/kota yang sama
+function ndcData(c, name){
+  if(!c.NDC) return null;
+  const k = normFacName(name);
+  if(normFacName(c.NDC.name)===k) return c.NDC;
+  return (c.NDC.others && c.NDC.others[k]) || null;
+}
 function buildSegments(c, routes, projects){
   const nd = c.NDC;
   const directSeg = {
@@ -1208,8 +1220,10 @@ function buildSegments(c, routes, projects){
   // kalau ditulis rantai di tab Rute Numbered = rantai fasilitas seperti rute biasa
   const projSegs = projects.map(pr=>{
     if(!isDirectSteps(pr.steps)) return chainSegs(pr.steps);
-    const same = normFacName(pr.steps[0].d.name)===normFacName(nd.name);
-    return [same ? directSeg : {label: pr.steps[0].d.name+' → Cust / Sto', kind:'project', land:null, sea:null, costLand:'', costSea:''}];
+    const o = ndcData(c, pr.steps[0].d.name);
+    if(o===nd) return [directSeg];
+    return [o ? {label: pr.steps[0].d.name+' → Cust / Sto', kind:'project', land:numOrNull(o.slaLand), sea:numOrNull(o.slaSea), costLand:o.costLand||'', costSea:o.costSea||''}
+              : {label: pr.steps[0].d.name+' → Cust / Sto', kind:'project', land:null, sea:null, costLand:'', costSea:''}];
   });
   return {directSeg, routeSegs, projSegs};
 }
@@ -1314,7 +1328,7 @@ function renderCompare(c, routes, projects){
   if(same){
     el.innerHTML = `<div class="seg-cmp"><div class="seg-cmp-title">Perbandingan rute</div>
       <div class="seg-cmp-note">Belum ada HUB/SDC/RDC untuk kab/kota ini, jadi Rute 1 = Project rute (NDC ${escapeHtml(c.NDC.name)} → Cust / Sto).</div>
-      <div class="seg-bd-wrap">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false, PROJECT_NOTE)}</div>
+      <div class="seg-bd-wrap" id="seg-breakdown">${bdTable('Project rute = Rute 1', DIRECT_COLOR, [directSeg], D, false, false, PROJECT_NOTE)}</div>
       ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
     return;
   }
@@ -1345,7 +1359,7 @@ function renderCompare(c, routes, projects){
     for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)});
     if(!isDirectSteps(x.steps)){ const last = x.steps[x.steps.length-1]; o.push({a:last.d.name, b:'Cust / Sto', k:'last|'+last.tier+'|'+normFacName(last.d.name), last:true, d:last.d, tier:last.tier}); }
     // direct NDC -> Cust / Sto (Project rute): biayanya dari baris kab/kota ini di tab NDC (hanya kalau asalnya NDC project di tab itu)
-    else if(c.NDC && normFacName(x.steps[0].d.name)===normFacName(c.NDC.name)) o.push({a:c.NDC.name, b:'Cust / Sto', k:'last|NDC|'+normFacName(c.NDC.name), last:true, d:c.NDC, tier:'NDC'});
+    else { const nd = ndcData(c, x.steps[0].d.name); if(nd) o.push({a:x.steps[0].d.name, b:'Cust / Sto', k:'last|NDC|'+normFacName(x.steps[0].d.name), last:true, d:nd, tier:'NDC'}); }
     return o;
   };
   // nilai satu segmen untuk satu kolom: {trip, cbm} (cbm = trip ÷ kapasitas efektif, atau Cost/CBM langsung) atau null
@@ -1414,12 +1428,12 @@ function renderCompare(c, routes, projects){
         ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
         ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
       </tbody></table></div>
-    <div class="seg-bd-wrap">
+    ${armadaHtml}
+    <div class="seg-bd-wrap" id="seg-breakdown">
       <div class="seg-cmp-subtitle">Breakdown per segmen</div>
       ${cols.map(x=>bdTable(x.title, x.color, x.segs, x.T, x.showTotal, x.partial, x.kind==='project' && x.direct ? PROJECT_NOTE : '')).join('')}
     </div>
     ${diffHtml}
-    ${armadaHtml}
     ${notes.length?`<div class="seg-cmp-note">${notes.join('<br>')}</div>`:''}</div>`;
 
   // pilih armada per segmen / per rute (hanya gambar ulang bagian Cost per armada)
@@ -1542,8 +1556,8 @@ function renderSegmentRoute(c, opts){
   if(projDefs.length===1 && projDefs[0].names.length===1 && normFacName(projDefs[0].names[0])===normFacName(c.NDC.name)) projDefs = [];
   const projects = projDefs.length ? projDefs.map((a,i)=>{
     const rr = resolveAltRoute(c, a), st = PROJECT_STYLES[i%PROJECT_STYLES.length], warn = rr.warn.slice();
-    if(isDirectSteps(rr.steps) && normFacName(rr.steps[0].d.name)!==normFacName(c.NDC.name))
-      warn.push(`${a.id}: lead time/cost direct dari NDC ${rr.steps[0].d.name} belum tersedia (tab NDC ${currentBU} hanya menyimpan data NDC ${c.NDC.name}); tulis rantai fasilitasnya di tab Rute Numbered kalau perlu.`);
+    if(isDirectSteps(rr.steps) && !ndcData(c, rr.steps[0].d.name))
+      warn.push(`${a.id}: lead time/cost direct dari NDC ${rr.steps[0].d.name} belum tersedia (tab NDC ${currentBU} baru berisi NDC ${c.NDC.name} untuk kab/kota ini); tambah baris kedua di tab NDC ${currentBU} (kab/kota sama, kolom NDC = ${rr.steps[0].d.name}) dan isi lead time/cost di baris itu.`);
     return {id: projDefs.length>1 ? a.id : 'Project rute', kind:'project', custom:true, color:st.color, dash:st.dash, steps:rr.steps, warn};
   }) : [{id:'Project rute', kind:'project', custom:false, color:DIRECT_COLOR, dash:'8,6', steps:[{tier:'NDC', d:c.NDC}], warn:[]}];
   const hasAlt = alts.length>0 || opsCustom.length>0 || !!r1Res || projDefs.length>0;
