@@ -383,6 +383,7 @@ let F2F = {HCI:[], AHI:[]};
 let LEAD_TIME = {HCI:{}, AHI:{}};
 let ROUTE_ALT = {HCI:{}, AHI:{}};   // bu -> altKey(kab/kota) -> [{n, id, raw, names[]}] dari tab Rute Numbered
 let ARMADA = [];                 // [{name, key, cap, util, eff}] dari tab Armada
+let LAST_HDR = {HCI:{}, AHI:{}};  // header tab Hub/SDC/RDC <BU> (kolom cost per armada & Cost/Trip, Cost/CBM untuk last mile)
 let COST_HDR = {HCI:[], AHI:[]};  // header kolom ke-6+ di tab Cost Facility to Facility (kolom cost per armada)
 let COST_LEG = {HCI:{}, AHI:{}};   // same layout as the Lead Time sheet: Cost Land / Cost Sea per leg
 let MERGED_GEO = null;
@@ -534,6 +535,7 @@ function pickField(r, ...names){
   return '';
 }
 function buildCoverage(bu, tier, rows){
+  if(tier!=='NDC' && rows.length){ LAST_HDR[bu] = LAST_HDR[bu]||{}; LAST_HDR[bu][tier] = Object.keys(rows[0]); }
   for(const r of rows){
     const kabkotaRaw = r['Kabupaten/Kota'];
     if(!kabkotaRaw) continue;
@@ -565,7 +567,8 @@ function buildCoverage(bu, tier, rows){
         COVERAGE[bu][key][tier] = {
           name,
           sla: pickField(r,'Lead Time land','Lead Time Land','SLA').trim(),
-          cost: pickField(r,'Cost').trim()
+          cost: pickField(r,'Cost').trim(),
+          raw: r      // baris mentah: kolom cost per armada & Cost/Trip, Cost/CBM (last mile) dibaca dari sini
         };
       }
     }
@@ -732,19 +735,42 @@ function buildArmada(text){
   ARMADA = out;
 }
 // kolom cost per armada: header "CDDL", "CDDL Darat", "Cont-20 Laut", "Fuso/trip" ... (nama harus ada di tab Armada)
-function armadaCols(bu){
+function armadaColsFrom(headers){
   const cols = [];
-  (COST_HDR[bu]||[]).forEach((h,i)=>{
+  (headers||[]).forEach((h,i)=>{
     const clean = String(h||'').trim().replace(/\s*\/?\s*trip$/i,'');
     const m = clean.match(/^(.*?)(?:[\s_\-\/]*(darat|land|laut|sea))?$/i);
     if(!m) return;
     const ai = ARMADA.findIndex(a=>a.key===normArm(m[1]));
     if(ai<0) return;
     const mode = m[2] ? (/darat|land/i.test(m[2]) ? 'land' : 'sea') : 'any';
-    cols.push({idx:i, ai, ar:ARMADA[ai], mode, label:ARMADA[ai].name, modeLabel: mode==='land'?'Darat':mode==='sea'?'Laut':''});
+    cols.push({idx:i, h:String(h), ai, ar:ARMADA[ai], mode, label:ARMADA[ai].name, modeLabel: mode==='land'?'Darat':mode==='sea'?'Laut':''});
   });
   const mo = {land:0, sea:1, any:2};
   return cols.sort((a,b)=>a.ai-b.ai || mo[a.mode]-mo[b.mode]);
+}
+function armadaCols(bu){ return armadaColsFrom(COST_HDR[bu]); }
+// kolom "langsung" di tab Hub/SDC/RDC: Cost/Trip dan Cost/CBM diisi sendiri (tanpa pilih armada)
+function directHdrs(bu, tier){
+  const hs = ((LAST_HDR[bu]||{})[tier]) || [];
+  const find = re => hs.find(h=>re.test(String(h).trim()));
+  return {trip: find(/^cost\s*(?:\/|per)?\s*trip$/i), cbm: find(/^cost\s*(?:\/|per)?\s*cbm$/i)};
+}
+// gabungan kolom cost per armada: kolom armada di Cost F2F + kolom armada di tab Hub/SDC/RDC (last mile), + kolom "Langsung"
+function costColsAll(bu){
+  const map = new Map();
+  const add = (c, src, ref) => {
+    const key = c.ai+'|'+c.mode; let e = map.get(key);
+    if(!e){ e = {key, ai:c.ai, ar:c.ar, mode:c.mode, label:c.label, modeLabel:c.modeLabel, f2f:null, last:{}}; map.set(key, e); }
+    if(src==='f2f') e.f2f = ref; else e.last[src] = ref;
+  };
+  armadaCols(bu).forEach(c=>add(c,'f2f',c.idx));
+  ['HUB','SDC','RDC'].forEach(t=>armadaColsFrom((LAST_HDR[bu]||{})[t]).forEach(c=>add(c,t,c.h)));
+  const mo = {land:0, sea:1, any:2};
+  const cols = [...map.values()].sort((a,b)=>a.ai-b.ai || mo[a.mode]-mo[b.mode]);
+  if(['HUB','SDC','RDC'].some(t=>{ const d=directHdrs(bu,t); return d.trip || d.cbm; }))
+    cols.push({key:'direct', direct:true, label:'Langsung', modeLabel:'Trip & CBM', f2f:null, last:{}});
+  return cols;
 }
 // ---- Rute numbered (tab opsional "Rute Numbered <BU>") ----
 // Kunci kab/kota tanpa provinsi: "kota||dumai" (Provinsi di tab ini opsional, hanya info).
@@ -1311,40 +1337,61 @@ function renderCompare(c, routes, projects){
   // Cost per armada (kolom armada di tab Cost Facility to Facility x kapasitas efektif di tab Armada):
   // tiap segmen antar fasilitas bisa diklik untuk memilih armadanya; total rute = jumlah armada terpilih (Cost/Trip & Cost/CBM).
   // cost/cbm = cost/trip / (kapasitas x utilisasi). Last mile & direct NDC belum per armada.
-  const aCols = armadaCols(currentBU);
-  const armLegs = x => { const o=[]; for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)}); return o; };
-  const armVal = (k, col) => { const e = (COST_LEG[currentBU]||{})[k]; return e && e.ext ? parseMoney(e.ext[col.idx]) : null; };
+  const aCols = costColsAll(currentBU);
+  // segmen per rute: leg antar fasilitas (Cost F2F) + last mile fasilitas terakhir → Cust / Sto (tab Hub/SDC/RDC); direct NDC belum
+  const armLegs = x => {
+    const o = [];
+    for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)});
+    if(!isDirectSteps(x.steps)){ const last = x.steps[x.steps.length-1]; o.push({a:last.d.name, b:'Cust / Sto', k:'last|'+last.tier+'|'+normFacName(last.d.name), last:true, d:last.d, tier:last.tier}); }
+    return o;
+  };
+  // nilai satu segmen untuk satu kolom: {trip, cbm} (cbm = trip ÷ kapasitas efektif, atau Cost/CBM langsung) atau null
+  const legVal = (l, col) => {
+    if(l.last){
+      const raw = (l.d && l.d.raw) || {};
+      if(col.direct){
+        const h = directHdrs(currentBU, l.tier);
+        const t = h.trip ? parseMoney(raw[h.trip]) : null, m = h.cbm ? parseMoney(raw[h.cbm]) : null;
+        return (t==null && m==null) ? null : {trip:t, cbm:m};
+      }
+      const h = col.last[l.tier], v = h ? parseMoney(raw[h]) : null;
+      return v==null ? null : {trip:v, cbm:v/col.ar.eff};
+    }
+    if(col.direct || col.f2f==null) return null;
+    const e = (COST_LEG[currentBU]||{})[l.k], v = e && e.ext ? parseMoney(e.ext[col.f2f]) : null;
+    return v==null ? null : {trip:v, cbm:v/col.ar.eff};
+  };
   const selKey = (x, l) => currentBU+'|'+x.id+'|'+l.k;
-  const armPick = (x, l) => { const i = SEG_ARM[selKey(x,l)]; return i==null ? null : (aCols.find(c=>c.idx===i) || null); };
+  const armPick = (x, l) => { const k = SEG_ARM[selKey(x,l)]; return k==null ? null : (aCols.find(c=>c.key===k) || null); };
   const armTotal = x => {
-    const legs = armLegs(x); let trip=0, cbm=0, n=0;
-    legs.forEach(l=>{ const c=armPick(x,l); if(!c) return; const v=armVal(l.k,c); if(v==null) return; trip+=v; cbm+=v/c.ar.eff; n++; });
-    return {n, of:legs.length, trip:n?trip:null, cbm:n?cbm:null};
+    const legs = armLegs(x); let trip=0, cbm=0, tn=0, cn=0, n=0;
+    legs.forEach(l=>{ const c=armPick(x,l); if(!c) return; const v=legVal(l,c); if(!v) return; n++; if(v.trip!=null){ trip+=v.trip; tn++; } if(v.cbm!=null){ cbm+=v.cbm; cn++; } });
+    return {n, of:legs.length, trip:tn?trip:null, cbm:cn?cbm:null, tripPartial:tn<legs.length, cbmPartial:cn<legs.length};
   };
   const armCell = (x, l, col) => {
-    const v = armVal(l.k, col);
-    if(v==null) return `<td><div class="val"><span class="na">—</span></div></td>`;
+    const v = legVal(l, col);
+    if(!v) return `<td><div class="val"><span class="na">—</span></div></td>`;
     const on = armPick(x,l) === col;
-    return `<td class="arm-pick${on?' sel':''}" role="button" tabindex="0" aria-pressed="${on}" data-r="${escapeHtml(x.id)}" data-k="${escapeHtml(l.k)}" data-c="${col.idx}" title="${on?'Klik lagi untuk batal':'Pilih '+escapeHtml(col.label)+' untuk segmen ini'}"><div class="val">${fmtMoney(v)}</div><div class="sub">${fmtMoney(v/col.ar.eff)}/cbm</div></td>`;
+    return `<td class="arm-pick${on?' sel':''}" role="button" tabindex="0" aria-pressed="${on}" data-r="${escapeHtml(x.id)}" data-k="${escapeHtml(l.k)}" data-c="${escapeHtml(col.key)}" title="${on?'Klik lagi untuk batal':'Pilih '+escapeHtml(col.label)+' untuk segmen ini'}"><div class="val">${v.trip!=null?fmtMoney(v.trip):'—'}</div><div class="sub">${v.cbm!=null?fmtMoney(v.cbm)+'/cbm':'—/cbm'}</div></td>`;
   };
-  const armHead = (x, col) => `<th class="arm-colpick" role="button" tabindex="0" data-r="${escapeHtml(x.id)}" data-c="${col.idx}" title="Pilih ${escapeHtml(col.label)} untuk semua segmen rute ini">${escapeHtml(col.label)}${col.modeLabel?`<div class="sub">${col.modeLabel}</div>`:''}</th>`;
+  const armHead = (x, col) => `<th class="arm-colpick" role="button" tabindex="0" data-r="${escapeHtml(x.id)}" data-c="${escapeHtml(col.key)}" title="${col.direct?'Pilih Cost/Trip & Cost/CBM langsung (kolom di tab Hub/SDC/RDC) untuk semua segmen rute ini':'Pilih '+escapeHtml(col.label)+' untuk semua segmen rute ini'}">${escapeHtml(col.label)}${col.modeLabel?`<div class="sub">${col.modeLabel}</div>`:''}</th>`;
   const armXcols = cols.filter(x=>armLegs(x).length>0);
   const armTotBlock = x => {
     const t = armTotal(x);
     if(!t.n) return `<div class="arm-total none"><span class="arm-total-l">Total armada terpilih</span><span class="na">belum ada armada dipilih — klik sel armada di tiap segmen</span></div>`;
-    const pt = t.n < t.of, pre = pt?'≥':'', suf = pt?'*':'';
+    const f = (v, pt, cbm) => v==null ? '—' : (pt?'≥':'')+fmtMoney(v)+(cbm?'/cbm':'')+(pt?'*':'');
     return `<div class="arm-total"><div class="arm-total-l">Total armada terpilih<span class="sub">${t.n} dari ${t.of} segmen terpilih</span></div>
-      <div class="arm-total-v"><div class="arm-box"><span class="sub">Cost/Trip</span><span class="val">${pre}${fmtMoney(t.trip)}${suf}</span></div>
-      <div class="arm-box"><span class="sub">Cost/CBM</span><span class="val">${pre}${fmtMoney(t.cbm)}/cbm${suf}</span></div></div></div>`;
+      <div class="arm-total-v"><div class="arm-box"><span class="sub">Cost/Trip</span><span class="val">${f(t.trip,t.tripPartial,false)}</span></div>
+      <div class="arm-box"><span class="sub">Cost/CBM</span><span class="val">${f(t.cbm,t.cbmPartial,true)}</span></div></div></div>`;
   };
   const armadaInner = () => {
     const mw = `min-width:${150+aCols.length*104}px`;
     const detail = armXcols.map(x=>{ const legs=armLegs(x); return `<div class="seg-diff-title"><span class="sw" style="border-color:${x.color}"></span>${x.id}</div>
       <div class="seg-tbl-scroll"><table class="seg-bd seg-arm-tbl" style="${mw}"><thead><tr><th>Segmen</th>${aCols.map(c=>armHead(x,c)).join('')}</tr></thead><tbody>
-      ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div></td>${aCols.map(c=>armCell(x,l,c)).join('')}</tr>`).join('')}
+      ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div>${l.last?`<div class="sub">last mile ${escapeHtml(l.tier)}</div>`:''}</td>${aCols.map(c=>armCell(x,l,c)).join('')}</tr>`).join('')}
       </tbody></table></div>${armTotBlock(x)}`; }).join('');
     return `<div class="seg-cmp-subtitle">Cost per armada</div>
-      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilihnya (klik lagi = batal); klik nama armada di header untuk memilihnya di semua segmen rute itu. Total = jumlah armada terpilih; cost/cbm = cost/trip ÷ kapasitas efektif (tab Armada). * = ada segmen belum dipilih / belum diisi. Last mile &amp; direct NDC belum termasuk.</div>
+      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilihnya (klik lagi = batal); klik nama kolom di header untuk memilihnya di semua segmen rute itu. Total = jumlah armada terpilih; cost/cbm = cost/trip ÷ kapasitas efektif (tab Armada). Kolom <b>Langsung</b> = Cost/Trip &amp; Cost/CBM yang diisi sendiri di tab Hub/SDC/RDC (last mile). * = ada segmen belum dipilih / belum diisi. Segmen dari NDC langsung ke Cust / Sto (tab NDC) belum termasuk.</div>
       ${detail}`;
   };
   const armadaHtml = (!aCols.length || !armXcols.length) ? '' : `<div class="seg-bd-wrap" id="seg-armada">${armadaInner()}</div>`;
@@ -1378,24 +1425,24 @@ function renderCompare(c, routes, projects){
     const act = t => {
       const cell = t.closest('.arm-pick'), head = t.closest('.arm-colpick');
       if(cell){
-        const key = currentBU+'|'+cell.dataset.r+'|'+cell.dataset.k, ci = +cell.dataset.c;
-        if(SEG_ARM[key]===ci) delete SEG_ARM[key]; else SEG_ARM[key]=ci;
-        return {r:cell.dataset.r, k:cell.dataset.k, c:cell.dataset.c, head:false};
+        const key = currentBU+'|'+cell.dataset.r+'|'+cell.dataset.k, ck = cell.dataset.c;
+        if(SEG_ARM[key]===ck) delete SEG_ARM[key]; else SEG_ARM[key]=ck;
+        return {r:cell.dataset.r, k:cell.dataset.k, c:ck, head:false};
       }
       if(head){
-        const x = armXcols.find(v=>v.id===head.dataset.r), ci = +head.dataset.c, col = aCols.find(c=>c.idx===ci);
+        const x = armXcols.find(v=>v.id===head.dataset.r), ck = head.dataset.c, col = aCols.find(c=>c.key===ck);
         if(!x || !col) return null;
-        const legs = armLegs(x).filter(l=>armVal(l.k,col)!=null);
-        const all = legs.length>0 && legs.every(l=>SEG_ARM[selKey(x,l)]===ci);
-        legs.forEach(l=>{ if(all) delete SEG_ARM[selKey(x,l)]; else SEG_ARM[selKey(x,l)]=ci; });
-        return {r:head.dataset.r, c:head.dataset.c, head:true};
+        const legs = armLegs(x).filter(l=>legVal(l,col)!=null);
+        const all = legs.length>0 && legs.every(l=>SEG_ARM[selKey(x,l)]===ck);
+        legs.forEach(l=>{ if(all) delete SEG_ARM[selKey(x,l)]; else SEG_ARM[selKey(x,l)]=ck; });
+        return {r:head.dataset.r, c:ck, head:true};
       }
       return null;
     };
     const redraw = (info, refocus) => {
       armEl.innerHTML = armadaInner();
       if(!refocus) return;
-      const q = info.head ? `.arm-colpick[data-r="${CSS.escape(info.r)}"][data-c="${info.c}"]` : `.arm-pick[data-r="${CSS.escape(info.r)}"][data-k="${CSS.escape(info.k)}"][data-c="${info.c}"]`;
+      const q = info.head ? `.arm-colpick[data-r="${CSS.escape(info.r)}"][data-c="${CSS.escape(info.c)}"]` : `.arm-pick[data-r="${CSS.escape(info.r)}"][data-k="${CSS.escape(info.k)}"][data-c="${CSS.escape(info.c)}"]`;
       const n = armEl.querySelector(q); if(n) n.focus();
     };
     armEl.onclick = e => { const info = act(e.target); if(info) redraw(info, false); };
