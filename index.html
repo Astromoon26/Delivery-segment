@@ -868,7 +868,8 @@ function resolveAltRoute(c, alt){
       steps.push({tier: f ? f.type : 'HUB', d:{name: f ? f.name : n}, unresolved:!f});
       return;
     }
-    const f = findFacility(n, ['RDC','SDC','HUB']);
+    // titik transit boleh RDC/SDC/HUB, atau NDC lain (mis. "Jakarta - Sidoarjo - Bali": transit di NDC Sidoarjo dari NDC Jakarta)
+    const f = findFacility(n, ['RDC','SDC','HUB','NDC']);
     if(!f) warn.push(`${alt.id}: fasilitas "${n}" tidak ditemukan di Name of Facility.`);
     steps.push({tier: f ? f.type : 'HUB', d:{name: f ? f.name : n}, unresolved:!f});
   });
@@ -1630,9 +1631,10 @@ function renderSegmentRoute(c, opts){
     if(!showRoutes.some(r=>normFacName(r.ndc)===normFacName(pr.steps[0].d.name)))
       L.marker(o, {icon:ndcIcon(pr.color, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${pr.steps[0].d.name} (asal ${pr.id})`).addTo(segLayer);
   });
-  // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute)
+  // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute); rute yang transit di NDC lain diberi keterangan
+  const legendLabel = r => { const t = r.steps.slice(1,-1).filter(s=>s.tier==='NDC' && !s.unresolved).map(s=>escapeHtml(s.d.name)); return t.length ? r.id+' · transit NDC '+t.join(', ') : r.id; };
   setSegLegend((hasMid||hasAlt)
-    ? showRoutes.map(r=>({label:r.id, color:r.color, dash:r.dash})).concat(showProject ? projects.map(pr=>({label:pr.id, color:pr.color, dash:pr.dash})) : [])
+    ? showRoutes.map(r=>({label:legendLabel(r), color:r.color, dash:r.dash})).concat(showProject ? projects.map(pr=>({label:legendLabel(pr), color:pr.color, dash:pr.dash})) : [])
     : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
   if(bounds.length && !opts.keepView) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
 }

@@ -474,6 +474,27 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('NDC baris ke-2: tanpa JS error', err7.length === 0, err7.join(' | '));
   await ctx7.close();
 
+  // --- transit di NDC lain: "Jakarta - Sidoarjo - Pekanbaru - Dumai" (NDC Sidoarjo sebagai titik transit dari NDC Jakarta) + keterangan di legend
+  const ctx8 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
+  const p8 = await ctx8.newPage();
+  const err8 = [];
+  p8.on('pageerror', e => err8.push(e.message));
+  await p8.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"Kabupaten/Kota","Provinsi","Rute 2"\n"Kota Dumai","Riau","Jakarta - Sidoarjo - Pekanbaru - Dumai"\n' }));
+  await p8.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
+  await p8.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p8.waitForTimeout(3500);
+  await p8.click('.tab[data-tab="segment"]');
+  await p8.fill('#seg-search-input', 'Kota Dumai'); await p8.waitForTimeout(400);
+  await p8.click('#seg-ac-list .autocomplete-item'); await p8.waitForTimeout(1500);
+  const tx8t = await p8.$eval('#seg-compare', e => e.textContent.replace(/\s+/g, ' '));
+  const lg8 = await p8.$eval('.seg-legend', e => e.textContent.replace(/\s+/g, ' '));
+  check('transit NDC: "Jakarta - Sidoarjo - Pekanbaru - Dumai" dikenali (tanpa peringatan "Sidoarjo tidak ditemukan"), 2 titik transit', !/"Sidoarjo" tidak ditemukan/.test(tx8t) && /Jakarta → Sidoarjo → Pekanbaru → Dumai → Cust \/ Sto/.test(tx8t), tx8t.slice(-300));
+  check('transit NDC: breakdown punya segmen "Jakarta → Sidoarjo" (NDC → NDC) dan "Sidoarjo → Pekanbaru"', /Jakarta → Sidoarjo\s*NDC → NDC/.test(tx8t) && /Sidoarjo → Pekanbaru/.test(tx8t), '');
+  check('transit NDC: legend rute memberi keterangan "Rute 2 · transit NDC Sidoarjo", rute lain tanpa keterangan', /Rute 2 · transit NDC Sidoarjo/.test(lg8) && (lg8.match(/transit NDC/g) || []).length === 1, lg8);
+  check('transit NDC: tanpa JS error', err8.length === 0, err8.join(' | '));
+  await ctx8.close();
+
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;

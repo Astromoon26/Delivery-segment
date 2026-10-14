@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (siang, 4)
+- **Transit di NDC lain** (mis. `Jakarta - Sidoarjo - Bali`: barang dari NDC Jakarta transit di NDC Sidoarjo, lanjut ke fasilitas tujuan). Titik tengah rute di tab `Rute Numbered` sekarang boleh NDC (sebelumnya hanya RDC/SDC/HUB → muncul peringatan "fasilitas Sidoarjo tidak ditemukan", titik transitnya dilewati di garis peta dan segmen NDC → NDC tidak punya LT/cost). Sekarang segmen `Jakarta → Sidoarjo` (NDC → NDC) ikut LT/Cost F2F, marker NDC Sidoarjo digambar di garis, dan **legend rute** memberi keterangan: *"Opsional rute 2 · transit NDC Sidoarjo"*. Di data live ini dipakai 9 kab/kota Bali (HCI, Opsional rute 2).
+- Smoke test: +4 tes transit NDC (118 total).
+
 ## 2026-10-14 (siang, 3)
 - **Project rute direct dari NDC lain** (mis. Singkawang: Project rute 1 = Jakarta, Project rute 2 = Sidoarjo) sekarang bisa diisi: tambah **baris kedua di tab `NDC <BU>`** untuk kab/kota yang sama dengan kolom `NDC` = NDC itu, isi Lead Time Land/Sea, kolom armada, `Cost/Trip`, `Cost/CBM`. Baris pertama tetap NDC utama (Project rute 1, tabel Coverage); baris dengan NDC berbeda disimpan di `COVERAGE[bu][key].NDC.others` (`ndcData(c, name)`) dan dipakai `buildSegments` + `armLegs`. Sebelumnya datanya tidak ada tempat (selalu "belum diisi"). Peringatan "belum tersedia" sekarang menunjuk ke cara ini.
 - `validate_sheet.py`: baris NDC ke-2 dengan NDC berbeda tidak lagi dihitung "dobel".
