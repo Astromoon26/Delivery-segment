@@ -351,6 +351,14 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p6.route(/sheet=Hub%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","HUB","Lead Time land","Cost","CDDL","Fuso","Cost/Trip","Cost/CBM"\n' +
     '"1","Kota Dumai","Kota","Riau","Sumatra","Dumai","1","","1.500.000","","900.000","60.000"\n' }));
+  // tab SDC/RDC asli sudah punya kolom armada (Apip sudah menambah) -> di-stub kosong supaya tes tidak bergantung pada data live
+  for (const t of ['SDC', 'RDC'])
+    await p6.route(new RegExp('sheet=' + t + '%20HCI'), route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+      '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","' + t + '","Lead Time land","Cost"\n' +
+      (t === 'RDC' ? '"1","Kota Dumai","Kota","Riau","Sumatra","Tamora","",""\n' : '') }));
+  await p6.route(/sheet=NDC%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","NDC","Lead Time Land","Lead Time Sea","Cost Land","Cost Sea","NDC Reguler","CDDL","Cont-20 Laut","Cost/Trip","Cost/CBM"\n' +
+    '"1","Kota Dumai","Kota","Riau","Sumatra","Jakarta","6","","","","","4.000.000","5.000.000","3.000.000","150.000"\n' }));
   await p6.route(/sheet=Cost%20Facility%20to%20Facility%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Remark","Facility","Facility","Cost Land","Cost Sea","CDDL","Fuso","Cont-20 Laut","Kolom Bebas"\n' +
     '"","Jakarta","Tamora","","","10.000.000","20.000.000","8.000.000","x"\n' +
@@ -402,6 +410,21 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const t6 = await totTx();
   check('last mile dipilih Langsung: total = 2.000.000 + 900.000 = ≥Rp 2.900.000* & cbm 147.059 + 60.000 = ≥Rp 207.059/cbm*', /≥Rp 2\.900\.000\*/.test(t6) && /≥Rp 207\.059\/cbm\*/.test(t6), t6);
   check('last mile: Fuso kosong untuk Dumai → Cust / Sto tidak bisa dipilih', await p6.$$eval('#seg-armada tbody tr:nth-child(4) td.arm-pick', n => n.length) === 2, '');
+  // --- Project rute (direct NDC -> Cust / Sto): kolom armada + Cost/Trip & Cost/CBM dibaca dari tab NDC
+  const projTbl = p6.locator('#seg-armada table.seg-arm-tbl').nth(1);
+  const projTx = await projTbl.evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('project: tabel Project rute ada di Cost per armada dengan baris "Jakarta → Cust / Sto" (project NDC)', /Jakarta → Cust \/ Sto/.test(projTx) && /project NDC/i.test(projTx), projTx);
+  check('project: sel CDDL = Rp 4.000.000, Cont-20 Laut = Rp 5.000.000, Langsung = Rp 3.000.000 & Rp 150.000/cbm (dari tab NDC)', /Rp 4\.000\.000/.test(projTx) && /Rp 5\.000\.000/.test(projTx) && /Rp 3\.000\.000/.test(projTx) && /Rp 150\.000\/cbm/.test(projTx), projTx);
+  const projTot = () => p6.locator('#seg-armada .arm-total').nth(1).evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('project: belum ada yang dipilih -> total "belum ada armada dipilih"', /belum ada armada dipilih/.test(await projTot()), await projTot());
+  await projTbl.locator('tbody tr').nth(0).locator('td').nth(4).click();                       // Langsung
+  const pt1 = await projTot();
+  check('project dipilih Langsung: total Cost/Trip Rp 3.000.000 & Cost/CBM Rp 150.000/cbm (1 dari 1 segmen, tanpa ≥)', /Rp 3\.000\.000/.test(pt1) && /Rp 150\.000\/cbm/.test(pt1) && /1 dari 1 segmen/.test(pt1) && !/≥/.test(pt1), pt1);
+  await projTbl.locator('thead th').nth(1).click();                                           // header CDDL -> ganti ke CDDL (4.000.000 / 13,6 cbm)
+  const pt2 = await projTot();
+  check('project: klik header CDDL -> Rp 4.000.000 & Rp 294.118/cbm', /Rp 4\.000\.000/.test(pt2) && /Rp 294\.118\/cbm/.test(pt2), pt2);
+  const rute1Tot = await p6.$eval('#seg-armada .arm-total', e => e.innerText.replace(/\s+/g, ' '));
+  check('project: pilihan Project rute tidak mengubah total Rute 1', /≥Rp 2\.900\.000\*/.test(rute1Tot), rute1Tot);
   await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   await ctx6.close();

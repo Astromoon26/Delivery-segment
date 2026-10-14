@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-14 (siang, 1)
+- **Cost Project rute per armada.** Tab `NDC <BU>` sekarang boleh punya (di kanan kolom yang sudah ada) kolom armada seperti Cost F2F / Hub (`CDDL Darat`, `Fuso Darat`, `Cont-20 Laut`, …) dan **`Cost/Trip`** & **`Cost/CBM`** (diisi langsung), sama seperti Hub/SDC/RDC. Di Cost per armada, rute direct NDC (Project rute, atau Rute 1 kalau tidak ada HUB/SDC/RDC) kini punya segmen **"NDC → Cust / Sto"** (label *project NDC (tab NDC)*), bisa dipilih dan ikut total rute. Kolom NDC digabung dengan kolom Hub/SDC/RDC/F2F per nama armada + mode, dan Cost/Trip + Cost/CBM masuk kolom **Langsung**. Hanya dipakai kalau asal rute = NDC project di tab itu (kalau NDC asal beda dari kolom `NDC`, tidak ada angkanya).
+- Code: `LAST_HDR` dan `raw` juga diisi untuk NDC; `armLegs` menambah leg `last|NDC|…`; `costColsAll` ikut membaca NDC. Template: `docs/templates/NDC_cost_header.csv`.
+- Smoke test: +6 tes Project; tab SDC/RDC HCI di-stub di tes armada (tab live sudah punya kolom armada sehingga mengubah kolom tabel) (107 total).
+
 ## 2026-10-14 (pagi, 2)
 - **Cost last mile per armada.** Tab `Hub|SDC|RDC <BU>` sekarang boleh punya (di kanan kolom `Cost`): kolom armada seperti Cost F2F (`CDDL Darat`, `Fuso Darat`, `Cont-20 Laut`, dst.) dan dua kolom **`Cost/Trip`** & **`Cost/CBM`** (diisi langsung). Di Cost per armada tiap rute muncul segmen **"Fasilitas → Cust / Sto"** (label *last mile HUB/SDC/RDC*), bisa diklik/dipilih seperti segmen lain dan ikut total rute. Kolom armada Cost F2F dan tab Hub digabung per nama armada + mode (Darat/Laut), plus kolom **Langsung** (Cost/Trip & Cost/CBM langsung; cost/cbm tidak dihitung dari kapasitas). Total Cost/Trip dan Cost/CBM dihitung terpisah (`≥…*` per angka kalau ada segmen yang kosong). Direct NDC → Cust / Sto belum.
 - Code: `LAST_HDR`, `armadaColsFrom`, `directHdrs`, `costColsAll`; `SEG_ARM` menyimpan kunci kolom (string). Template: `docs/templates/Hub_SDC_RDC_cost_header.csv`.
