@@ -333,7 +333,11 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const tx7 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
   check('satu nama RDC yang bukan pelayan kab/kota -> peringatan, tidak error', /Rute 2: .*Tamora bukan .*yang melayani Kota Palu/.test(tx7), tx7.slice(-300));
   check('Rute 1 dari RDC: tanpa JS error', err5.length === 0, err5.join(' | '));
-  check('tanpa tab Armada: bagian "Cost per armada" tidak muncul', !/Cost per armada/i.test(await p5.$eval('#seg-compare', e => e.innerText)));
+  // kolom cost last mile di tab Hub/SDC/RDC asli (Apip akan menambahkannya) tidak boleh mempengaruhi tes ini
+  await p5.evaluate(() => { LAST_HDR.HCI = {}; LAST_HDR.AHI = {}; });
+  await p5.fill('#seg-search-input', 'Kota Palu'); await p5.waitForTimeout(400);
+  await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
+  check('tanpa tab Armada & tanpa kolom cost last mile: bagian "Cost per armada" tidak muncul', !/Cost per armada/i.test(await p5.$eval('#seg-compare', e => e.innerText)));
   await ctx5.close();
 
   // --- Cost per armada: tab Armada (kapasitas x utilisasi) + kolom armada di tab Cost Facility to Facility
@@ -344,6 +348,17 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await emptyRouteTabs(p6);
   await p6.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Armada","Kapasitas (cbm)","Utilisasi (%)"\n"CDDL","16","85"\n"Fuso","32","85"\n"Wingbox","42","85"\n"Cont-20","25","85"\n"Cont-40","50","85"\n' }));
+  await p6.route(/sheet=Hub%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","HUB","Lead Time land","Cost","CDDL","Fuso","Cost/Trip","Cost/CBM"\n' +
+    '"1","Kota Dumai","Kota","Riau","Sumatra","Dumai","1","","1.500.000","","900.000","60.000"\n' }));
+  // tab SDC/RDC asli sudah punya kolom armada (Apip sudah menambah) -> di-stub kosong supaya tes tidak bergantung pada data live
+  for (const t of ['SDC', 'RDC'])
+    await p6.route(new RegExp('sheet=' + t + '%20HCI'), route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+      '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","' + t + '","Lead Time land","Cost"\n' +
+      (t === 'RDC' ? '"1","Kota Dumai","Kota","Riau","Sumatra","Tamora","",""\n' : '') }));
+  await p6.route(/sheet=NDC%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
+    '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","NDC","Lead Time Land","Lead Time Sea","Cost Land","Cost Sea","NDC Reguler","CDDL","Cont-20 Laut","Cost/Trip","Cost/CBM"\n' +
+    '"1","Kota Dumai","Kota","Riau","Sumatra","Jakarta","6","","","","","4.000.000","5.000.000","3.000.000","150.000"\n' }));
   await p6.route(/sheet=Cost%20Facility%20to%20Facility%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Remark","Facility","Facility","Cost Land","Cost Sea","CDDL","Fuso","Cont-20 Laut","Kolom Bebas"\n' +
     '"","Jakarta","Tamora","","","10.000.000","20.000.000","8.000.000","x"\n' +
@@ -370,18 +385,46 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('armada: sebelum ada pilihan, total menunjuk "belum ada armada dipilih"', /belum ada armada dipilih/i.test(await totTx()), await totTx());
   await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(2)');                       // Jakarta -> Tamora = CDDL
   const t1 = await totTx();
-  check('armada: klik segmen CDDL -> total Cost/Trip ≥Rp 10.000.000* & Cost/CBM ≥Rp 735.294/cbm* (1 dari 3 segmen)', /Cost\/Trip ≥Rp 10\.000\.000\*/.test(t1) && /Cost\/CBM ≥Rp 735\.294\/cbm\*/.test(t1) && /1 dari 3 segmen/.test(t1), t1);
+  check('armada: klik segmen CDDL -> total Cost/Trip ≥Rp 10.000.000* & Cost/CBM ≥Rp 735.294/cbm* (1 dari 4 segmen)', /Cost\/Trip ≥Rp 10\.000\.000\*/.test(t1) && /Cost\/CBM ≥Rp 735\.294\/cbm\*/.test(t1) && /1 dari 4 segmen/.test(t1), t1);
   check('armada: sel terpilih ditandai (aria-pressed / kelas sel)', await p6.$eval('#seg-armada tbody tr:nth-child(1) td:nth-child(2)', e => e.classList.contains('sel') && e.getAttribute('aria-pressed') === 'true'), '');
   await p6.click('#seg-armada thead th.arm-colpick:nth-child(2)');                           // header CDDL = semua segmen yang punya CDDL
   const t2 = await totTx();
-  check('armada: klik header CDDL -> semua segmen ber-CDDL terpilih: ≥Rp 12.000.000* & ≥Rp 882.353/cbm* (2 dari 3)', /≥Rp 12\.000\.000\*/.test(t2) && /≥Rp 882\.353\/cbm\*/.test(t2) && /2 dari 3 segmen/.test(t2), t2);
+  check('armada: klik header CDDL -> semua segmen ber-CDDL terpilih (termasuk last mile): ≥Rp 13.500.000* & ≥Rp 992.647/cbm* (3 dari 4)', /≥Rp 13\.500\.000\*/.test(t2) && /≥Rp 992\.647\/cbm\*/.test(t2) && /3 dari 4 segmen/.test(t2), t2);
   await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(4)');                       // Jakarta -> Tamora pindah ke Cont-20 Laut
   const t3 = await totTx();
-  check('armada: ganti armada satu segmen (Cont-20 Laut) -> total Rp 10.000.000 & Rp 523.529/cbm (campur armada)', /≥Rp 10\.000\.000\*/.test(t3) && /≥Rp 523\.529\/cbm\*/.test(t3), t3);
+  check('armada: ganti armada satu segmen (Cont-20 Laut) -> total ≥Rp 11.500.000* & ≥Rp 633.824/cbm* (campur armada)', /≥Rp 11\.500\.000\*/.test(t3) && /≥Rp 633\.824\/cbm\*/.test(t3), t3);
   await p6.click('#seg-armada tbody tr:nth-child(1) td:nth-child(4)');                       // klik lagi = batal
   const t4 = await totTx();
-  check('armada: klik lagi = batal pilihan (tinggal Tamora → Pekanbaru CDDL ≥Rp 2.000.000*, 1 dari 3)', /≥Rp 2\.000\.000\*/.test(t4) && /1 dari 3 segmen/.test(t4), t4);
+  check('armada: klik lagi = batal pilihan (tinggal Tamora → Pekanbaru + last mile CDDL: ≥Rp 3.500.000*, 2 dari 4)', /≥Rp 3\.500\.000\*/.test(t4) && /≥Rp 257\.353\/cbm\*/.test(t4) && /2 dari 4 segmen/.test(t4), t4);
   check('armada: segmen tanpa harga armada (Pekanbaru → Dumai) tidak bisa dipilih', await p6.$$eval('#seg-armada tbody tr:nth-child(3) td.arm-pick', n => n.length) === 0, '');
+  // --- last mile (Hub → Cust / Sto) dari tab Hub: kolom armada + kolom "Langsung" (Cost/Trip & Cost/CBM)
+  const lmTx = await p6.$eval('#seg-armada tbody tr:nth-child(4)', e => e.innerText.replace(/\s+/g, ' '));
+  const headTx = await p6.$$eval('#seg-armada thead tr:first-child th', n => n.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
+  check('last mile: baris "Dumai → Cust / Sto" (last mile HUB) tampil di Cost per armada', /Dumai → Cust \/ Sto/.test(lmTx) && /last mile HUB/i.test(lmTx) && /Rp 1\.500\.000/.test(lmTx), lmTx);
+  check('last mile: kolom "Langsung" ada di header (CDDL, Fuso, Cont-20 Laut, Langsung)', JSON.stringify(headTx.slice(0, 5).map(h => h.replace(/\s.*$/, ''))) === JSON.stringify(['Segmen', 'CDDL', 'Fuso', 'Cont-20', 'Langsung']), JSON.stringify(headTx));
+  check('last mile: kolom Langsung = Cost/Trip Rp 900.000 & Cost/CBM Rp 60.000/cbm langsung dari tab Hub', /Rp 900\.000/.test(lmTx) && /Rp 60\.000\/cbm/.test(lmTx), lmTx);
+  await p6.click('#seg-armada tbody tr:nth-child(4) td:nth-child(2)');                       // last mile CDDL sudah terpilih (dari header) -> batal
+  const t5 = await totTx();
+  check('last mile: klik sel CDDL yang sudah terpilih = batal -> tinggal Tamora → Pekanbaru ≥Rp 2.000.000* (1 dari 4)', /≥Rp 2\.000\.000\*/.test(t5) && /1 dari 4 segmen/.test(t5), t5);
+  await p6.click('#seg-armada tbody tr:nth-child(4) td:nth-child(5)');                       // ganti ke Langsung (900.000 & 60.000/cbm)
+  const t6 = await totTx();
+  check('last mile dipilih Langsung: total = 2.000.000 + 900.000 = ≥Rp 2.900.000* & cbm 147.059 + 60.000 = ≥Rp 207.059/cbm*', /≥Rp 2\.900\.000\*/.test(t6) && /≥Rp 207\.059\/cbm\*/.test(t6), t6);
+  check('last mile: Fuso kosong untuk Dumai → Cust / Sto tidak bisa dipilih', await p6.$$eval('#seg-armada tbody tr:nth-child(4) td.arm-pick', n => n.length) === 2, '');
+  // --- Project rute (direct NDC -> Cust / Sto): kolom armada + Cost/Trip & Cost/CBM dibaca dari tab NDC
+  const projTbl = p6.locator('#seg-armada table.seg-arm-tbl').nth(1);
+  const projTx = await projTbl.evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('project: tabel Project rute ada di Cost per armada dengan baris "Jakarta → Cust / Sto" (project NDC)', /Jakarta → Cust \/ Sto/.test(projTx) && /project NDC/i.test(projTx), projTx);
+  check('project: sel CDDL = Rp 4.000.000, Cont-20 Laut = Rp 5.000.000, Langsung = Rp 3.000.000 & Rp 150.000/cbm (dari tab NDC)', /Rp 4\.000\.000/.test(projTx) && /Rp 5\.000\.000/.test(projTx) && /Rp 3\.000\.000/.test(projTx) && /Rp 150\.000\/cbm/.test(projTx), projTx);
+  const projTot = () => p6.locator('#seg-armada .arm-total').nth(1).evaluate(e => e.innerText.replace(/\s+/g, ' '));
+  check('project: belum ada yang dipilih -> total "belum ada armada dipilih"', /belum ada armada dipilih/.test(await projTot()), await projTot());
+  await projTbl.locator('tbody tr').nth(0).locator('td').nth(4).click();                       // Langsung
+  const pt1 = await projTot();
+  check('project dipilih Langsung: total Cost/Trip Rp 3.000.000 & Cost/CBM Rp 150.000/cbm (1 dari 1 segmen, tanpa ≥)', /Rp 3\.000\.000/.test(pt1) && /Rp 150\.000\/cbm/.test(pt1) && /1 dari 1 segmen/.test(pt1) && !/≥/.test(pt1), pt1);
+  await projTbl.locator('thead th').nth(1).click();                                           // header CDDL -> ganti ke CDDL (4.000.000 / 13,6 cbm)
+  const pt2 = await projTot();
+  check('project: klik header CDDL -> Rp 4.000.000 & Rp 294.118/cbm', /Rp 4\.000\.000/.test(pt2) && /Rp 294\.118\/cbm/.test(pt2), pt2);
+  const rute1Tot = await p6.$eval('#seg-armada .arm-total', e => e.innerText.replace(/\s+/g, ' '));
+  check('project: pilihan Project rute tidak mengubah total Rute 1', /≥Rp 2\.900\.000\*/.test(rute1Tot), rute1Tot);
   await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   await ctx6.close();
