@@ -276,7 +276,6 @@ body.resizing #map{pointer-events:none}
           <div class="legend-title">FASILITAS (klik untuk toggle)</div>
           <div id="facility-legend"></div>
         </div>
-        <div class="gap-note" id="gap-note"></div>
       </div>
     </div>
 
@@ -1195,9 +1194,6 @@ function renderSummary(){
     </div>
   `).join('');
   legendEl.querySelectorAll('.legend-row').forEach(row=>{ row.onclick = ()=>toggleType(row.dataset.type); });
-
-  document.getElementById('gap-note').innerHTML = unmatchedKabkota.length ?
-    `<b>${unmatchedKabkota.length} kab/kota</b> belum ada batas wilayah di sumber peta publik (tetap ada di Export Coverage, cuma gak ada polygon-nya di peta): ${unmatchedKabkota.map(escapeHtml).join(', ')}.` : '';
 }
 
 // ============================================================
