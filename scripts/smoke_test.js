@@ -93,6 +93,24 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const isl = await page.evaluate(() => { const o = {}; for (const c of Object.values(COVERAGE[currentBU])) { const i = islandOf(c.pulau); o[i] = (o[i] || 0) + 1; } return { o, noIsland: o['null'] || 0, noFac: FACILITIES.filter(f => !f._island).length }; });
   check('Home: semua kab/kota & fasilitas masuk salah satu area', isl.noIsland === 0 && isl.noFac === 0, JSON.stringify(isl));
 
+  // --- legenda fasilitas interaktif (Home): hover = sorot, klik = toggle, klik 2x = solo, "Tampilkan semua"
+  const nMk = () => page.evaluate(() => { let n = 0; facilityLayer.eachLayer(() => n++); return n; });
+  const mk0 = await nMk();
+  await page.hover('.leg-card[data-type="SDC"]'); await page.waitForTimeout(250);
+  const hv = await page.evaluate(() => { let on = 0, dim = 0, pulse = document.querySelectorAll('.fac-dot.pulse').length; facilityLayer.eachLayer(m => { if (m.options.opacity === 1) on++; else dim++; }); return { on, dim, pulse, nSdc: visibleFacilities().filter(f => f.type === 'SDC').length }; });
+  check('legenda: hover tipe SDC = marker SDC disorot (berdenyut), tipe lain diredupkan', hv.on === hv.nSdc && hv.dim === mk0 - hv.nSdc && hv.pulse === hv.nSdc, JSON.stringify(hv));
+  await page.mouse.move(700, 800); await page.waitForTimeout(250);
+  check('legenda: kursor keluar = sorotan hilang', await page.evaluate(() => document.querySelectorAll('.fac-dot.pulse').length === 0));
+  await page.click('.leg-card[data-type="HUB"]'); await page.waitForTimeout(500);
+  check('legenda: klik tipe HUB = marker HUB disembunyikan + tombol "Tampilkan semua" muncul', await page.evaluate(() => !visibleTypes.has('HUB') && !!document.getElementById('leg-all')) && (await nMk()) < mk0);
+  await page.dblclick('.leg-card[data-type="NDC"]'); await page.waitForTimeout(500);
+  check('legenda: klik 2x NDC = hanya NDC yang tampil', await page.evaluate(() => visibleTypes.size === 1 && visibleTypes.has('NDC') && visibleFacilities().filter(f => f.type === 'NDC').length === [...Object.values(facilityLayer._layers)].length));
+  await page.dblclick('.leg-card[data-type="NDC"]'); await page.waitForTimeout(500);
+  check('legenda: klik 2x lagi (sudah solo) = semua tipe tampil lagi', await page.evaluate(() => visibleTypes.size === 4) && (await nMk()) === mk0);
+  await page.click('.leg-card[data-type="RDC"]'); await page.waitForTimeout(500);
+  await page.click('#leg-all'); await page.waitForTimeout(400);
+  check('legenda: "Tampilkan semua" mengembalikan semua tipe', await page.evaluate(() => visibleTypes.size === 4 && !document.getElementById('leg-all')) && (await nMk()) === mk0);
+
   // --- Export Coverage (tombol di header, menggantikan tab Tabel Coverage)
   const exp = await exportCsv(page);
   const expLines = exp.text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
@@ -108,6 +126,12 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Area Sumatera: 3 panel berurutan kiri peta, tengah fasilitas, kanan delivery segment', three.view === 'island' && three.order && three.mapW >= 300 && three.facW >= 230 && three.segW >= 340 && three.title === 'Sumatera' && three.items > 0 && three.back && three.homeHidden, JSON.stringify(three));
   check('Area Sumatera: peta zoom ke pulau (fasilitas area lain tidak tampil)', await page.evaluate(() => { const b = map.getBounds(); return visibleFacilities('Sumatera').every(f => b.contains([f.lat, f.lon])) && map.getZoom() >= 5; }));
   await page.screenshot({ path: path.join(OUT, '2_area_sumatera.png') });
+  await page.hover('.fac-item[data-fk="RDC|tamora"]'); await page.waitForTimeout(250);
+  check('hover fasilitas di daftar tengah = marker fasilitas itu disorot di peta', await page.evaluate(() => { let pulse = 0; facilityLayer.eachLayer(m => { if (m._f && m._f._fk === 'RDC|tamora' && m.options.opacity === 1) pulse++; }); return pulse === 1 && document.querySelectorAll('.fac-dot.pulse').length === 1; }));
+  await page.dblclick('#fac-types .type-chip[data-type="SDC"]'); await page.waitForTimeout(500);
+  check('chip tipe di panel tengah: klik 2x = hanya SDC (daftar + peta)', await page.evaluate(() => visibleTypes.size === 1 && visibleTypes.has('SDC') && [...document.querySelectorAll('.fac-group span:first-child')].every(e => e.textContent === 'SDC')));
+  await page.click('#fac-types .leg-all'); await page.waitForTimeout(400);
+  check('panel tengah: "Tampilkan semua" mengembalikan semua tipe', await page.evaluate(() => visibleTypes.size === 4));
   // klik fasilitas -> zoom + daftar kab/kota yang dilayani
   const zoomBefore = await page.evaluate(() => map.getZoom());
   await page.click('.fac-item[data-fk="RDC|tamora"]'); await page.waitForTimeout(1200);
