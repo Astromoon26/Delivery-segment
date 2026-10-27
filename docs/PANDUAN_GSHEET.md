@@ -31,7 +31,7 @@ Dashboard **baca langsung** dari gsheet. Edit di sheet → klik **Refresh** di d
 2. `Hub <BU>`: isi nama hub di baris kab/kota yang dilayani + `Lead Time land`.
 3. `Matriks ... <BU>`: tambah baris hub → isi SDC/RDC/NDC pemasoknya (+ hub feeder kalau ada).
 4. `Lead Time ...`: tambah leg dari pemasok → hub (`NDC to Hub` / `RDC to Hub` / `SDC to Hub` / `Hub to Hub`).
-5. Refresh dashboard → cek kab/kota itu di tab Delivery Segment.
+5. Refresh dashboard → cek kab/kota itu di panel Delivery Segment (pilih areanya dulu).
 
 **Pindahin kab/kota ke hub lain**: ganti nama di tab `Hub <BU>` baris kab/kota itu. Selesai.
 

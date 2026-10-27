@@ -2,6 +2,14 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-27
+- **Revisi tampilan besar: tab menu dihapus.** Tampilan utama (Home) = peta seluruh Indonesia + semua fasilitas DC + kab/kota berwarna per area; **7 area** (Sumatera, Jawa, Bali Nusra, Kalimantan, Sulawesi, Maluku, Papua) yang bisa diklik (di peta atau daftar).
+- Klik area → **3 panel**: kiri peta zoom ke pulau, tengah daftar fasilitas DC area itu (per tipe NDC/RDC/SDC/HUB, toggle tipe), kanan Delivery Segment. Klik fasilitas = zoom + highlight kab/kota yang dilayani + daftar kab/kota-nya; klik kab/kota = Delivery Segment. Pencarian kab/kota otomatis pindah area. Esc / "← Semua area" / "× Tutup" untuk mundur.
+- **Tabel Coverage → tombol "Export Coverage"** di header (CSV semua kab/kota BU terpilih). **Rantai Fasilitas** & popup detail kab/kota dihapus dari tampilan.
+- Satu instance peta dipakai semua tampilan (`segMap` = `map`); lebar panel kanan tetap bisa digeser.
+- Smoke test: disesuaikan ke layout baru, +13 tes (131 total); `injectDumai` menyuntik baris Dumai/Padang karena gsheet live berubah (tab Hub HCI sempat tinggal 1 baris, Dumai hilang dari semua tab).
+- Temuan data: tab `Hub HCI` hanya berisi 1 baris (Sidoarjo) → "Sampai HUB" tinggal 1 kab/kota; Kota Dumai tidak ada di tab NDC/RDC/SDC/Hub HCI.
+
 ## 2026-10-14 (siang, 4)
 - **Transit di NDC lain** (mis. `Jakarta - Sidoarjo - Bali`: barang dari NDC Jakarta transit di NDC Sidoarjo, lanjut ke fasilitas tujuan). Titik tengah rute di tab `Rute Numbered` sekarang boleh NDC (sebelumnya hanya RDC/SDC/HUB → muncul peringatan "fasilitas Sidoarjo tidak ditemukan", titik transitnya dilewati di garis peta dan segmen NDC → NDC tidak punya LT/cost). Sekarang segmen `Jakarta → Sidoarjo` (NDC → NDC) ikut LT/Cost F2F, marker NDC Sidoarjo digambar di garis, dan **legend rute** memberi keterangan: *"Opsional rute 2 · transit NDC Sidoarjo"*. Di data live ini dipakai 9 kab/kota Bali (HCI, Opsional rute 2).
 - Smoke test: +4 tes transit NDC (118 total).
