@@ -8,6 +8,7 @@ Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali 
 - **Tabel Coverage → tombol "Export Coverage"** di header (CSV semua kab/kota BU terpilih). **Rantai Fasilitas** & popup detail kab/kota dihapus dari tampilan.
 - Satu instance peta dipakai semua tampilan (`segMap` = `map`); lebar panel kanan tetap bisa digeser.
 - Smoke test: disesuaikan ke layout baru, +13 tes (131 total); `injectDumai` menyuntik baris Dumai/Padang karena gsheet live berubah (tab Hub HCI sempat tinggal 1 baris, Dumai hilang dari semua tab).
+- Catatan "kab/kota belum ada batas wilayah" di panel Home dihapus (atas permintaan Apip; daftarnya masih dihitung di `unmatchedKabkota`).
 - Temuan data: tab `Hub HCI` hanya berisi 1 baris (Sidoarjo) → "Sampai HUB" tinggal 1 kab/kota; Kota Dumai tidak ada di tab NDC/RDC/SDC/Hub HCI.
 
 ## 2026-10-14 (siang, 4)
