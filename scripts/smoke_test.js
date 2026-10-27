@@ -20,6 +20,27 @@ const ROOT = path.join(__dirname, '..');
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
+// download CSV lewat tombol "Export Coverage" di header -> teks CSV
+const exportCsv = async pg => { const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 15000 }), pg.click('#export-btn')]); return { name: dl.suggestedFilename(), text: fs.readFileSync(await dl.path(), 'utf8') }; };
+// gsheet live berubah-ubah (Hub HCI sempat tinggal 1 baris, Kota Dumai & hub Padang hilang): test yang memakai Kota Dumai / Kota Padang
+// (hub-to-hub Pekanbaru -> Dumai, RDC Tamora, NDC Jakarta, hub Padang) menyuntikkan barisnya kalau belum ada, tanpa mengubah baris lain
+const injectDumai = async pg => {
+  const spec = {
+    Hub: [['Kota Dumai', 'Riau', 'Dumai'], ['Kota Padang', 'Sumatera Barat', 'Padang']],
+    RDC: [['Kota Dumai', 'Riau', 'Tamora']],
+    NDC: [['Kota Dumai', 'Riau', 'Jakarta']]
+  };
+  for (const [t, rows] of Object.entries(spec)) await pg.route(new RegExp('sheet=' + t + '%20HCI'), async route => {
+    const res = await route.fetch(); let text = (await res.text()).replace(/\s*$/, '');
+    const hdr = (text.split(/\r?\n/)[0].match(/"([^"]*)"/g) || []).map(h => h.slice(1, -1));
+    for (const [kab, prov, fac] of rows) {
+      if (text.includes('"' + kab + '"')) continue;
+      const val = { 'No': '9999', 'Kabupaten/Kota': kab, 'Tipe': 'Kota', 'Provinsi': prov, 'Pulau/Kepulauan': 'Sumatra', [t === 'Hub' ? 'HUB' : t]: fac, 'Lead Time land': '1', 'Lead Time Land': '1' };
+      text += '\n' + hdr.map(h => '"' + (val[h] ?? '') + '"').join(',');
+    }
+    await route.fulfill({ response: res, body: text + '\n' });
+  });
+};
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? '  -> ' + extra : ''}`); };
 
 (async () => {
@@ -44,6 +65,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // tab "Rute Numbered" di gsheet sudah berisi data sungguhan -> test lain tidak boleh bergantung padanya (distub kosong)
   const emptyRouteTabs = async pg => { for (const bu of ['HCI', 'AHI']) await pg.route(new RegExp('sheet=Rute%20Numbered%20' + bu), r => r.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' })); };
   await emptyRouteTabs(page);
+  await injectDumai(page);
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.waitForTimeout(3500);
 
@@ -62,18 +84,47 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('total kab/kota >= 510', nKab >= 510, `terbaca ${nKab}`);
   await page.screenshot({ path: path.join(OUT, '1_peta.png') });
 
-  // --- tabel + hub feeder
-  await page.click('.tab[data-tab="table"]');
-  await page.fill('#table-search', 'dumai'); await page.waitForFunction(() => document.querySelectorAll('#table-body tr').length < 50, { timeout: 15000 }); await page.waitForTimeout(300);
-  const dumai = await page.$$eval('#table-body tr', r => r.map(x => x.innerText.replace(/\s+/g, ' ')));
-  check('tabel: Dumai tampil "via Pekanbaru" (hub-to-hub)', dumai.length > 0 && dumai.every(t => /via Pekanbaru/.test(t)), `${dumai.length} baris`);
-  await page.fill('#table-search', ''); await page.waitForTimeout(400);
-  const nRows = await page.$$eval('#table-body tr', r => r.length);
-  check('tabel: >= 510 baris', nRows >= 510, `${nRows}`);
-  await page.screenshot({ path: path.join(OUT, '2_tabel.png') });
+  // --- Home: tidak ada tab, peta Indonesia + 7 area island + fasilitas DC
+  check('tab menu sudah dihapus (Peta/Tabel/Rantai Fasilitas tidak ada)', (await page.$$('.tab, .tab-bar, #view-table, #view-f2f, #detail-overlay')).length === 0);
+  check('Home: tampilan awal = peta Indonesia (data-view=home), panel fasilitas & segmen tersembunyi', await page.evaluate(() => document.body.dataset.view === 'home' && getComputedStyle(document.querySelector('.fac-panel')).display === 'none' && getComputedStyle(document.querySelector('.seg-left')).display === 'none'));
+  const homeInfo = await page.evaluate(() => ({ chips: [...document.querySelectorAll('.island-chip')].map(e => e.dataset.island), markers: document.querySelectorAll('#map .leaflet-marker-icon').length, nFac: visibleFacilities().length, labels: document.querySelectorAll('.island-label').length }));
+  check('Home: 7 area (Sumatera, Jawa, Bali Nusra, Kalimantan, Sulawesi, Maluku, Papua)', JSON.stringify(homeInfo.chips) === JSON.stringify(['Sumatera', 'Jawa', 'Bali Nusra', 'Kalimantan', 'Sulawesi', 'Maluku', 'Papua']), homeInfo.chips.join(','));
+  check('Home: semua fasilitas DC tampil di peta (marker = jumlah fasilitas + label area)', homeInfo.nFac > 0 && homeInfo.markers >= homeInfo.nFac, JSON.stringify(homeInfo));
+  const isl = await page.evaluate(() => { const o = {}; for (const c of Object.values(COVERAGE[currentBU])) { const i = islandOf(c.pulau); o[i] = (o[i] || 0) + 1; } return { o, noIsland: o['null'] || 0, noFac: FACILITIES.filter(f => !f._island).length }; });
+  check('Home: semua kab/kota & fasilitas masuk salah satu area', isl.noIsland === 0 && isl.noFac === 0, JSON.stringify(isl));
+
+  // --- Export Coverage (tombol di header, menggantikan tab Tabel Coverage)
+  const exp = await exportCsv(page);
+  const expLines = exp.text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+  check('Export Coverage: >= 510 baris + header, nama file coverage_<BU>_<tanggal>.csv', expLines.length >= 511 && /^coverage_HCI_\d{4}-\d{2}-\d{2}\.csv$/.test(exp.name), `${expLines.length} baris, ${exp.name}`);
+  const dumaiRows = expLines.filter(l => /Dumai/.test(l.split(',')[1] || ''));
+  check('Export Coverage: Dumai memuat hub feeder Pekanbaru (hub-to-hub)', dumaiRows.length > 0 && dumaiRows.every(l => /Pekanbaru/.test(l)), `${dumaiRows.length} baris`);
+  await page.screenshot({ path: path.join(OUT, '1_home.png') });
+
+  // --- klik area -> 3 panel (peta | fasilitas | delivery segment)
+  await page.click('.island-chip[data-island="Sumatera"]'); await page.waitForTimeout(1200);
+  const three = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const m = r('#map'), f = r('.fac-panel'), g = r('.seg-left');
+    return { view: document.body.dataset.view, mapW: Math.round(m.width), facW: Math.round(f.width), segW: Math.round(g.width), order: m.right <= f.left + 2 && f.right <= g.left + 2, title: document.getElementById('fac-title').textContent, items: document.querySelectorAll('.fac-item').length, back: getComputedStyle(document.getElementById('back-home')).display !== 'none', homeHidden: getComputedStyle(document.getElementById('home-panel')).display === 'none' }; });
+  check('Area Sumatera: 3 panel berurutan kiri peta, tengah fasilitas, kanan delivery segment', three.view === 'island' && three.order && three.mapW >= 300 && three.facW >= 230 && three.segW >= 340 && three.title === 'Sumatera' && three.items > 0 && three.back && three.homeHidden, JSON.stringify(three));
+  check('Area Sumatera: peta zoom ke pulau (fasilitas area lain tidak tampil)', await page.evaluate(() => { const b = map.getBounds(); return visibleFacilities('Sumatera').every(f => b.contains([f.lat, f.lon])) && map.getZoom() >= 5; }));
+  await page.screenshot({ path: path.join(OUT, '2_area_sumatera.png') });
+  // klik fasilitas -> zoom + daftar kab/kota yang dilayani
+  const zoomBefore = await page.evaluate(() => map.getZoom());
+  await page.click('.fac-item[data-fk="RDC|tamora"]'); await page.waitForTimeout(1200);
+  const facSel = await page.evaluate(() => ({ served: document.querySelectorAll('.served-item').length, sel: view.facKey, expect: servedIn('RDC|tamora', 'Sumatera').length, hi: Object.values(ISL_LAYERS).flat().filter(l => l.options.fillColor === TYPE_COLOR.RDC && l.options.fillOpacity > 0.5).length }));
+  check('Klik fasilitas (RDC Tamora): daftar kab/kota yang dilayani + polygon-nya di peta di-highlight', facSel.served > 0 && facSel.served === facSel.expect && facSel.hi > 0, JSON.stringify(facSel));
+  await page.screenshot({ path: path.join(OUT, '3_fasilitas_tamora.png') });
+  await page.click('.served-item >> nth=0'); await page.waitForTimeout(1200);
+  check('Klik kab/kota di daftar fasilitas: Delivery Segment di panel kanan terisi', /Perbandingan rute/i.test(await page.$eval('#seg-compare', e => e.textContent)) && (await page.$eval('#seg-dest-title', e => e.textContent)).length > 0);
+  await page.click('#seg-close'); await page.waitForTimeout(600);
+  check('Tombol Tutup: kembali ke tampilan fasilitas (daftar kab/kota tetap, segmen kosong)', (await page.$('#seg-route:not([style*="none"])')) === null && await page.evaluate(() => view.facKey === 'RDC|tamora' && !currentSegKey));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  check('Esc: batal pilih fasilitas', await page.evaluate(() => view.facKey === null));
+  await page.click('#back-home'); await page.waitForTimeout(800);
+  check('Tombol "Semua area": kembali ke Home', await page.evaluate(() => document.body.dataset.view === 'home' && map.getZoom() <= 6));
 
   // --- delivery segment + perbandingan
-  await page.click('.tab[data-tab="segment"]');
+  await page.click('.island-chip[data-island=\"Sumatera\"]');
   await page.fill('#seg-search-input', 'Kota Dumai'); await page.waitForTimeout(400);
   await page.click('#seg-ac-list .autocomplete-item'); await page.waitForTimeout(1200);
   const cmp = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -81,13 +132,13 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('segmen Dumai: breakdown per segmen memuat Pekanbaru → Dumai (hub-to-hub)', /breakdown per segmen/i.test(cmp) && /Pekanbaru → Dumai/.test(cmp), cmp.slice(0, 160));
   check('segmen Dumai: ada baris last mile + Total', /last mile/.test(cmp) && /Total/.test(cmp));
   check('segmen Dumai (Sumatra): hanya Rute 1 (tanpa Opsional rute)', !/Opsional rute/.test(cmp));
-  check('label "Tujuan" diganti "Cust / Sto" di Delivery Segment', /Cust \/ Sto/.test(cmp) && !/tujuan/i.test(await page.$eval('#view-segment', e => e.textContent)));
-  const lg = await page.$eval('.seg-legend', e => ({ txt: e.textContent.replace(/\s+/g, ' '), vis: getComputedStyle(e).display !== 'none', inMap: !!e.closest('#seg-map'), x: Math.round(e.getBoundingClientRect().left - document.getElementById('seg-map').getBoundingClientRect().left), bottomGap: Math.round(document.getElementById('seg-map').getBoundingClientRect().bottom - e.getBoundingClientRect().bottom) }));
+  check('label "Tujuan" diganti "Cust / Sto" di Delivery Segment', /Cust \/ Sto/.test(cmp) && !/tujuan/i.test(await page.$eval('#seg-left', e => e.textContent)));
+  const lg = await page.$eval('.seg-legend', e => ({ txt: e.textContent.replace(/\s+/g, ' '), vis: getComputedStyle(e).display !== 'none', inMap: !!e.closest('#map'), x: Math.round(e.getBoundingClientRect().left - document.getElementById('map').getBoundingClientRect().left), bottomGap: Math.round(document.getElementById('map').getBoundingClientRect().bottom - e.getBoundingClientRect().bottom) }));
   check('legend rute: di peta, kiri bawah, memuat Project rute & Rute 1', lg.vis && lg.inMap && lg.x < 40 && lg.bottomGap < 60 && /Project rute/.test(lg.txt) && /Rute 1/.test(lg.txt), JSON.stringify(lg));
   check('legend rute: tidak ada lagi di tabel Perbandingan rute', (await page.$$('#seg-compare .seg-cmp thead .sw')).length === 0);
-  check('istilah lama (Direct NDC / Reguler rute / Other rute) tidak muncul di Delivery Segment', !/Direct NDC|Reguler rute|Other rute/.test(await page.$eval('#view-segment', e => e.textContent)));
+  check('istilah lama (Direct NDC / Reguler rute / Other rute) tidak muncul di Delivery Segment', !/Direct NDC|Reguler rute|Other rute/.test(await page.$eval('#seg-left', e => e.textContent)));
   check('daftar rute lama (#seg-steps) sudah dihapus', (await page.$('#seg-steps')) === null);
-  const legend = await page.$$eval('#seg-map .leaflet-interactive', e => e.length);
+  const legend = await page.$$eval('#map .leaflet-interactive', e => e.length);
   check('peta segmen: ada garis/poligon', legend > 0, `${legend} layer`);
   await page.screenshot({ path: path.join(OUT, '3_segmen_dumai.png') });
 
@@ -95,6 +146,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.fill('#seg-search-input', 'Kota Palu'); await page.waitForTimeout(400);
   await page.click('#seg-ac-list .autocomplete-item'); await page.waitForTimeout(1200);
   const cmpPalu = await page.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
+  check('pencarian kab/kota di area lain: otomatis pindah area (Palu -> Sulawesi, daftar fasilitas ikut)', await page.evaluate(() => view.island === 'Sulawesi' && document.getElementById('fac-title').textContent === 'Sulawesi' && Object.keys(COVERAGE[currentBU]).includes(currentSegKey)));
   check('Opsional rute Palu: kolom Opsional rute tampil', /Opsional rute/.test(cmpPalu), cmpPalu.slice(0, 200));
   check('legend rute Palu: ada entri Opsional rute', /Opsional rute/.test(await page.$eval('.seg-legend', e => e.textContent)));
   // tidak bergantung isi sheet: Reguler & Other harus mulai dari dua NDC yang BERBEDA (Jakarta / Sidoarjo)
@@ -149,31 +201,33 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
   // --- layout panel Delivery Segment: cukup lebar, tidak overflow horizontal, bisa digeser
   const geo = async () => page.evaluate(() => {
-    const l = document.querySelector('.seg-left'), t = document.querySelector('.seg-cmp table'), m = document.getElementById('seg-map');
+    const l = document.querySelector('.seg-left'), t = document.querySelector('.seg-cmp table'), m = document.getElementById('map');
     return { left: Math.round(l.getBoundingClientRect().width), scrollW: l.scrollWidth, clientW: l.clientWidth,
-             tblOverflow: t ? t.scrollWidth - t.clientWidth : 0, map: Math.round(m.getBoundingClientRect().width),
-             sidebarHidden: getComputedStyle(document.querySelector('.sidebar')).display === 'none' };
+             tblOverflow: t ? t.scrollWidth - t.clientWidth : 0, map: Math.round(m.getBoundingClientRect().width) };
   });
   const g0 = await geo();
   check('layout: panel segmen >= 440px & tanpa scroll horizontal', g0.left >= 440 && g0.scrollW <= g0.clientW + 1 && g0.tblOverflow <= 1, JSON.stringify(g0));
   check('layout: peta segmen tetap >= 500px', g0.map >= 500, `${g0.map}px`);
-  check('layout: sidebar global disembunyikan di tab Delivery Segment', g0.sidebarHidden);
   const bb = await (await page.$('#seg-resizer')).boundingBox();
   await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();
-  await page.mouse.move(bb.x + 160, bb.y + bb.height / 2, { steps: 6 }); await page.mouse.up();
+  await page.mouse.move(bb.x - 160, bb.y + bb.height / 2, { steps: 6 }); await page.mouse.up();
   const g1 = await geo();
   check('layout: resizer menggeser lebar panel', g1.left > g0.left + 100 && g1.left <= Math.round(1440 * 0.75), `${g0.left} -> ${g1.left}`);
   await page.screenshot({ path: path.join(OUT, '6_layout_resize.png') });
   await page.dblclick('#seg-resizer');
   const g2 = await geo();
   check('layout: klik 2x resizer = reset', Math.abs(g2.left - g0.left) <= 2, `${g2.left}`);
-  await page.click('.tab[data-tab="table"]');
-  check('layout: sidebar muncul lagi di tab lain', !(await geo()).sidebarHidden);
-  await page.click('.tab[data-tab="segment"]'); await page.waitForTimeout(300);
 
+  // --- pencarian dari Home (panel kiri atas): langsung masuk area + gambar rute
+  await page.click('#back-home'); await page.waitForTimeout(500);
+  await page.fill('#search-input', 'Kota Palu'); await page.waitForTimeout(400);
+  await page.click('#ac-list .autocomplete-item'); await page.waitForTimeout(1200);
+  check('pencarian dari Home: masuk area Sulawesi + Delivery Segment terisi', await page.evaluate(() => document.body.dataset.view === 'island' && view.island === 'Sulawesi') && /Perbandingan rute/i.test(await page.$eval('#seg-compare', e => e.textContent)));
   // --- BU toggle
   await page.click('.bu-btn[data-bu="AHI"]'); await page.waitForTimeout(1500);
   check('toggle AHI tanpa error', pageErrors.length === 0, pageErrors.join(' | '));
+  check('toggle AHI: tetap di area & rute yang sama, daftar fasilitas ikut BU AHI', await page.evaluate(() => view.island === 'Sulawesi' && currentBU === 'AHI' && /BU AHI/.test(document.getElementById('fac-sub').textContent)));
+  await page.screenshot({ path: path.join(OUT, '4_area_ahi.png') });
 
   // --- kolom opsional "NDC Reguler": Palu project rute dari Sidoarjo, Rute 1 dari Jakarta (tab NDC HCI disuntik lewat intercept)
   const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
@@ -189,7 +243,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await emptyRouteTabs(p2);
   await p2.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p2.waitForTimeout(3500);
-  await p2.click('.tab[data-tab="segment"]');
+  await p2.click('.island-chip[data-island=\"Sumatera\"]');
   await p2.fill('#seg-search-input', 'Kota Palu'); await p2.waitForTimeout(400);
   await p2.click('#seg-ac-list .autocomplete-item'); await p2.waitForTimeout(1200);
   const cmp2 = await p2.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -197,16 +251,16 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('NDC Reguler: Rute 1 Palu mulai dari Jakarta', /Rute 1 \(mulai dari NDC Jakarta\)/.test(cmp2), cmp2.slice(0, 260));
   check('NDC Reguler + Opsional rute: otomatis = Sidoarjo', /Opsional rute \(mulai dari NDC Sidoarjo\)/.test(cmp2), cmp2.slice(0, 200));
   await p2.screenshot({ path: path.join(OUT, '4_segmen_palu_reguler.png') });
-  await p2.click('.tab[data-tab="table"]');
-  await p2.fill('#table-search', 'Kota Palu'); await p2.waitForTimeout(500);
-  const palu = await p2.$$eval('#table-body tr', r => r.map(x => x.innerText.replace(/\s+/g, ' ')).join(' | '));
-  check('NDC Reguler: tabel menampilkan "Rute 1 dari Jakarta"', /Rute 1 dari Jakarta/.test(palu), palu.slice(0, 160));
+  const expP2 = await exportCsv(p2);
+  const paluLine = expP2.text.split(/\r?\n/).find(l => /"?Kota Palu"?,/.test(l) || /^\d+,Kota Palu,/.test(l)) || '';
+  check('NDC Reguler: Export Coverage memuat kolom NDC Reguler = Jakarta untuk Palu', /,Jakarta,/.test(paluLine) && /Sidoarjo/.test(paluLine), paluLine.slice(0, 200));
   check('NDC Reguler: tanpa JS error', err2.length === 0, err2.join(' | '));
   await ctx2.close();
 
   // --- Rute numbered (Rute 2, 3, ...): tab opsional "Rute Numbered HCI" disuntik lewat intercept (live sheet belum tentu punya tab itu)
   const ctx3 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
   const p3 = await ctx3.newPage();
+  await injectDumai(p3);
   const err3 = [];
   p3.on('pageerror', e => err3.push(e.message));
   await p3.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
@@ -221,7 +275,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p3.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p3.waitForTimeout(3500);
   check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 4), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
-  await p3.click('.tab[data-tab="segment"]');
+  await p3.click('.island-chip[data-island=\"Sumatera\"]');
   const openSeg = async q => { await p3.fill('#seg-search-input', q); await p3.waitForTimeout(400); await p3.click('#seg-ac-list .autocomplete-item'); await p3.waitForTimeout(1200); };
   const heads3 = async () => p3.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bd3 = async () => p3.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
@@ -234,7 +288,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('rute numbered Dumai: leg Jakarta → Pekanbaru & Pekanbaru → Dumai masuk breakdown', /Jakarta → Pekanbaru/.test(await p3.$eval('#seg-compare #seg-breakdown', e => e.innerText)) && /Pekanbaru → Dumai/.test(await p3.$eval('#seg-compare #seg-breakdown', e => e.innerText)));
   const lgd = await p3.$eval('.seg-legend', e => e.textContent);
   check('rute numbered Dumai: legend urut Rute 1 -> 2 -> 3 -> Opsional rute 1 -> 2 -> Project rute', ['Rute 1', 'Rute 2', 'Rute 3', 'Opsional rute 1', 'Opsional rute 2', 'Project rute'].every((x, i, a) => i === 0 || lgd.indexOf(a[i - 1]) < lgd.indexOf(x)), lgd);
-  check('rute numbered Dumai: peta menggambar garis tiap rute', (await p3.$$eval('#seg-map .leaflet-interactive', e => e.length)) >= 6);
+  check('rute numbered Dumai: peta menggambar garis tiap rute', (await p3.$$eval('#map .leaflet-interactive', e => e.length)) >= 6);
   check('rute numbered Dumai: tanpa horizontal overflow', await p3.evaluate(() => { const l = document.querySelector('.seg-left'); return l.scrollWidth <= l.clientWidth + 1; }));
   await p3.screenshot({ path: path.join(OUT, '7_rute_numbered_dumai.png') });
   // toggle Opsional rute menyembunyikan semua Opsional rute (otomatis maupun custom), Rute 1-3 tetap
@@ -260,6 +314,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // --- slot Rute 1 & Project rute dari tab Rute Numbered (Rute 1 / Opsional rute N / Project rute N bisa ditulis per kab/kota)
   const ctx4 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
   const p4 = await ctx4.newPage();
+  await injectDumai(p4);
   const err4 = [];
   p4.on('pageerror', e => err4.push(e.message));
   await p4.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
@@ -270,7 +325,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p4.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
   await p4.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p4.waitForTimeout(3500);
-  await p4.click('.tab[data-tab="segment"]');
+  await p4.click('.island-chip[data-island=\"Sumatera\"]');
   const open4 = async q => { await p4.fill('#seg-search-input', q); await p4.waitForTimeout(400); await p4.click('#seg-ac-list .autocomplete-item'); await p4.waitForTimeout(1200); };
   const heads4 = async () => p4.$$eval('#seg-compare .seg-main-tbl:not(.seg-diff-tbl) thead th', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
   const bd4 = async () => p4.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
@@ -301,6 +356,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // --- Rute 1 yang dimulai dari RDC (mis. "Tamora - Aceh"): bukan NDC, tetap digambar di peta + legend + tabel
   const ctx5 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
   const p5 = await ctx5.newPage();
+  await injectDumai(p5);
   const err5 = [];
   p5.on('pageerror', e => err5.push(e.message));
   await p5.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
@@ -310,7 +366,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p5.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Name of Facility","Type"\n"Jakarta","NDC"\n' }));
   await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
-  await p5.click('.tab[data-tab="segment"]');
+  await p5.click('.island-chip[data-island=\"Sumatera\"]');
   await p5.fill('#seg-search-input', 'Kota Banda Aceh'); await p5.waitForTimeout(400);
   await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
   const tx5 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -365,7 +421,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     '"","Tamora","Pekanbaru","","","2.000.000","","3.000.000","x"\n' }));
   await p6.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p6.waitForTimeout(3500);
-  await p6.click('.tab[data-tab="segment"]');
+  await p6.click('.island-chip[data-island=\"Sumatera\"]');
   await p6.fill('#seg-search-input', 'Kota Dumai'); await p6.waitForTimeout(400);
   await p6.click('#seg-ac-list .autocomplete-item'); await p6.waitForTimeout(1500);
   const tx8 = await p6.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -450,7 +506,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     '"2","Kota Dumai","Kota","Riau","Sumatra","Sidoarjo","4","9","","","","3.000.000","2.500.000","100.000"\n' }));
   await p7.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p7.waitForTimeout(3500);
-  await p7.click('.tab[data-tab="segment"]');
+  await p7.click('.island-chip[data-island=\"Sumatera\"]');
   await p7.fill('#seg-search-input', 'Kota Dumai'); await p7.waitForTimeout(400);
   await p7.click('#seg-ac-list .autocomplete-item'); await p7.waitForTimeout(1500);
   const tx7n = await p7.$eval('#seg-compare', e => e.textContent.replace(/\s+/g, ' '));
@@ -477,6 +533,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // --- transit di NDC lain: "Jakarta - Sidoarjo - Pekanbaru - Dumai" (NDC Sidoarjo sebagai titik transit dari NDC Jakarta) + keterangan di legend
   const ctx8 = await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true });
   const p8 = await ctx8.newPage();
+  await injectDumai(p8);
   const err8 = [];
   p8.on('pageerror', e => err8.push(e.message));
   await p8.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
@@ -484,7 +541,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p8.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
   await p8.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await p8.waitForTimeout(3500);
-  await p8.click('.tab[data-tab="segment"]');
+  await p8.click('.island-chip[data-island=\"Sumatera\"]');
   await p8.fill('#seg-search-input', 'Kota Dumai'); await p8.waitForTimeout(400);
   await p8.click('#seg-ac-list .autocomplete-item'); await p8.waitForTimeout(1500);
   const tx8t = await p8.$eval('#seg-compare', e => e.textContent.replace(/\s+/g, ' '));

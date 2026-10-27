@@ -34,8 +34,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 @keyframes spin{to{transform:rotate(360deg)}}
 #last-updated{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
 
-.body{display:flex;flex:1;min-height:0}
-.sidebar{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 .sidebar-top{padding:12px;border-bottom:1px solid var(--border)}
 .search-wrap{position:relative}
 .search-wrap input{width:100%;padding:8px 10px 8px 32px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:'Sora',sans-serif;outline:none}
@@ -63,7 +61,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .gap-note{padding:9px 12px;font-size:10.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--border)}
 .gap-note b{color:var(--text)}
 
-#view-segment{flex-direction:row}
 .seg-cmp{margin:8px 14px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2,rgba(255,255,255,.02))}
 .seg-cmp-title{padding:8px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)}
 .seg-cmp table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
@@ -96,7 +93,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp th .gtag{display:block;font-size:8.5px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:1px}
 .seg-cmp th.c-top{box-shadow:inset 0 2px 0 var(--c)}
 .seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
-.seg-left{width:var(--seg-w,clamp(460px,38vw,640px));min-width:340px;max-width:75%;flex:none;background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
 .seg-left .sidebar-top{position:sticky;top:0;z-index:30;background:var(--surface)}
 .seg-resizer{flex:none;width:7px;margin:0 -3px;z-index:500;cursor:col-resize;position:relative;touch-action:none;background:transparent}
 .seg-resizer::before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--border2);transition:background .15s,width .15s,left .15s}
@@ -108,49 +104,19 @@ body.resizing{cursor:col-resize;user-select:none}
 .seg-legend-title{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:5px}
 .seg-legend-row{display:flex;align-items:center;gap:8px;padding:2px 0;white-space:nowrap}
 .seg-legend-row svg{flex:none}
-body.resizing #seg-map{pointer-events:none}
-#seg-map{flex:1;min-width:0;width:100%}
-/* tab Delivery Segment: sidebar global (ringkasan/legenda peta coverage) tidak relevan -> lebih lega */
-body.tab-segment .sidebar{display:none}
-@media (max-width:900px){
-  #view-segment{flex-direction:column}
-  .seg-left{width:100%!important;max-width:none;min-width:0;max-height:58%;border-bottom:1px solid var(--border)}
-  .seg-resizer{display:none}
-  #seg-map{min-height:280px}
-}
 .seg-empty{padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
 .seg-dest-header{padding:14px 14px 4px}
 .seg-dest-title{font-size:15px;font-weight:600}
 .seg-dest-sub{font-size:10.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
 
-.tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px;flex-shrink:0}
-.tab{padding:12px 16px;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
-.tab.active{color:var(--text);border-bottom-color:#3b82f6}
-.tab:hover{color:var(--text)}
 
-.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
-.view{flex:1;min-height:0;display:none}
-.view.active{display:flex}
-#map{flex:1;width:100%}
 
-.table-wrap{flex:1;overflow:auto;padding:0}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 thead th{background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.4px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap;cursor:pointer}
 thead th:hover{color:var(--text)}
 tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
-.tier-chip{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:500;font-family:'DM Mono',monospace}
-.tier-empty{color:var(--muted);opacity:.4}
-.table-toolbar{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
-.table-toolbar input{padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:'Sora',sans-serif;outline:none;width:220px}
-.table-toolbar select{padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:'Sora',sans-serif;outline:none}
-.result-count{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:auto}
 
-.f2f-wrap{flex:1;overflow:auto;padding:16px}
-.f2f-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
-.f2f-node{padding:4px 10px;border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;font-weight:600}
-.f2f-arrow{color:var(--muted);font-size:13px;display:inline-flex;flex-direction:column;align-items:center;gap:1px;vertical-align:middle}
-.f2f-lt{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
 
 .leaflet-popup-content-wrapper{background:var(--surface2)!important;border:1px solid var(--border2)!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important;color:var(--text)!important}
 .leaflet-popup-tip{background:var(--surface2)!important}
@@ -160,18 +126,6 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .popup-divider{height:1px;background:var(--border);margin:6px 0}
 .popup-sla{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
 
-.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:1000}
-.detail-overlay.show{display:flex}
-.detail-card{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:22px;width:420px;max-width:92vw;max-height:85vh;overflow-y:auto}
-.detail-card h3{font-size:15px;margin-bottom:2px}
-.detail-card .sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:14px}
-.chain-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--border)}
-.chain-row:last-child{border-bottom:none}
-.chain-badge{width:44px;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;text-align:center;padding:4px 0;border-radius:5px}
-.chain-name{flex:1;font-size:13px}
-.chain-meta{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right}
-.close-x{position:absolute;top:16px;right:18px;cursor:pointer;color:var(--muted);font-size:18px}
-.detail-card{position:relative}
 
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -205,19 +159,91 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .arm-box{display:flex;flex-direction:column;align-items:flex-end;min-width:128px;padding:5px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--surface)}
 .arm-box .val{font-size:12.5px;font-weight:600;font-family:'DM Mono',monospace;white-space:nowrap}
 .osm-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5)}
+/* ===== layout: Home (peta Indonesia) <-> Island (3 panel: peta | fasilitas | delivery segment) ===== */
+.body{display:flex;flex:1;min-height:0;position:relative}
+.map-col{flex:1;min-width:0;position:relative}
+#map{position:absolute;inset:0}
+body[data-view="home"] .fac-panel,body[data-view="home"] .seg-left,body[data-view="home"] .seg-resizer{display:none}
+body[data-view="island"] .home-panel{display:none}
+#back-home{display:none}
+body[data-view="island"] #back-home{display:inline-flex}
+.crumb{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+.crumb b{color:var(--text);font-weight:600}
+.btn.primary{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.btn.primary:hover{background:#2f6fd8;color:#fff}
+
+.home-panel{position:absolute;left:14px;top:14px;z-index:450;width:310px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(24,28,39,.95);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45);scrollbar-width:thin}
+.home-panel .sidebar-top{border-bottom:1px solid var(--border)}
+.panel-title{padding:11px 12px 6px;font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
+.island-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);border-left:3px solid var(--ic);transition:background .12s;user-select:none}
+.island-chip:hover,.island-chip.hov{background:rgba(255,255,255,.05)}
+.island-chip:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
+.island-chip .nm{font-size:13px;font-weight:600;flex:1}
+.island-chip .sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;font-weight:400}
+.island-chip .badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:130px}
+.mini-badge{font-size:9.5px;font-family:'DM Mono',monospace;font-weight:600;padding:2px 6px;border-radius:5px}
+.island-label{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none}
+
+.fac-panel{width:290px;min-width:230px;flex:none;background:var(--surface);border-left:1px solid var(--border);flex-direction:column;min-height:0;display:flex}
+.fac-head{padding:12px 14px 10px;border-bottom:1px solid var(--border)}
+.fac-title{font-size:15px;font-weight:600}
+.fac-sub{font-size:10.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.fac-types{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.type-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;border:1px solid var(--border2);font-size:10.5px;font-family:'DM Mono',monospace;cursor:pointer;user-select:none;color:var(--text)}
+.type-chip .legend-dot{width:8px;height:8px}
+.type-chip.off{opacity:.38}
+.fac-list{flex:1;overflow-y:auto;scrollbar-width:thin;min-height:0}
+.fac-group{padding:10px 14px 4px;font-size:9px;letter-spacing:.08em;color:var(--muted);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2}
+.fac-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;border-left:3px solid transparent;font-size:12.5px;user-select:none}
+.fac-item:hover{background:rgba(255,255,255,.04)}
+.fac-item:focus-visible,.served-item:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
+.fac-item .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent)}
+.fac-item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-item .ct{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+.fac-item.sel{background:rgba(255,255,255,.07);border-left-color:var(--c)}
+.served{background:rgba(0,0,0,.18);border-bottom:1px solid var(--border)}
+.served-h{padding:7px 14px 4px 26px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.5}
+.served-item{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 26px;font-size:11.5px;cursor:pointer}
+.served-item:hover{background:rgba(255,255,255,.05)}
+.served-item.sel{background:rgba(59,130,246,.2);box-shadow:inset 2px 0 0 #3b82f6}
+.served-item .nm{flex:1;min-width:0}
+.served-item .tg{font-size:9.5px;font-family:'DM Mono',monospace;font-weight:600}
+.fac-empty{padding:16px 14px;font-size:12px;color:var(--muted);line-height:1.6}
+
+.seg-left{width:var(--seg-w,clamp(420px,34vw,600px));min-width:340px;max-width:70%;flex:none;background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;border-left:1px solid var(--border)}
+.seg-dest-header{display:flex;align-items:flex-start;gap:10px}
+.seg-dest-header>div:first-child{flex:1;min-width:0}
+.seg-close{flex:none;padding:4px 9px;font-size:11px}
+body.resizing #map{pointer-events:none}
+.leaflet-container path.leaflet-interactive:focus,.leaflet-container .leaflet-interactive:focus{outline:none}
+@media (max-width:900px){
+  body[data-view="island"] .body{flex-direction:column;overflow-y:auto}
+  body[data-view="island"] .map-col{flex:none;height:42vh;min-height:260px}
+  body[data-view="island"] .fac-panel{width:100%;max-height:34vh;border-left:0;border-top:1px solid var(--border);flex:none}
+  body[data-view="island"] .seg-left{width:100%!important;max-width:none;min-width:0;flex:none;border-left:0;border-top:1px solid var(--border)}
+  .seg-resizer{display:none!important}
+  .home-panel{width:calc(100% - 28px);max-height:46%}
+}
+
 </style>
 </head>
-<body class="tab-segment">
+<body data-view="home">
 <div class="app">
   <div class="header">
     <div class="brand">
+      <button class="btn" id="back-home" title="Kembali ke peta Indonesia (Esc)">&larr; Semua area</button>
       <div>
         <div class="brand-title">Delivery Segment Dashboard</div>
         <div class="brand-sub">NDC · RDC · SDC · HUB Coverage — live dari Google Sheets</div>
       </div>
+      <span class="crumb" id="crumb"></span>
     </div>
     <div class="header-right">
       <span id="last-updated"></span>
+      <button class="btn" id="export-btn" title="Download seluruh tabel coverage (semua kab/kota, BU terpilih) sebagai CSV">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Coverage
+      </button>
       <button class="btn" id="refresh-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         Refresh
@@ -230,108 +256,63 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
   </div>
 
   <div class="body">
-    <div class="sidebar">
+    <!-- KIRI: peta (Home = seluruh Indonesia + fasilitas DC; Island = zoom ke pulau / rute) -->
+    <div class="map-col">
+      <div id="map"></div>
+
+      <!-- panel Home: cari kab/kota, ringkasan, 7 area island, legenda fasilitas -->
+      <div class="home-panel" id="home-panel">
+        <div class="sidebar-top">
+          <div class="search-wrap" id="home-search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
+            <div class="autocomplete-list" id="ac-list"></div>
+          </div>
+        </div>
+        <div class="summary-grid" id="summary-grid"></div>
+        <div class="panel-title">PILIH AREA (klik pulau di peta atau daftar ini)</div>
+        <div id="island-list"></div>
+        <div class="legend-box" style="border-top:1px solid var(--border);border-bottom:0">
+          <div class="legend-title">FASILITAS (klik untuk toggle)</div>
+          <div id="facility-legend"></div>
+        </div>
+        <div class="gap-note" id="gap-note"></div>
+      </div>
+    </div>
+
+    <!-- TENGAH: fasilitas DC di pulau terpilih -->
+    <div class="fac-panel" id="fac-panel">
+      <div class="fac-head">
+        <div class="fac-title" id="fac-title"></div>
+        <div class="fac-sub" id="fac-sub"></div>
+        <div class="fac-types" id="fac-types"></div>
+      </div>
+      <div class="fac-list" id="fac-list"></div>
+    </div>
+
+    <div class="seg-resizer" id="seg-resizer" role="separator" aria-orientation="vertical" aria-label="Geser untuk ubah lebar panel" tabindex="0" title="Geser untuk ubah lebar panel (klik 2x = reset)"></div>
+
+    <!-- KANAN: delivery segment -->
+    <div class="seg-left" id="seg-left">
       <div class="sidebar-top">
-        <div class="search-wrap">
+        <div class="search-wrap" id="seg-search-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
-          <div class="autocomplete-list" id="ac-list"></div>
+          <input type="text" id="seg-search-input" placeholder="Cari kab/kota Cust / Sto..." autocomplete="off"/>
+          <div class="autocomplete-list" id="seg-ac-list"></div>
         </div>
       </div>
-
-      <div class="summary-grid" id="summary-grid"></div>
-
-      <div class="legend-box">
-        <div class="legend-title">FASILITAS (klik untuk toggle)</div>
-        <div id="facility-legend"></div>
-      </div>
-
-      <div class="legend-box">
-        <div class="legend-title">COVERAGE TERDALAM PER KAB/KOTA</div>
-        <div class="legend-row"><span class="legend-swatch" style="background:var(--HUB)"></span> Sampai HUB (last mile)</div>
-        <div class="legend-row"><span class="legend-swatch" style="background:var(--SDC)"></span> Sampai SDC</div>
-        <div class="legend-row"><span class="legend-swatch" style="background:var(--RDC)"></span> Sampai RDC</div>
-        <div class="legend-row"><span class="legend-swatch" style="background:var(--NDC);opacity:.5"></span> Baru NDC (backbone)</div>
-      </div>
-
-      <div class="gap-note" id="gap-note" style="margin-top:auto"></div>
-    </div>
-
-    <div class="main">
-      <div class="tab-bar">
-        <div class="tab" data-tab="map">Peta</div>
-        <div class="tab active" data-tab="segment">Delivery Segment</div>
-        <div class="tab" data-tab="table">Tabel Coverage</div>
-        <div class="tab" data-tab="f2f">Rantai Fasilitas</div>
-      </div>
-
-      <div class="view" id="view-map">
-        <div id="map"></div>
-      </div>
-
-      <div class="view active" id="view-segment">
-        <div class="seg-left">
-          <div class="sidebar-top">
-            <div class="search-wrap" id="seg-search-wrap">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="seg-search-input" placeholder="Cari kab/kota Cust / Sto..." autocomplete="off"/>
-              <div class="autocomplete-list" id="seg-ac-list"></div>
-            </div>
+      <div id="seg-empty" class="seg-empty">Pilih kab/kota Cust / Sto (klik di peta, klik fasilitas lalu kab/kota yang dilayani, atau cari di atas) buat liat fasilitas apa aja yang dilewatin dari origin (NDC) sampai Cust / Sto.</div>
+      <div id="seg-route" style="display:none">
+        <div class="seg-dest-header">
+          <div>
+            <div class="seg-dest-title" id="seg-dest-title"></div>
+            <div class="seg-dest-sub" id="seg-dest-sub"></div>
           </div>
-          <div id="seg-empty" class="seg-empty">Cari kabupaten/kota Cust / Sto buat liat fasilitas apa aja yang dilewatin dari origin (NDC) sampai Cust / Sto.</div>
-          <div id="seg-route" style="display:none">
-            <div class="seg-dest-header">
-              <div class="seg-dest-title" id="seg-dest-title"></div>
-              <div class="seg-dest-sub" id="seg-dest-sub"></div>
-            </div>
-            <div id="seg-compare"></div>
-          </div>
+          <button class="btn seg-close" id="seg-close" title="Tutup rute (Esc)">&times; Tutup</button>
         </div>
-        <div class="seg-resizer" id="seg-resizer" role="separator" aria-orientation="vertical" aria-label="Geser untuk ubah lebar panel" tabindex="0" title="Geser untuk ubah lebar panel (klik 2x = reset)"></div>
-        <div id="seg-map"></div>
-      </div>
-
-      <div class="view" id="view-table">
-        <div style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="table-toolbar">
-            <input type="text" id="table-search" placeholder="Filter kabupaten/kota atau fasilitas..."/>
-            <select id="table-filter-tier">
-              <option value="">Semua tier</option>
-              <option value="HUB">Sampai HUB</option>
-              <option value="SDC">Sampai SDC</option>
-              <option value="RDC">Sampai RDC</option>
-              <option value="NDC">Baru NDC</option>
-            </select>
-            <button class="btn" id="table-export-btn">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export CSV
-            </button>
-            <span class="result-count" id="table-count"></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th data-k="no">No</th><th data-k="kabkota">Kabupaten/Kota</th><th data-k="tipe">Tipe</th>
-                <th data-k="provinsi">Provinsi</th><th data-k="pulau">Pulau</th>
-                <th data-k="hub">HUB</th><th data-k="sdc">SDC</th><th data-k="rdc">RDC</th><th data-k="ndc">NDC</th>
-              </tr></thead>
-              <tbody id="table-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="view" id="view-f2f">
-        <div class="f2f-wrap" id="f2f-wrap"></div>
+        <div id="seg-compare"></div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="detail-overlay" id="detail-overlay">
-  <div class="detail-card">
-    <span class="close-x" id="detail-close">&times;</span>
-    <div id="detail-content"></div>
   </div>
 </div>
 
@@ -373,6 +354,18 @@ const TIER_ORDER = ['HUB','SDC','RDC','NDC'];
 // Opsional rute (di Delivery Segment): rantai fasilitas yang sama dengan Rute 1, tapi mulai dari NDC lain.
 // Hanya untuk kab/kota di pulau-pulau ini (cocok dengan kolom Pulau/Kepulauan di sheet, huruf kecil, "contains").
 const OTHER_RUTE_PULAU = ['kalimantan','sulawesi'];
+// Area (island) di tampilan utama. 'match' dicocokkan (huruf kecil) ke kolom Pulau/Kepulauan di sheet;
+// kab/kota ikut area sesuai kolom itu, fasilitas ikut area di mana koordinatnya jatuh.
+const ISLANDS = [
+  {id:'Sumatera',   color:'#2dd4bf', match:/sumat/},
+  {id:'Jawa',       color:'#f472b6', match:/jawa|java/},
+  {id:'Bali Nusra', color:'#fb923c', match:/bali|nusa/},
+  {id:'Kalimantan', color:'#a3e635', match:/kaliman/},
+  {id:'Sulawesi',   color:'#38bdf8', match:/sulawesi/},
+  {id:'Maluku',     color:'#f87171', match:/maluku/},
+  {id:'Papua',      color:'#818cf8', match:/papua/}
+];
+const INDO_BOUNDS = [[-11.5,94.5],[6.5,141.5]];
 
 // ============================================================
 // STATE
@@ -390,8 +383,14 @@ let MERGED_GEO = null;
 let geoIdx = {}, geoIdxNoSp = {};
 let currentBU = 'HCI';
 let visibleTypes = new Set(['NDC','RDC','SDC','HUB']);
-let map, facilityLayer, choroLayer;
-let segMap, segLayer, segLegendEl;
+let map, facilityLayer, choroLayer, choroGeo, labelLayer;
+let segMap, segLayer, segLegendEl;      // segMap = map: satu peta dipakai Home, Island, dan rute
+// tampilan: 'home' (peta Indonesia) atau 'island' (3 panel); facKey = fasilitas terpilih di panel tengah
+let view = {mode:'home', island:null, facKey:null};
+let hoverIsl = null;
+let ISL_FEATS = [], ISLAND_BOUNDS = {}, ISL_LAYERS = {};
+let SERVED = {};                         // 'TIPE|nama fasilitas' -> Set key kab/kota yang dilayani (BU terpilih)
+let firstFit = true;
 // toggle tampil/sembunyi di Perbandingan rute (Rute 1 selalu tampil); diingat per-browser
 let SEG_VIS = {opsional:true, project:true};
 // armada terpilih per segmen per rute: kunci 'BU|id rute|legKey' -> idx kolom armada di tab Cost F2F (hanya di memori, tidak disimpan)
@@ -400,7 +399,6 @@ try{ const v = JSON.parse(localStorage.getItem('seg-route-vis')||'null'); if(v) 
 let FACILITY_INDEX = {};
 let currentSegKey = null;
 let unmatchedKabkota = [];
-let tableSort = {key:'no', dir:1};
 const ORIGIN_TO_DEST_ORDER = ['NDC','RDC','SDC','HUB'];
 
 // ============================================================
@@ -579,25 +577,6 @@ function buildCoverage(bu, tier, rows){
       }
     }
   }
-}
-
-// Human-readable lead time/cost line for a tier's assignment (last-mile leg
-// to this specific kabupaten/kota). NDC carries separate Land/Sea columns;
-// HUB/SDC/RDC carry a single value (last-mile is always land).
-function tierMeta(tier, d){
-  if(!d) return '';
-  if(tier==='NDC'){
-    const parts = [];
-    if(d.slaLand) parts.push('Darat '+escapeHtml(d.slaLand)+'h');
-    if(d.slaSea) parts.push('Laut '+escapeHtml(d.slaSea)+'h');
-    if(d.costLand) parts.push('Cost Darat '+escapeHtml(d.costLand));
-    if(d.costSea) parts.push('Cost Laut '+escapeHtml(d.costSea));
-    return parts.join(' · ');
-  }
-  const parts = [];
-  if(d.sla) parts.push('Darat '+escapeHtml(d.sla)+'h');
-  if(d.cost) parts.push(escapeHtml(d.cost));
-  return parts.join(' · ');
 }
 
 function buildF2F(bu, rows, isHci){
@@ -952,18 +931,17 @@ function addBasemap(m){
 }
 
 function initMap(){
-  map = L.map('map', {zoomControl:true}).setView([-2.5,118],5);
+  map = L.map('map', {zoomControl:true, zoomSnap:0.25}).setView([-2.5,118],5);
+  segMap = map;
   addBasemap(map);
-  facilityLayer = L.layerGroup().addTo(map);
   choroLayer = L.layerGroup().addTo(map);
-
-  segMap = L.map('seg-map', {zoomControl:true}).setView([-2.5,118],5);
-  addBasemap(segMap);
-  segLayer = L.layerGroup().addTo(segMap);
+  labelLayer = L.layerGroup().addTo(map);
+  facilityLayer = L.layerGroup().addTo(map);
+  segLayer = L.layerGroup().addTo(map);
   // legend garis rute, pojok kiri bawah peta (diisi ulang tiap kab/kota di setSegLegend)
   const legend = L.control({position:'bottomleft'});
   legend.onAdd = ()=>{ segLegendEl = L.DomUtil.create('div','seg-legend'); segLegendEl.style.display='none'; L.DomEvent.disableClickPropagation(segLegendEl); return segLegendEl; };
-  legend.addTo(segMap);
+  legend.addTo(map);
 }
 // items: [{label, color, dash}] atau null (sembunyikan)
 function setSegLegend(items){
@@ -974,102 +952,214 @@ function setSegLegend(items){
   segLegendEl.style.display = 'block';
 }
 
+// ============================================================
+// AREA (ISLAND) + FASILITAS PER AREA
+// ============================================================
+function islandOf(p){ const s=(p||'').toLowerCase(); const i=ISLANDS.find(x=>x.match.test(s)); return i?i.id:null; }
+function islandColor(id){ const i=ISLANDS.find(x=>x.id===id); return i?i.color:'#64748b'; }
+function islandName(id){ return id || 'Lainnya'; }
+function featBBox(f){
+  if(f._bb) return f._bb;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  const g=f.geometry; if(!g || !g.coordinates) return null;
+  const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+  for(const p of polys) for(const pt of p[0]){ if(pt[0]<a)a=pt[0]; if(pt[0]>c)c=pt[0]; if(pt[1]<b)b=pt[1]; if(pt[1]>d)d=pt[1]; }
+  return f._bb=[a,b,c,d];
+}
+function ringHas(ring, x, y){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function featHas(f, lon, lat){
+  const g=f.geometry; if(!g) return false;
+  const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+  return polys.some(p=>ringHas(p[0],lon,lat) && !p.slice(1).some(h=>ringHas(h,lon,lat)));
+}
+// Peta kab/kota -> area, batas tiap area, dan area tiap fasilitas (titik fasilitas jatuh di polygon kab/kota mana).
+function buildIslandIndex(){
+  ISL_FEATS = []; ISLAND_BOUNDS = {};
+  const grow = (isl, x0, y0, x1, y1)=>{
+    if(!isl) return;
+    const B = ISLAND_BOUNDS[isl] || (ISLAND_BOUNDS[isl] = [1e9,1e9,-1e9,-1e9]);
+    B[0]=Math.min(B[0],x0); B[1]=Math.min(B[1],y0); B[2]=Math.max(B[2],x1); B[3]=Math.max(B[3],y1);
+  };
+  for(const key in COVERAGE.HCI){        // daftar kab/kota sama di kedua BU
+    const c = COVERAGE.HCI[key], isl = islandOf(c.pulau);
+    const fs = resolveGeo(c.kabkota, c.tipe); if(!fs) continue;
+    for(const f of fs){
+      const bb = featBBox(f); if(!bb) continue;
+      ISL_FEATS.push({key, isl, f, bb, cx:(bb[0]+bb[2])/2, cy:(bb[1]+bb[3])/2});
+      grow(isl, bb[0], bb[1], bb[2], bb[3]);
+    }
+  }
+  for(const f of FACILITIES){
+    let hit = ISL_FEATS.find(x=>f.lon>=x.bb[0] && f.lon<=x.bb[2] && f.lat>=x.bb[1] && f.lat<=x.bb[3] && featHas(x.f, f.lon, f.lat));
+    if(!hit){        // titik di pesisir / di luar polygon: ambil kab/kota terdekat
+      let best=1e9; for(const x of ISL_FEATS){ const d=(x.cx-f.lon)**2+(x.cy-f.lat)**2; if(d<best){ best=d; hit=x; } }
+    }
+    f._island = hit ? hit.isl : null;
+    grow(f._island, f.lon, f.lat, f.lon, f.lat);
+  }
+}
+function facKeyOf(type, name){ return type+'|'+normFacName(name); }
+// fasilitas aktif untuk BU terpilih (tanpa duplikat); isl === undefined -> semua area
+function visibleFacilities(isl){
+  const seen = new Set(), out = [];
+  for(const f of FACILITIES){
+    if(!(f.bu===currentBU || f.bu==='HCI & AHI')) continue;
+    if(isl !== undefined && f._island !== isl) continue;
+    const k = facKeyOf(f.type, f.name);
+    if(seen.has(k)) continue;
+    seen.add(k); f._fk = k; out.push(f);
+  }
+  return out;
+}
+// fasilitas -> kab/kota yang dilayaninya (HUB/SDC/RDC/NDC di tab coverage, termasuk hub feeder, NDC reguler & NDC lain)
+function buildServed(){
+  SERVED = {};
+  const add = (t, name, key)=>{ if(!name) return; const k = facKeyOf(t,name); (SERVED[k] = SERVED[k] || new Set()).add(key); };
+  for(const key in COVERAGE[currentBU]){
+    const c = COVERAGE[currentBU][key];
+    for(const t of TIER_ORDER){
+      const d = c[t]; if(!d) continue;
+      add(t, d.name, key);
+      if(t==='HUB' && d.via) add('HUB', d.via, key);
+      if(t==='NDC'){
+        if(d.reguler) add('NDC', d.reguler, key);
+        for(const k2 in (d.others||{})) add('NDC', d.others[k2].name, key);
+      }
+    }
+  }
+}
+function servedIn(fk, isl){
+  const set = SERVED[fk]; if(!set) return [];
+  return [...set].map(k=>COVERAGE[currentBU][k]).filter(c=>c && islandOf(c.pulau)===isl);
+}
+
+// ============================================================
+// PETA: choropleth (kab/kota), label area, marker fasilitas
+// ============================================================
+function featStyle(f){
+  const p = f.properties, isl = p._island;
+  if(view.mode==='home'){
+    return {color:'rgba(255,255,255,0.18)', weight:0.5, fillColor:islandColor(isl), fillOpacity: isl ? (hoverIsl===isl ? 0.6 : 0.32) : 0.1};
+  }
+  if(isl !== view.island) return {color:'rgba(255,255,255,0.06)', weight:0.4, fillColor:'#64748b', fillOpacity:0.05};
+  if(currentSegKey) return {color:'rgba(255,255,255,0.1)', weight:0.5, fillColor:'#64748b', fillOpacity:0.07};   // kab/kota tujuan digambar di layer rute
+  if(view.facKey){
+    const set = SERVED[view.facKey];
+    if(set && set.has(p._cov._key)) return {color:'rgba(255,255,255,0.75)', weight:1, fillColor:TYPE_COLOR[view.facKey.split('|')[0]], fillOpacity:0.55};
+    return {color:'rgba(255,255,255,0.08)', weight:0.4, fillColor:'#64748b', fillOpacity:0.07};
+  }
+  return {color:'rgba(255,255,255,0.15)', weight:0.6, fillColor:tierColor(p._tier), fillOpacity:tierOpacity(p._tier)};
+}
+function restyle(){ if(choroGeo) choroGeo.setStyle(featStyle); }
+function setHoverIsland(id){
+  if(hoverIsl === id) return;
+  const old = hoverIsl; hoverIsl = id;
+  [old, id].forEach(i=>{ if(i) (ISL_LAYERS[i]||[]).forEach(l=>l.setStyle(featStyle(l.feature))); });
+  document.querySelectorAll('.island-chip').forEach(el=>el.classList.toggle('hov', el.dataset.island===id));
+}
+
 function renderChoropleth(){
-  choroLayer.clearLayers();
+  choroLayer.clearLayers(); ISL_LAYERS = {}; choroGeo = null;
   const cov = COVERAGE[currentBU];
   const feats = [];
   for(const key in cov){
     const c = cov[key];
     const geoFeats = resolveGeo(c.kabkota, c.tipe);
     if(!geoFeats) continue;
-    const tier = deepestTier(c);
+    const tier = deepestTier(c), isl = islandOf(c.pulau);
     for(const gf of geoFeats){
-      feats.push(Object.assign({}, gf, {properties: Object.assign({}, gf.properties, {_cov:c, _tier:tier})}));
+      feats.push(Object.assign({}, gf, {properties: Object.assign({}, gf.properties, {_cov:c, _tier:tier, _island:isl})}));
     }
   }
-  const layer = L.geoJSON({type:'FeatureCollection', features:feats}, {
-    style: f => ({
-      color: 'rgba(255,255,255,0.15)', weight: 0.6,
-      fillColor: tierColor(f.properties._tier), fillOpacity: tierOpacity(f.properties._tier)
-    }),
+  choroGeo = L.geoJSON({type:'FeatureCollection', features:feats}, {
+    style: featStyle,
     onEachFeature: (f, layer) => {
-      layer.on('click', () => openDetail(f.properties._cov));
-      layer.on('mouseover', function(){ this.setStyle({weight:1.6, color:'#fff'}); });
-      layer.on('mouseout', function(){ this.setStyle({weight:0.6, color:'rgba(255,255,255,0.15)'}); });
+      const p = f.properties;
+      (ISL_LAYERS[p._island] = ISL_LAYERS[p._island] || []).push(layer);
+      layer.bindTooltip(()=> view.mode==='home' ? islandName(p._island) : p._cov.kabkota, {sticky:true});
+      layer.on('click', () => {
+        if(view.mode==='home'){ enterIsland(p._island); return; }
+        if(p._island === view.island) selectKabkota(p._cov); else enterIsland(p._island);
+      });
+      layer.on('mouseover', function(){
+        if(view.mode==='home') setHoverIsland(p._island);
+        else if(p._island === view.island) this.setStyle({weight:1.6, color:'#fff'});
+      });
+      layer.on('mouseout', function(){
+        if(view.mode==='home') setHoverIsland(null);
+        else this.setStyle(featStyle(this.feature));
+      });
     }
   });
-  layer.addTo(choroLayer);
+  choroGeo.addTo(choroLayer);
+}
+
+// nama area di tengah tiap pulau (hanya di Home)
+function renderIslandLabels(){
+  labelLayer.clearLayers();
+  for(const i of ISLANDS){
+    const B = ISLAND_BOUNDS[i.id]; if(!B) continue;
+    L.marker([(B[1]+B[3])/2, (B[0]+B[2])/2], {
+      icon:L.divIcon({className:'', html:`<div class="island-label">${escapeHtml(i.id)}</div>`, iconSize:[0,0]}),
+      interactive:false, keyboard:false
+    }).addTo(labelLayer);
+  }
+  if(view.mode!=='home') map.removeLayer(labelLayer); else if(!map.hasLayer(labelLayer)) labelLayer.addTo(map);
 }
 
 function renderFacilityMarkers(){
   facilityLayer.clearLayers();
-  const list = FACILITIES.filter(f => (f.bu===currentBU || f.bu==='HCI & AHI') && visibleTypes.has(f.type));
-  for(const f of list){
-    const r = TYPE_RADIUS[f.type]||6;
+  if(currentSegKey) return;            // mode rute: marker fasilitas digambar oleh renderSegmentRoute
+  const isl = view.mode==='island' ? view.island : undefined;
+  for(const f of visibleFacilities(isl)){
+    if(!visibleTypes.has(f.type)) continue;
+    const sel = view.facKey === f._fk;
+    const r = Math.round((TYPE_RADIUS[f.type]||6) * (sel?1.35:1));
     const color = TYPE_COLOR[f.type]||'#999';
     const icon = L.divIcon({
-      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.85);box-shadow:0 0 0 3px ${color}33,0 2px 8px rgba(0,0,0,.4)"></div>`,
+      html:`<div style="width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid ${sel?'#fff':'rgba(255,255,255,0.85)'};box-shadow:0 0 0 ${sel?5:3}px ${color}${sel?'88':'33'},0 2px 8px rgba(0,0,0,.4)"></div>`,
       className:'', iconAnchor:[r,r], popupAnchor:[0,-r-4]
     });
-    const m = L.marker([f.lat, f.lon], {icon});
-    m.bindPopup(`
-      <div class="popup-title">${escapeHtml(f.name)}</div>
-      <div class="popup-row"><span class="k">Tipe</span><span>${f.type}</span></div>
-      <div class="popup-row"><span class="k">Business Unit</span><span>${escapeHtml(f.bu)}</span></div>
-    `);
+    const m = L.marker([f.lat, f.lon], {icon, zIndexOffset: sel?1000:0});
+    if(view.mode==='island'){
+      m.bindTooltip(`${f.type}: ${escapeHtml(f.name)}`);
+      m.on('click', ()=>selectFacility(f._fk));
+    } else {
+      const box = document.createElement('div');
+      box.innerHTML = `
+        <div class="popup-title">${escapeHtml(f.name)}</div>
+        <div class="popup-row"><span class="k">Tipe</span><span>${f.type}</span></div>
+        <div class="popup-row"><span class="k">Business Unit</span><span>${escapeHtml(f.bu)}</span></div>
+        <div class="popup-row"><span class="k">Area</span><span>${escapeHtml(islandName(f._island))}</span></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn primary'; b.style.marginTop = '8px'; b.textContent = 'Buka area ' + islandName(f._island) + ' →';
+      b.onclick = ()=>{ map.closePopup(); enterIsland(f._island, {fac:f._fk}); };
+      box.appendChild(b);
+      m.bindPopup(box);
+    }
     m.addTo(facilityLayer);
   }
 }
 
 // ============================================================
-// DETAIL PANEL (kab/kota chain)
+// HOME PANEL: ringkasan, daftar area, legenda fasilitas
 // ============================================================
-function openDetail(c){
-  const el = document.getElementById('detail-content');
-  let rows = '';
-  for(const t of TIER_ORDER){
-    const d = c[t];
-    rows += `
-      <div class="chain-row">
-        <div class="chain-badge" style="background:${TYPE_COLOR[t]}22;color:${TYPE_COLOR[t]}">${t}</div>
-        <div class="chain-name" style="${d?'':'color:var(--muted);opacity:.5'}">${d?escapeHtml(d.name):'belum di-assign'}</div>
-        <div class="chain-meta">${tierMeta(t, d)}</div>
-      </div>`;
-    if(t==='NDC' && regulerDiffers(c)){
-      rows += `
-      <div class="chain-row">
-        <div class="chain-badge" style="background:${TYPE_COLOR.NDC}22;color:${TYPE_COLOR.NDC}">NDC</div>
-        <div class="chain-name">${escapeHtml(d.reguler)} <span style="color:var(--muted);font-size:11px">(asal Rute 1; ${escapeHtml(d.name)} = Project rute)</span></div>
-        <div class="chain-meta"></div>
-      </div>`;
-    }
-    if(t==='HUB' && d && d.via){
-      rows += `
-      <div class="chain-row">
-        <div class="chain-badge" style="background:${TYPE_COLOR.HUB}22;color:${TYPE_COLOR.HUB}">HUB</div>
-        <div class="chain-name">${escapeHtml(d.via)} <span style="color:var(--muted);font-size:11px">(hub feeder)</span></div>
-        <div class="chain-meta">${legMeta(currentBU, d.via, d.name)}</div>
-      </div>`;
-    }
-  }
-  el.innerHTML = `
-    <h3>${escapeHtml(c.kabkota)}</h3>
-    <div class="sub">${escapeHtml(c.tipe)} · ${escapeHtml(c.provinsi)} · ${escapeHtml(c.pulau)} · BU ${currentBU}</div>
-    ${rows}
-  `;
-  document.getElementById('detail-overlay').classList.add('show');
+function toggleType(t){
+  if(visibleTypes.has(t)) visibleTypes.delete(t); else visibleTypes.add(t);
+  renderSummary(); renderFacilityMarkers(); renderFacPanel();
 }
-document.getElementById('detail-close').onclick = ()=>document.getElementById('detail-overlay').classList.remove('show');
-document.getElementById('detail-overlay').onclick = (e)=>{ if(e.target.id==='detail-overlay') e.currentTarget.classList.remove('show'); };
-
-// ============================================================
-// SIDEBAR: summary + legend
-// ============================================================
 function renderSummary(){
   const cov = Object.values(COVERAGE[currentBU]);
   const counts = {HUB:0,SDC:0,RDC:0,NDC:0};
   cov.forEach(c=>counts[deepestTier(c)]++);
-  const fac = FACILITIES.filter(f=>f.bu===currentBU||f.bu==='HCI & AHI');
+  const fac = visibleFacilities();
   const facCounts = {NDC:0,RDC:0,SDC:0,HUB:0};
   fac.forEach(f=>facCounts[f.type]!==undefined && facCounts[f.type]++);
 
@@ -1080,6 +1170,22 @@ function renderSummary(){
     <div class="sum-card"><div class="lbl">BARU NDC</div><div class="val" style="color:${TYPE_COLOR.NDC}">${counts.NDC}</div></div>
   `;
 
+  // daftar area: jumlah kab/kota (sheet) + fasilitas per tipe (lokasi fasilitas)
+  document.getElementById('island-list').innerHTML = ISLANDS.map(i=>{
+    const nK = cov.filter(c=>islandOf(c.pulau)===i.id).length;
+    const fi = fac.filter(f=>f._island===i.id);
+    const badges = TIER_ORDER.map(t=>{ const n = fi.filter(f=>f.type===t).length; return n ? `<span class="mini-badge" style="background:${TYPE_COLOR[t]}22;color:${TYPE_COLOR[t]}">${t} ${n}</span>` : ''; }).join('');
+    return `<div class="island-chip" data-island="${escapeHtml(i.id)}" style="--ic:${i.color}" role="button" tabindex="0">
+      <div style="flex:1;min-width:0"><div class="nm">${escapeHtml(i.id)}</div><div class="sub">${nK} kab/kota · ${fi.length} fasilitas</div></div>
+      <div class="badges">${badges}</div></div>`;
+  }).join('');
+  document.querySelectorAll('.island-chip').forEach(el=>{
+    el.onclick = ()=>enterIsland(el.dataset.island);
+    el.onkeydown = e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); enterIsland(el.dataset.island); } };
+    el.onmouseenter = ()=>setHoverIsland(el.dataset.island);
+    el.onmouseleave = ()=>setHoverIsland(null);
+  });
+
   const legendEl = document.getElementById('facility-legend');
   legendEl.innerHTML = TIER_ORDER.map(t=>`
     <div class="legend-row ${visibleTypes.has(t)?'':'off'}" data-type="${t}">
@@ -1088,18 +1194,132 @@ function renderSummary(){
       <span class="legend-count">${facCounts[t]}</span>
     </div>
   `).join('');
-  legendEl.querySelectorAll('.legend-row').forEach(row=>{
-    row.onclick = ()=>{
-      const t = row.dataset.type;
-      if(visibleTypes.has(t)) visibleTypes.delete(t); else visibleTypes.add(t);
-      renderSummary();
-      renderFacilityMarkers();
-    };
-  });
+  legendEl.querySelectorAll('.legend-row').forEach(row=>{ row.onclick = ()=>toggleType(row.dataset.type); });
 
   document.getElementById('gap-note').innerHTML = unmatchedKabkota.length ?
-    `<b>${unmatchedKabkota.length} kab/kota</b> belum ada batas wilayah di sumber peta publik (tetap muncul di tabel, cuma gak ada polygon-nya di peta): ${unmatchedKabkota.map(escapeHtml).join(', ')}.` : '';
+    `<b>${unmatchedKabkota.length} kab/kota</b> belum ada batas wilayah di sumber peta publik (tetap ada di Export Coverage, cuma gak ada polygon-nya di peta): ${unmatchedKabkota.map(escapeHtml).join(', ')}.` : '';
 }
+
+// ============================================================
+// PANEL TENGAH: fasilitas DC di area terpilih
+// ============================================================
+function renderFacPanel(){
+  if(view.mode!=='island') return;
+  const isl = view.island;
+  const cov = Object.values(COVERAGE[currentBU]).filter(c=>islandOf(c.pulau)===isl);
+  const all = visibleFacilities(isl);
+  document.getElementById('fac-title').textContent = islandName(isl);
+  document.getElementById('fac-sub').textContent = `${cov.length} kab/kota · ${all.length} fasilitas · BU ${currentBU}`;
+  document.getElementById('fac-types').innerHTML = TIER_ORDER.map(t=>{
+    const n = all.filter(f=>f.type===t).length;
+    return `<span class="type-chip ${visibleTypes.has(t)?'':'off'}" data-type="${t}" role="button" tabindex="0"><span class="legend-dot" style="background:${TYPE_COLOR[t]}"></span>${t} ${n}</span>`;
+  }).join('');
+  document.querySelectorAll('#fac-types .type-chip').forEach(el=>{
+    el.onclick = ()=>toggleType(el.dataset.type);
+    el.onkeydown = e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleType(el.dataset.type); } };
+  });
+
+  let html = '';
+  for(const t of TIER_ORDER){
+    if(!visibleTypes.has(t)) continue;
+    const items = all.filter(f=>f.type===t).sort((a,b)=>a.name.localeCompare(b.name));
+    if(!items.length) continue;
+    html += `<div class="fac-group"><span>${t}</span><span>${items.length}</span></div>`;
+    for(const f of items){
+      const served = servedIn(f._fk, isl);
+      const sel = view.facKey === f._fk;
+      html += `<div class="fac-item ${sel?'sel':''}" data-fk="${escapeHtml(f._fk)}" style="--c:${TYPE_COLOR[t]}" role="button" tabindex="0">
+        <span class="dot"></span><span class="nm" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span><span class="ct">${served.length} kab/kota</span></div>`;
+      if(sel){
+        const total = SERVED[f._fk] ? SERVED[f._fk].size : 0;
+        html += `<div class="served"><div class="served-h">Melayani ${served.length} kab/kota di ${escapeHtml(islandName(isl))}${total>served.length?` (total ${total} di seluruh Indonesia)`:''} — klik untuk lihat delivery segment</div>`
+          + served.sort((a,b)=>a.kabkota.localeCompare(b.kabkota)).map(c=>`<div class="served-item ${c._key===currentSegKey?'sel':''}" data-key="${escapeHtml(c._key)}" role="button" tabindex="0"><span class="nm">${escapeHtml(c.kabkota)}</span><span class="tg" style="color:${tierColor(deepestTier(c))}">${deepestTier(c)}</span></div>`).join('')
+          + `</div>`;
+      }
+    }
+  }
+  const list = document.getElementById('fac-list');
+  list.innerHTML = html || '<div class="fac-empty">Belum ada fasilitas di area ini untuk BU terpilih (atau semua tipe lagi disembunyikan).</div>';
+  const act = (el, fn)=>{ el.onclick = fn; el.onkeydown = e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); fn(); } }; };
+  list.querySelectorAll('.fac-item').forEach(el=>act(el, ()=>selectFacility(el.dataset.fk)));
+  list.querySelectorAll('.served-item').forEach(el=>act(el, ()=>selectKabkota(COVERAGE[currentBU][el.dataset.key])));
+}
+
+// ============================================================
+// NAVIGASI: Home <-> Area (island) <-> fasilitas <-> kab/kota (rute)
+// ============================================================
+function updateCrumb(){
+  document.getElementById('crumb').innerHTML = view.mode==='island' ? `Indonesia › <b>${escapeHtml(islandName(view.island))}</b>` : '';
+}
+function fitIndonesia(){ map.fitBounds(INDO_BOUNDS, {paddingTopLeft:[view.mode==='home'?340:20,10], paddingBottomRight:[10,10]}); }
+function fitIsland(){
+  const B = ISLAND_BOUNDS[view.island];
+  if(B) map.fitBounds([[B[1],B[0]],[B[3],B[2]]], {padding:[24,24], maxZoom:8});
+}
+function fitFacility(){
+  const f = visibleFacilities().find(x=>x._fk===view.facKey); if(!f) return;
+  const b = L.latLngBounds([[f.lat,f.lon]]);
+  const set = SERVED[view.facKey];
+  if(set) for(const x of ISL_FEATS) if(x.isl===view.island && set.has(x.key)) b.extend([[x.bb[1],x.bb[0]],[x.bb[3],x.bb[2]]]);
+  map.fitBounds(b, {padding:[40,40], maxZoom:9});
+}
+function clearSegment(o){
+  o = o || {};
+  currentSegKey = null;
+  segLayer.clearLayers(); setSegLegend(null);
+  document.getElementById('seg-route').style.display = 'none';
+  document.getElementById('seg-empty').style.display = 'block';
+  if(o.silent) return;
+  restyle(); renderFacilityMarkers(); renderFacPanel();
+  if(view.facKey) fitFacility(); else fitIsland();
+}
+function enterIsland(id, o){
+  o = o || {};
+  const wasHome = view.mode==='home';
+  view.mode = 'island'; view.island = id || null; view.facKey = o.fac || null;
+  clearSegment({silent:true});
+  document.body.dataset.view = 'island';
+  map.invalidateSize({animate:false});
+  if(map.hasLayer(labelLayer)) map.removeLayer(labelLayer);
+  setHoverIsland(null);
+  updateCrumb(); restyle(); renderFacilityMarkers(); renderFacPanel();
+  if(!o.noFit){ if(view.facKey) fitFacility(); else fitIsland(); }
+}
+function leaveIsland(){
+  view = {mode:'home', island:null, facKey:null};
+  clearSegment({silent:true});
+  document.body.dataset.view = 'home';
+  map.invalidateSize({animate:false});
+  updateCrumb(); restyle(); renderFacilityMarkers(); renderIslandLabels();
+  fitIndonesia();
+}
+function selectFacility(fk){
+  if(view.mode!=='island') return;
+  if(view.facKey===fk && !currentSegKey){ view.facKey = null; restyle(); renderFacilityMarkers(); renderFacPanel(); fitIsland(); return; }
+  view.facKey = fk;
+  if(currentSegKey) clearSegment({silent:true});
+  restyle(); renderFacilityMarkers(); renderFacPanel(); fitFacility();
+  const el = document.querySelector('#fac-list .fac-item.sel'); if(el) el.scrollIntoView({block:'nearest'});
+}
+// kab/kota Cust / Sto dipilih (peta, daftar fasilitas, atau pencarian): masuk ke areanya kalau belum, lalu gambar rute
+function selectKabkota(c){
+  const isl = islandOf(c.pulau);
+  if(view.mode!=='island' || view.island!==isl) enterIsland(isl, {noFit:true});
+  currentSegKey = c._key;
+  restyle(); renderFacilityMarkers(); renderFacPanel();
+  map.invalidateSize({animate:false});
+  renderSegmentRoute(c);
+  const el = document.querySelector('#fac-list .served-item.sel'); if(el) el.scrollIntoView({block:'nearest'});
+}
+document.getElementById('back-home').onclick = leaveIsland;
+document.getElementById('seg-close').onclick = ()=>clearSegment();
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if(document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)){ document.activeElement.blur(); return; }
+  if(currentSegKey) clearSegment();
+  else if(view.facKey){ view.facKey = null; restyle(); renderFacilityMarkers(); renderFacPanel(); fitIsland(); }
+  else if(view.mode==='island') leaveIsland();
+});
 
 // ============================================================
 // SEARCH / AUTOCOMPLETE
@@ -1131,24 +1351,16 @@ function buildAutocomplete(wrapperEl, inputEl, listEl, onSelect){
 
 function setupSearch(){
   buildAutocomplete(
-    document.querySelector('#search-input').closest('.search-wrap'),
+    document.getElementById('home-search-wrap'),
     document.getElementById('search-input'),
     document.getElementById('ac-list'),
-    (c)=>{
-      showTab('map');
-      const geoFeats = resolveGeo(c.kabkota, c.tipe);
-      if(geoFeats && geoFeats.length){
-        const layer = L.geoJSON(geoFeats[0]);
-        map.fitBounds(layer.getBounds(), {maxZoom:9});
-      }
-      openDetail(c);
-    }
+    (c)=>selectKabkota(c)
   );
   buildAutocomplete(
     document.getElementById('seg-search-wrap'),
     document.getElementById('seg-search-input'),
     document.getElementById('seg-ac-list'),
-    (c)=>{ currentSegKey = c._key; renderSegmentRoute(c); }
+    (c)=>selectKabkota(c)
   );
 }
 
@@ -1640,60 +1852,17 @@ function renderSegmentRoute(c, opts){
 }
 
 // ============================================================
-// TABLE VIEW
+// EXPORT COVERAGE (tombol di header; seluruh kab/kota untuk BU terpilih, urut sesuai kolom No)
 // ============================================================
-function getVisibleTableRows(){
-  const searchQ = document.getElementById('table-search').value.trim().toLowerCase();
-  const tierFilter = document.getElementById('table-filter-tier').value;
-  let rows = Object.values(COVERAGE[currentBU]);
-  if(searchQ){
-    rows = rows.filter(c => c.kabkota.toLowerCase().includes(searchQ) || c.provinsi.toLowerCase().includes(searchQ)
-      || (c.HUB&&(c.HUB.name.toLowerCase().includes(searchQ) || (c.HUB.via||'').toLowerCase().includes(searchQ))) || (c.SDC&&c.SDC.name.toLowerCase().includes(searchQ))
-      || (c.RDC&&c.RDC.name.toLowerCase().includes(searchQ)) || (c.NDC&&c.NDC.name.toLowerCase().includes(searchQ)));
-  }
-  if(tierFilter){ rows = rows.filter(c=>deepestTier(c)===tierFilter); }
-
-  rows.sort((a,b)=>{
-    const k = tableSort.key;
-    let va, vb;
-    if(k==='no'){ va=parseInt(a.no)||0; vb=parseInt(b.no)||0; }
-    else if(['hub','sdc','rdc','ndc'].includes(k)){ va=(a[k.toUpperCase()]?a[k.toUpperCase()].name:''); vb=(b[k.toUpperCase()]?b[k.toUpperCase()].name:''); }
-    else { va=a[k]||''; vb=b[k]||''; }
-    if(va<vb) return -1*tableSort.dir; if(va>vb) return 1*tableSort.dir; return 0;
-  });
-  return rows;
+function getCoverageRows(){
+  return Object.values(COVERAGE[currentBU]).sort((a,b)=>(parseInt(a.no)||0)-(parseInt(b.no)||0));
 }
-
-function renderTable(){
-  const rows = getVisibleTableRows();
-  document.getElementById('table-count').textContent = rows.length + ' kab/kota';
-  const cell = (d,tier) => d ? `<span class="tier-chip" style="background:${TYPE_COLOR[tier]}22;color:${TYPE_COLOR[tier]}">${escapeHtml(d.name)}</span>${d.via?`<div class="tier-via">&larr; via ${escapeHtml(d.via)}</div>`:''}` : `<span class="tier-empty">—</span>`;
-
-  document.getElementById('table-body').innerHTML = rows.map(c=>`
-    <tr data-key="${escapeHtml(c._key)}">
-      <td>${escapeHtml(c.no)}</td>
-      <td>${escapeHtml(c.kabkota)}</td>
-      <td>${escapeHtml(c.tipe)}</td>
-      <td>${escapeHtml(c.provinsi)}</td>
-      <td>${escapeHtml(c.pulau)}</td>
-      <td>${cell(c.HUB,'HUB')}</td>
-      <td>${cell(c.SDC,'SDC')}</td>
-      <td>${cell(c.RDC,'RDC')}</td>
-      <td>${cell(c.NDC,'NDC')}${regulerDiffers(c)?`<div class="tier-via">Rute 1 dari ${escapeHtml(c.NDC.reguler)}</div>`:''}</td>
-    </tr>`).join('');
-
-  document.querySelectorAll('#table-body tr').forEach(tr=>{
-    tr.onclick = ()=>openDetail(COVERAGE[currentBU][tr.dataset.key]);
-  });
-}
-
-// CSV export of whatever is currently visible in the table (respects search + tier filter)
 function csvCell(v){
   v = (v==null?'':String(v));
   return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
 }
 function exportTableCSV(){
-  const rows = getVisibleTableRows();
+  const rows = getCoverageRows();
   const header = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau','HUB','HUB Lead Time Darat','HUB Cost','HUB Feeder (via)','Lead Time Feeder ke HUB',
     'SDC','SDC Lead Time Darat','SDC Cost','RDC','RDC Lead Time Darat','RDC Cost',
     'NDC','NDC Lead Time Darat','NDC Lead Time Laut','NDC Cost Darat','NDC Cost Laut','NDC Reguler','Deepest Coverage'];
@@ -1722,54 +1891,20 @@ function exportTableCSV(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-document.getElementById('table-export-btn').onclick = exportTableCSV;
 
 // ============================================================
-// FACILITY-TO-FACILITY VIEW
+// BU TOGGLE + lebar panel kanan
 // ============================================================
-function renderF2F(){
-  const rows = F2F[currentBU];
-  const wrap = document.getElementById('f2f-wrap');
-  if(!rows.length){ wrap.innerHTML = '<div style="color:var(--muted);font-size:12px;line-height:1.6">Belum ada data rantai fasilitas yang valid untuk BU ini di gsheet — kalau sebelumnya ada, kemungkinan sheet "Facility to Facility '+currentBU+'" ketimpa/kena edit. Cek lagi isi sheet-nya, lalu klik Refresh.</div>'; return; }
-  wrap.innerHTML = rows.map(r=>{
-    const chain = [
-      {t:'HUB', v:r.hub},
-      r.hub2 ? {t:'HUB', v:r.hub2} : null,
-      r.sdc ? {t:'SDC', v:r.sdc} : null,
-      r.rdc ? {t:'RDC', v:r.rdc} : null,
-      {t:'NDC', v:r.ndc}
-    ].filter(Boolean);
-    return `<div class="f2f-card">${chain.map((n,i)=>{
-      const next = chain[i+1]; // upstream neighbour (chain runs HUB -> ... -> NDC)
-      const lt = next ? legMeta(currentBU, next.v, n.v) : '';
-      return `
-      <span class="f2f-node" style="background:${TYPE_COLOR[n.t]}22;color:${TYPE_COLOR[n.t]}">${escapeHtml(n.v)}</span>
-      ${i<chain.length-1?`<span class="f2f-arrow">→${lt?`<span class="f2f-lt">${lt}</span>`:''}</span>`:''}
-    `;
-    }).join('')}</div>`;
-  }).join('');
-}
-
-// ============================================================
-// TABS / BU TOGGLE
-// ============================================================
-function showTab(name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
-  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));
-  document.body.classList.toggle('tab-segment', name==='segment');
-  if(name==='map') setTimeout(()=>map.invalidateSize(), 50);
-  if(name==='segment') setTimeout(()=>segMap.invalidateSize(), 50);
-}
-
-// Lebar panel Delivery Segment bisa digeser (drag / tombol panah / klik 2x = reset); disimpan per-browser.
+// Lebar panel Delivery Segment (kanan) bisa digeser (drag / tombol panah / klik 2x = reset); disimpan per-browser.
 (function initSegResizer(){
-  const view = document.getElementById('view-segment'), bar = document.getElementById('seg-resizer');
+  const view0 = document.querySelector('.body'), bar = document.getElementById('seg-resizer'), panel = document.getElementById('seg-left');
   const KEY = 'seg-panel-w', MIN = 340;
-  const maxW = () => Math.max(MIN, Math.min(900, view.clientWidth*0.75));
-  const apply = w => { view.style.setProperty('--seg-w', Math.round(Math.min(maxW(), Math.max(MIN, w)))+'px'); };
-  const refresh = () => { try{ segMap.invalidateSize(); }catch(e){} };
+  const maxW = () => Math.max(MIN, Math.min(900, view0.clientWidth*0.7));
+  const apply = w => { view0.style.setProperty('--seg-w', Math.round(Math.min(maxW(), Math.max(MIN, w)))+'px'); };
+  const curW = () => parseInt(getComputedStyle(panel).width,10);
+  const refresh = () => { try{ map.invalidateSize(); }catch(e){} };
   try{ const saved = parseInt(localStorage.getItem(KEY),10); if(saved) apply(saved); }catch(e){}
-  const save = () => { try{ localStorage.setItem(KEY, String(parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10))); }catch(e){} };
+  const save = () => { try{ localStorage.setItem(KEY, String(curW())); }catch(e){} };
   let raf = 0;
   bar.addEventListener('pointerdown', e=>{
     e.preventDefault(); bar.setPointerCapture(e.pointerId);
@@ -1777,8 +1912,7 @@ function showTab(name){
   });
   bar.addEventListener('pointermove', e=>{
     if(!bar.classList.contains('drag')) return;
-    const left = view.getBoundingClientRect().left;
-    apply(e.clientX - left);
+    apply(view0.getBoundingClientRect().right - e.clientX);       // panel di kanan: lebar = tepi kanan - posisi kursor
     cancelAnimationFrame(raf); raf = requestAnimationFrame(refresh);
   });
   const end = e=>{
@@ -1788,16 +1922,15 @@ function showTab(name){
     save(); refresh();
   };
   bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
-  bar.addEventListener('dblclick', ()=>{ view.style.removeProperty('--seg-w'); try{ localStorage.removeItem(KEY); }catch(e){} refresh(); });
+  bar.addEventListener('dblclick', ()=>{ view0.style.removeProperty('--seg-w'); try{ localStorage.removeItem(KEY); }catch(e){} refresh(); });
   bar.addEventListener('keydown', e=>{
     if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
     e.preventDefault();
-    const cur = parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10);
-    apply(cur + (e.key==='ArrowRight'?40:-40)); save(); refresh();
+    apply(curW() + (e.key==='ArrowLeft'?40:-40)); save(); refresh();       // geser ke kiri = panel kanan melebar
   });
-  window.addEventListener('resize', ()=>{ const cur = parseInt(getComputedStyle(view.querySelector('.seg-left')).width,10); if(view.style.getPropertyValue('--seg-w')) apply(cur); refresh(); });
+  window.addEventListener('resize', ()=>{ if(view0.style.getPropertyValue('--seg-w')) apply(curW()); refresh(); });
 })();
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
+document.getElementById('export-btn').onclick = exportTableCSV;
 
 document.querySelectorAll('.bu-btn').forEach(btn=>{
   btn.onclick = ()=>{
@@ -1808,30 +1941,22 @@ document.querySelectorAll('.bu-btn').forEach(btn=>{
 });
 
 function rerenderAll(){
-  renderSummary();
+  buildServed();
+  if(view.facKey && !visibleFacilities().some(f=>f._fk===view.facKey)) view.facKey = null;   // fasilitas tidak ada di BU ini
   renderChoropleth();
+  renderSummary();
+  renderIslandLabels();
   renderFacilityMarkers();
-  renderTable();
-  renderF2F();
   if(currentSegKey && COVERAGE[currentBU][currentSegKey]){
+    renderFacPanel();
     renderSegmentRoute(COVERAGE[currentBU][currentSegKey]);
   } else {
-    currentSegKey = null;
-    document.getElementById('seg-route').style.display = 'none';
-    document.getElementById('seg-empty').style.display = 'block';
-    setSegLegend(null);
+    clearSegment({silent:true});
+    renderFacPanel();
   }
+  if(firstFit){ firstFit = false; map.invalidateSize({animate:false}); fitIndonesia(); }
+  else if(view.mode==='home') { /* posisi peta dibiarkan */ }
 }
-
-document.getElementById('table-search').addEventListener('input', debounce(renderTable, 150));
-document.getElementById('table-filter-tier').addEventListener('change', renderTable);
-document.querySelectorAll('thead th[data-k]').forEach(th=>{
-  th.onclick = ()=>{
-    const k = th.dataset.k;
-    if(tableSort.key===k) tableSort.dir*=-1; else { tableSort.key=k; tableSort.dir=1; }
-    renderTable();
-  };
-});
 
 // ============================================================
 // BOOTSTRAP
@@ -1897,6 +2022,7 @@ async function loadAll(){
       if(!resolveGeo(c.kabkota, c.tipe)) unmatchedKabkota.push(c.kabkota);
     }
 
+    buildIslandIndex();
     document.getElementById('last-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID');
     rerenderAll();
   }catch(err){
