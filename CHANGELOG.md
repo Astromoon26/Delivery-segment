@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-27 (sore)
+- **Legenda fasilitas DC lebih interaktif** (bullet list diganti kartu tipe NDC/RDC/SDC/HUB di panel Home dan chip tipe di panel tengah): **hover/fokus = marker tipe itu berdenyut di peta, sisanya diredupkan**; klik = tampil/sembunyi; **klik 2x = hanya tipe itu** (klik 2x lagi = semua); tombol **"Tampilkan semua"** muncul kalau ada tipe yang disembunyikan. Hover fasilitas di daftar panel tengah = marker-nya disorot di peta.
+- Smoke test: +9 tes (140 total).
+
 ## 2026-10-27
 - **Revisi tampilan besar: tab menu dihapus.** Tampilan utama (Home) = peta seluruh Indonesia + semua fasilitas DC + kab/kota berwarna per area; **7 area** (Sumatera, Jawa, Bali Nusra, Kalimantan, Sulawesi, Maluku, Papua) yang bisa diklik (di peta atau daftar).
 - Klik area → **3 panel**: kiri peta zoom ke pulau, tengah daftar fasilitas DC area itu (per tipe NDC/RDC/SDC/HUB, toggle tipe), kanan Delivery Segment. Klik fasilitas = zoom + highlight kab/kota yang dilayani + daftar kab/kota-nya; klik kab/kota = Delivery Segment. Pencarian kab/kota otomatis pindah area. Esc / "← Semua area" / "× Tutup" untuk mundur.
