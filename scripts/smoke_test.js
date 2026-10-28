@@ -74,6 +74,23 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('gviz memaksa 1 baris header (headers=1) agar baris awal bertanda "-" tidak ikut terbaca sebagai header', /[?&]headers=1\b/.test(await page.evaluate(() => gvizUrl('Cost Facility to Facility HCI'))), '');
   check('tidak ada HTTP >= 400', badHttp.length === 0, badHttp.slice(0, 3).join(' | '));
 
+  // --- format master baru (?src=new): default tetap tab lama; konversi master baru -> bentuk tab lama
+  check('sumber default = 18 tab lama (SRC_NEW false) & gvizUrl menerima ID gsheet lain', await page.evaluate(() => SRC_NEW === false && gvizUrl('X', 'IDBARU').includes('/d/IDBARU/gviz') && gvizUrl('X').includes('/d/' + GSHEET_ID + '/gviz')));
+  const conv = await page.evaluate(() => {
+    const T = { kab: [{ 'No': '1', 'Kabupaten/Kota': 'Kota A', 'Tipe': 'Kota', 'Provinsi': 'P', 'Pulau/Kepulauan': 'Jawa' }], fac: [{ BU: 'HCI', Tipe: 'NDC', 'Nama Fasilitas': 'N1', Long: '107', Lat: '-6' }],
+      cov: [{ BU: 'HCI', 'Kabupaten/Kota': 'Kota A', Tier: 'NDC', Fasilitas: 'N1', 'Feeder (via hub)': '', 'NDC Reguler': '', 'LT Darat (hari)': '2', 'LT Laut (hari)': '' }],
+      chain: [{ BU: 'HCI', HUB: 'H1', 'HUB Feeder': 'H0', SDC: '', RDC: '', NDC: 'N1' }], leg: [{ BU: 'HCI', Remark: 'NDC to Hub', Dari: 'N1', Ke: 'H1', 'LT Darat (hari)': '1', 'LT Laut (hari)': '' }],
+      tarif: [{ BU: 'HCI', Level: 'Leg', Dari: 'N1', Ke: 'H1', Armada: 'Fuso', Mode: 'Darat', 'Cost/Trip (Rp)': '1000000', 'Cost/CBM (Rp)': '', Catatan: '' }, { BU: 'HCI', Level: 'Project', Dari: 'N1', Ke: 'Kota A', Armada: 'Langsung', Mode: 'Darat', 'Cost/Trip (Rp)': '500', 'Cost/CBM (Rp)': '50', Catatan: '' }],
+      rute: [{ BU: 'HCI', 'Kabupaten/Kota': 'Kota A', Jenis: 'Project rute', No: '1', Rantai: 'N1' }], armada: [{ Armada: 'Fuso', 'Kapasitas (cbm)': '32', 'Utilisasi (%)': '85' }] };
+    const o = newToOld(T); return { ndc: parseCSV(o['NDC HCI'])[0], cost: o['Cost Facility to Facility HCI'].split('\n')[0], lt: parseLegSheet(o['Lead Time Facility to Facility HCI'])[0], f2f: parseF2FHci(o['Matriks Facility to Facility HCI'])[0], rute: o['Rute Numbered HCI'].split('\n')[1] };
+  });
+  check('newToOld: NDC <BU> memuat No/Tipe/Provinsi/Pulau dari Master Kab-Kota, Lead Time & kolom Langsung', conv.ndc['Kabupaten/Kota'] === 'Kota A' && conv.ndc['Tipe'] === 'Kota' && conv.ndc['Provinsi'] === 'P' && conv.ndc['NDC'] === 'N1' && conv.ndc['Lead Time Land'] === '2' && conv.ndc['Cost/Trip'] === '500' && conv.ndc['Cost/CBM'] === '50', JSON.stringify(conv.ndc));
+  check('newToOld: Cost F2F pakai kolom "<Armada> <Mode>", Lead Time & Matriks (hub feeder) & Rute terbaca parser lama', /"Fuso Darat"/.test(conv.cost) && conv.lt.a === 'N1' && conv.lt.land === '1' && conv.f2f.HUB_2 === 'H0' && /N1/.test(conv.rute), JSON.stringify(conv));
+  const pgNew = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage(); const dNew = [];
+  pgNew.on('dialog', d => { dNew.push(d.message()); d.dismiss(); });
+  await pgNew.goto(url + '?src=new'); await pgNew.waitForTimeout(2500); await pgNew.close();
+  check('?src=new tanpa ID gsheet baru -> pesan jelas, bukan crash diam-diam', dNew.some(m => /ID gsheet master baru/.test(m)), dNew.join(' | '));
+
   // --- basemap (CARTO sekarang minta API key -> watermark; jangan balik ke sana)
   check('basemap bukan CARTO (butuh API key)', !Object.keys(tileHosts).some(h => /cartocdn/.test(h)), JSON.stringify(tileHosts));
   check('tile basemap termuat', Object.values(tileHosts).reduce((a, b) => a + b, 0) > 0);

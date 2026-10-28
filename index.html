@@ -462,8 +462,8 @@ function normName(s, isGsheet){
   return s;
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function gvizUrl(sheetName){
-  return `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheetName)}`;
+function gvizUrl(sheetName, id){
+  return `https://docs.google.com/spreadsheets/d/${id||GSHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheetName)}`;
 }
 function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
@@ -471,10 +471,101 @@ function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout
 // DATA LOADING
 // ============================================================
 async function fetchSheet(name){
+  return parseCSV(await sheetText(name));
+}
+
+// ============================================================
+// FORMAT MASTER BARU (opsional, ?src=new[&id=<ID gsheet master baru>])
+// ============================================================
+// 8 tab ber-header unik (Master Kab-Kota, Master Fasilitas, Coverage, Rantai Hub, Leg, Tarif, Rute, Armada).
+// Dibaca lalu diubah ke bentuk 18 tab lama (newToOld), jadi semua parser/penghitung di bawah tetap yang sama persis.
+// Default (tanpa ?src=new) tetap membaca 18 tab lama. Tidak ada data yang di-hardcode di sini: semua dari gsheet.
+const SRC_NEW = /[?&]src=new\b/.test(location.search);
+const GSHEET_ID_NEW = (location.search.match(/[?&]id=([\w-]+)/)||[])[1] || '';   // isi ID gsheet master baru di sini kalau sudah final
+const NEW_TABS = {   // kunci -> [nama tab, teks header yang harus ada (gviz mengembalikan tab pertama kalau nama tab salah)]
+  kab:['Master Kab-Kota','Kabupaten/Kota'], fac:['Master Fasilitas','Nama Fasilitas'], cov:['Coverage','Fasilitas'],
+  chain:['Rantai Hub','HUB Feeder'], leg:['Leg','LT Darat'], tarif:['Tarif','Armada'], rute:['Rute','Jenis'], armada:['Armada','Kapasitas']
+};
+let NEW_OLD = {};   // nama tab lama -> teks CSV hasil konversi
+function csvOut(rows){ return rows.map(r=>r.map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n'); }
+async function loadNewTabs(){
+  if(!GSHEET_ID_NEW) throw new Error('ID gsheet master baru belum diisi (pakai ?src=new&id=<ID gsheet>)');
+  const out = {};
+  await Promise.all(Object.entries(NEW_TABS).map(async ([k,[name,hdr]])=>{
+    const res = await fetch(gvizUrl(name, GSHEET_ID_NEW)+'&_ts='+Date.now());
+    if(!res.ok) throw new Error('Gagal fetch tab master baru: '+name);
+    const text = await res.text();
+    if(!(text.split('\n')[0]||'').includes(hdr)) throw new Error('Tab "'+name+'" tidak ada / header tidak cocok di gsheet master baru');
+    out[k] = parseCSV(text);
+  }));
+  return out;
+}
+function newToOld(T){
+  const out = {};
+  const armOrder = T.armada.map(r=>r['Armada']);
+  const kabMap = {}; for(const r of T.kab) kabMap[r['Kabupaten/Kota']] = r;
+  const BUS = ['HCI','AHI'];
+  out['Name of Facility'] = csvOut([['Bussines Unit','Type','Name Site','Long','Lat'], ...T.fac.map(r=>[r['BU'],r['Tipe'],r['Nama Fasilitas'],r['Long'],r['Lat']])]);
+  out[ARMADA_SHEET] = csvOut([['Armada','Kapasitas (cbm)','Utilisasi (%)'], ...T.armada.map(r=>[r['Armada'],r['Kapasitas (cbm)'],r['Utilisasi (%)']])]);
+  // tarif -> indeks nilai + himpunan kolom armada (Armada x Mode) per level
+  const tv = {}, cbm = {}, legCols = new Set(), covCols = new Set();
+  for(const r of T.tarif){
+    const k = [r['BU'],r['Level'],r['Dari'],r['Ke'],r['Armada'],r['Mode']].join('|');
+    tv[k] = r['Cost/Trip (Rp)']; cbm[k] = r['Cost/CBM (Rp)'];
+    if(r['Armada']!=='Umum' && r['Armada']!=='Langsung') (r['Level']==='Leg' ? legCols : covCols).add(r['Armada']+'|'+r['Mode']);
+  }
+  const colList = set => [...set].map(s=>s.split('|')).sort((a,b)=>(armOrder.indexOf(a[0])-armOrder.indexOf(b[0])) || (a[1]==='Darat'?0:1)-(b[1]==='Darat'?0:1));
+  const legC = colList(legCols), covC = colList(covCols);
+  const get = (bu,lvl,from,to,arm,mode) => tv[[bu,lvl,from,to,arm,mode].join('|')] || '';
+  // coverage -> Hub/SDC/RDC/NDC <BU>
+  for(const bu of BUS) for(const tier of ['HUB','SDC','RDC','NDC']){
+    const isN = tier==='NDC', lvl = isN ? 'Project' : 'Last mile';
+    const hdr = ['No','Kabupaten/Kota','Tipe','Provinsi','Pulau/Kepulauan', tier,
+      ...(isN ? ['Lead Time Land','Lead Time Sea','Cost Land','Cost Sea','NDC Reguler'] : ['Lead Time land','Cost']),
+      ...covC.map(c=>c[0]+' '+c[1]), 'Cost/Trip','Cost/CBM'];
+    const rows = T.cov.filter(r=>r['BU']===bu && r['Tier']===tier).map(r=>{
+      const kab = r['Kabupaten/Kota'], f = r['Fasilitas'], m = kabMap[kab] || {};
+      const base = [m['No']||'', kab, m['Tipe']||'', m['Provinsi']||'', m['Pulau/Kepulauan']||'', f];
+      const lt = isN ? [r['LT Darat (hari)'], r['LT Laut (hari)'], get(bu,lvl,f,kab,'Umum','Darat'), get(bu,lvl,f,kab,'Umum','Laut'), r['NDC Reguler']]
+                     : [r['LT Darat (hari)'], get(bu,lvl,f,kab,'Umum','Darat')];
+      const k = [bu,lvl,f,kab,'Langsung','Darat'].join('|');
+      return [...base, ...lt, ...covC.map(c=>get(bu,lvl,f,kab,c[0],c[1])), tv[k]||'', cbm[k]||''];
+    });
+    out[(tier==='HUB'?'Hub':tier)+' '+bu] = csvOut([hdr, ...rows]);
+  }
+  // rantai -> Matriks Facility to Facility <BU>
+  out[SHEETS.F2F_HCI] = csvOut([['HUB','HUB','SDC','RDC','NDC'], ...T.chain.filter(r=>r['BU']==='HCI').map(r=>[r['HUB'],r['HUB Feeder'],r['SDC'],r['RDC'],r['NDC']])]);
+  out[SHEETS.F2F_AHI] = csvOut([['HUB','SDC','RDC','NDC'], ...T.chain.filter(r=>r['BU']==='AHI').map(r=>[r['HUB'],r['SDC'],r['RDC'],r['NDC']])]);
+  // leg -> Lead Time + Cost Facility to Facility <BU>
+  for(const bu of BUS){
+    const legs = T.leg.filter(r=>r['BU']===bu);
+    out[LT_SHEETS[bu]] = csvOut([['Remark','Facility','Facility','Lead Time Land','Lead Time Sea'],
+      ...legs.filter(r=>r['LT Darat (hari)']||r['LT Laut (hari)']).map(r=>[r['Remark'],r['Dari'],r['Ke'],r['LT Darat (hari)'],r['LT Laut (hari)']])]);
+    out[COST_SHEETS[bu]] = csvOut([['Remark','Facility','Facility','Cost Land','Cost Sea', ...legC.map(c=>c[0]+' '+c[1])],
+      ...legs.map(r=>[r['Remark'],r['Dari'],r['Ke'],get(bu,'Leg',r['Dari'],r['Ke'],'Umum','Darat'),get(bu,'Leg',r['Dari'],r['Ke'],'Umum','Laut'),
+        ...legC.map(c=>get(bu,'Leg',r['Dari'],r['Ke'],c[0],c[1]))])]);
+  }
+  // rute -> Rute Numbered <BU>
+  const maxN = {'Rute':1,'Opsional rute':1,'Project rute':1};
+  for(const r of T.rute){ const n = parseInt(r['No'],10)||1; if(n>maxN[r['Jenis']]) maxN[r['Jenis']] = n; }
+  const rHdr = ['Kabupaten/Kota','Provinsi'];
+  for(const j of ['Rute','Opsional rute','Project rute']) for(let n=1;n<=maxN[j];n++) rHdr.push(j+' '+n);
+  for(const bu of BUS){
+    const by = new Map();
+    for(const r of T.rute.filter(x=>x['BU']===bu)){
+      if(!by.has(r['Kabupaten/Kota'])) by.set(r['Kabupaten/Kota'], {});
+      by.get(r['Kabupaten/Kota'])[r['Jenis']+' '+(parseInt(r['No'],10)||1)] = r['Rantai'];
+    }
+    out[ROUTE_SHEETS[bu]] = csvOut([rHdr, ...[...by].map(([kab,c])=>[kab,(kabMap[kab]||{})['Provinsi']||'', ...rHdr.slice(2).map(h=>c[h]||'')])]);
+  }
+  return out;
+}
+// teks CSV satu tab (format lama): dari gviz gsheet lama, atau hasil konversi master baru
+async function sheetText(name){
+  if(SRC_NEW) return NEW_OLD[name] || '';
   const res = await fetch(gvizUrl(name)+'&_ts='+Date.now());
   if(!res.ok) throw new Error('Gagal fetch sheet: '+name);
-  const text = await res.text();
-  return parseCSV(text);
+  return res.text();
 }
 
 async function loadGoogleSheetData(){
@@ -2014,6 +2105,7 @@ async function loadAll(){
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spin'); btn.disabled = true;
   try{
+    if(SRC_NEW) NEW_OLD = newToOld(await loadNewTabs());
     const [sheetData, geo] = await Promise.all([ loadGoogleSheetData(), MERGED_GEO ? Promise.resolve(MERGED_GEO) : loadGeoBoundaries() ]);
     MERGED_GEO = geo;
     buildGeoIndex(MERGED_GEO);
@@ -2032,7 +2124,7 @@ async function loadAll(){
     buildCoverage('AHI','NDC', sheetData.NDC_AHI);
 
     // re-fetch F2F HCI raw text positionally (duplicate "HUB" header issue)
-    const f2fHciText = await (await fetch(gvizUrl(SHEETS.F2F_HCI)+'&_ts='+Date.now())).text();
+    const f2fHciText = await sheetText(SHEETS.F2F_HCI);
     const f2fHciRows = parseF2FHci(f2fHciText);
     F2F.HCI = f2fHciRows.map(r=>({hub:r.HUB, hub2:r.HUB_2, sdc:r.SDC, rdc:r.RDC, ndc:r.NDC}));
     F2F.AHI = sheetData.F2F_AHI.filter(r=>r.HUB).map(r=>({hub:r.HUB, hub2:'', sdc:r.SDC, rdc:r.RDC, ndc:r.NDC}));
@@ -2043,23 +2135,22 @@ async function loadAll(){
 
     // lead time (facility-to-facility legs) — also has a duplicate "Facility" header, positional parse
     const [ltAhiText, ltHciText] = await Promise.all([
-      fetch(gvizUrl(LT_SHEETS.AHI)+'&_ts='+Date.now()).then(r=>r.text()),
-      fetch(gvizUrl(LT_SHEETS.HCI)+'&_ts='+Date.now()).then(r=>r.text())
+      sheetText(LT_SHEETS.AHI), sheetText(LT_SHEETS.HCI)
     ]);
     buildLeadTime('AHI', parseLegSheet(ltAhiText));
     buildLeadTime('HCI', parseLegSheet(ltHciText));
 
     // cost per leg (optional tab: a failed fetch must not break the dashboard)
-    const fetchCostText = async bu => { try{ return await (await fetch(gvizUrl(COST_SHEETS[bu])+'&_ts='+Date.now())).text(); }catch(e){ return ''; } };
+    const fetchCostText = async bu => { try{ return await sheetText(COST_SHEETS[bu]); }catch(e){ return ''; } };
     const [costAhi, costHci] = await Promise.all([fetchCostText("AHI"), fetchCostText("HCI")]);
     buildCostLeg('AHI', costAhi);
     buildCostLeg('HCI', costHci);
 
     // armada (kapasitas cbm + utilisasi): tab opsional untuk cost per armada
-    try{ buildArmada(await (await fetch(gvizUrl(ARMADA_SHEET)+'&_ts='+Date.now())).text()); }catch(e){ ARMADA = []; }
+    try{ buildArmada(await sheetText(ARMADA_SHEET)); }catch(e){ ARMADA = []; }
 
     // rute numbered (Rute 2, 3, ...): tab opsional, gagal fetch / tab belum ada tidak boleh merusak dashboard
-    const fetchRouteText = async bu => { try{ return await (await fetch(gvizUrl(ROUTE_SHEETS[bu])+'&_ts='+Date.now())).text(); }catch(e){ return ''; } };
+    const fetchRouteText = async bu => { try{ return await sheetText(ROUTE_SHEETS[bu]); }catch(e){ return ''; } };
     const [routeAhi, routeHci] = await Promise.all([fetchRouteText('AHI'), fetchRouteText('HCI')]);
     buildRouteAlt('AHI', routeAhi);
     buildRouteAlt('HCI', routeHci);

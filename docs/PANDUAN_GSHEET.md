@@ -77,3 +77,17 @@ Untuk bug: sebut BU (HCI/AHI), tab dashboard, kab/kota, dan apa yang kelihatan v
 6. **Project rute (tab `NDC HCI|AHI`)**: sama persis dengan Hub/SDC/RDC. Di kanan kolom yang sudah ada (`NDC Reguler` dst., jangan digeser) tambah kolom armada (`CDDL Darat`, `Fuso Darat`, `Cont-20 Laut`, …) + `Cost/Trip` dan `Cost/CBM`. Isinya = cost dari NDC langsung ke Cust / Sto kab/kota di baris itu. Di dashboard muncul sebagai segmen **"NDC → Cust / Sto" (project NDC)** di tabel Project rute pada Cost per armada, bisa dipilih seperti segmen lain; kolom dengan nama armada yang sama digabung dengan kolom lain. Template header: `docs/templates/NDC_cost_header.csv`. Kolom `Cost Land` / `Cost Sea` lama tidak dipakai di bagian ini.
 7. **Transit di NDC lain** (tab `Rute Numbered`): nama di tengah rantai boleh NDC, mis. `Jakarta - Sidoarjo - Bali` = barang dari NDC Jakarta transit di NDC Sidoarjo lalu ke hub tujuan. LT/cost leg `Jakarta → Sidoarjo` dibaca dari tab Lead Time / Cost Facility to Facility (leg NDC to NDC), dan legend peta menulis "· transit NDC Sidoarjo" di rute itu.
 8. **Project rute 2, 3, … dari NDC lain (direct)**: kalau di tab `Rute Numbered` kolom `Project rute 2` cuma berisi nama NDC (mis. `Sidoarjo`) sedangkan NDC utama di tab NDC adalah `Jakarta`, isi datanya dengan **menambah baris kedua di tab `NDC HCI|AHI` untuk kab/kota yang sama** (kolom `Kabupaten/Kota` dst. disalin, kolom `NDC` = `Sidoarjo`), lalu isi `Lead Time Land` / `Lead Time Sea` dan kolom armada / `Cost/Trip` / `Cost/CBM` di baris itu. **Baris pertama** kab/kota = NDC utama (Project rute 1, tabel Coverage, peta); baris dengan NDC lain hanya dipakai untuk Project rute direct dari NDC itu. Kolom `NDC Reguler` cukup diisi di baris pertama. Kalau Project rute-nya rantai (`Sidoarjo - Pontianak - Singkawang`), tidak perlu baris kedua: datanya dari tab Lead Time / Cost Facility to Facility + last mile Hub/SDC/RDC.
+
+## Format master baru (8 tab) — tahap paralel
+Dibaca dashboard hanya lewat `?src=new&id=<ID gsheet master baru>`; tab lama tetap sumber default.
+| Tab | Kolom |
+|---|---|
+| Master Kab-Kota | No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan (ditulis sekali di sini) |
+| Master Fasilitas | BU, Tipe, Nama Fasilitas, Long, Lat |
+| Coverage | BU, Kabupaten/Kota, Tier, Fasilitas, Feeder (via hub), NDC Reguler, LT Darat (hari), LT Laut (hari) |
+| Rantai Hub | BU, HUB, HUB Feeder, SDC, RDC, NDC (HUB boleh kosong) |
+| Leg | BU, Remark, Dari, Ke, LT Darat (hari), LT Laut (hari) |
+| Tarif | BU, Level (Leg / Last mile / Project), Dari, Ke, Armada, Mode (Darat/Laut), Cost/Trip (Rp), Cost/CBM (Rp) [formula], Catatan |
+| Rute | BU, Kabupaten/Kota, Jenis (Rute / Opsional rute / Project rute), No, Rantai |
+| Armada | Armada, Kapasitas (cbm), Utilisasi (%) |
+Aturan: nama kab/kota & fasilitas di semua tab harus persis sama dengan Master (nama beda ejaan = dianggap kab/kota lain). Armada `Umum` = kolom Cost lama tanpa armada; `Langsung` = Cost/Trip & Cost/CBM isi manual. Cek kesamaan dengan tab lama: `node scripts/compare_sources.js --old <folder CSV lama> --new <folder CSV baru>`.
