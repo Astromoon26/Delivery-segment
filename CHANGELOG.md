@@ -2,6 +2,11 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-28
+- Scorecard **"Sampai HUB"** dan **"Baru NDC"** dihapus dari panel Home (ringkasan tinggal Total Kab/Kota & Total Fasilitas), atas permintaan Apip.
+- Tombol **zoom in/out peta dipindah ke kanan atas** peta (sebelumnya kiri atas, bentrok dengan panel Home).
+- Smoke test: +3 tes (143 total).
+
 ## 2026-10-27 (sore)
 - **Legenda fasilitas DC lebih interaktif** (bullet list diganti kartu tipe NDC/RDC/SDC/HUB di panel Home dan chip tipe di panel tengah): **hover/fokus = marker tipe itu berdenyut di peta, sisanya diredupkan**; klik = tampil/sembunyi; **klik 2x = hanya tipe itu** (klik 2x lagi = semua); tombol **"Tampilkan semua"** muncul kalau ada tipe yang disembunyikan. Hover fasilitas di daftar panel tengah = marker-nya disorot di peta.
 - Smoke test: +9 tes (140 total).

@@ -111,6 +111,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.click('#leg-all'); await page.waitForTimeout(400);
   check('legenda: "Tampilkan semua" mengembalikan semua tipe', await page.evaluate(() => visibleTypes.size === 4 && !document.getElementById('leg-all')) && (await nMk()) === mk0);
 
+  check('scorecard "Sampai HUB" & "Baru NDC" sudah dihapus (sisa Total Kab/Kota & Total Fasilitas)', await page.$$eval('#summary-grid .sum-card .lbl', e => e.map(x => x.textContent.trim()).join('|')) === 'TOTAL KAB/KOTA|TOTAL FASILITAS');
+  check('zoom in/out peta ada di kanan atas peta (Home & area)', await page.evaluate(() => { const z = document.querySelector('.leaflet-control-zoom').getBoundingClientRect(), m = document.getElementById('map').getBoundingClientRect(); return z.right > m.right - 60 && z.top < m.top + 40 && z.left > m.left + m.width / 2; }));
   // --- Export Coverage (tombol di header, menggantikan tab Tabel Coverage)
   const exp = await exportCsv(page);
   const expLines = exp.text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
@@ -125,6 +127,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     return { view: document.body.dataset.view, mapW: Math.round(m.width), facW: Math.round(f.width), segW: Math.round(g.width), order: m.right <= f.left + 2 && f.right <= g.left + 2, title: document.getElementById('fac-title').textContent, items: document.querySelectorAll('.fac-item').length, back: getComputedStyle(document.getElementById('back-home')).display !== 'none', homeHidden: getComputedStyle(document.getElementById('home-panel')).display === 'none' }; });
   check('Area Sumatera: 3 panel berurutan kiri peta, tengah fasilitas, kanan delivery segment', three.view === 'island' && three.order && three.mapW >= 300 && three.facW >= 230 && three.segW >= 340 && three.title === 'Sumatera' && three.items > 0 && three.back && three.homeHidden, JSON.stringify(three));
   check('Area Sumatera: peta zoom ke pulau (fasilitas area lain tidak tampil)', await page.evaluate(() => { const b = map.getBounds(); return visibleFacilities('Sumatera').every(f => b.contains([f.lat, f.lon])) && map.getZoom() >= 5; }));
+  check('area: zoom in/out tetap di kanan atas peta (kiri panel tengah), tidak tertutup panel', await page.evaluate(() => { const z = document.querySelector('.leaflet-control-zoom').getBoundingClientRect(), m = document.getElementById('map').getBoundingClientRect(); return z.right > m.right - 60 && z.right <= m.right && z.top < m.top + 40; }));
   await page.screenshot({ path: path.join(OUT, '2_area_sumatera.png') });
   await page.hover('.fac-item[data-fk="RDC|tamora"]'); await page.waitForTimeout(250);
   check('hover fasilitas di daftar tengah = marker fasilitas itu disorot di peta', await page.evaluate(() => { let pulse = 0; facilityLayer.eachLayer(m => { if (m._f && m._f._fk === 'RDC|tamora' && m.options.opacity === 1) pulse++; }); return pulse === 1 && document.querySelectorAll('.fac-dot.pulse').length === 1; }));
