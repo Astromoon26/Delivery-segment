@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Bandingkan hasil dashboard: 18 tab lama (default) vs master baru (?src=new).
+ * Bandingkan hasil dashboard: 18 tab lama (?src=old) vs master baru (default).
  *
  *   PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/compare_sources.js --old <folder CSV tab lama> --new <folder CSV master baru> [--sample N]
  *
@@ -78,8 +78,8 @@ const diff = (a, b, p = '', out = []) => {
     await pg.close();
     return { data, segs, errs };
   };
-  const a = await run('');
-  const b = await run(`?src=new&id=${NEW_ID}`);
+  const a = await run('?src=old');
+  const b = await run(`?id=${NEW_ID}`);
   const da = norm(dropEmptyLegs(a.data)), db = norm(dropEmptyLegs(b.data));
   let bad = 0;
   for (const k of Object.keys(da)) {

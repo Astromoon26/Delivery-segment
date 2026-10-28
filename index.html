@@ -475,13 +475,13 @@ async function fetchSheet(name){
 }
 
 // ============================================================
-// FORMAT MASTER BARU (opsional, ?src=new[&id=<ID gsheet master baru>])
+// FORMAT MASTER BARU (default; cadangan ?src=old = 18 tab lama; ?id=<ID> menimpa ID master)
 // ============================================================
 // 8 tab ber-header unik (Master Kab-Kota, Master Fasilitas, Coverage, Rantai Hub, Leg, Tarif, Rute, Armada).
 // Dibaca lalu diubah ke bentuk 18 tab lama (newToOld), jadi semua parser/penghitung di bawah tetap yang sama persis.
-// Default (tanpa ?src=new) tetap membaca 18 tab lama. Tidak ada data yang di-hardcode di sini: semua dari gsheet.
-const SRC_NEW = /[?&]src=new\b/.test(location.search);
-const GSHEET_ID_NEW = (location.search.match(/[?&]id=([\w-]+)/)||[])[1] || '';   // isi ID gsheet master baru di sini kalau sudah final
+// Default (sejak 2026-10-28) = master baru. Cadangan: ?src=old membaca 18 tab lama (GSHEET_ID). Tidak ada data yang di-hardcode di sini: semua dari gsheet.
+const SRC_NEW = !/[?&]src=old\b/.test(location.search);
+const GSHEET_ID_NEW = (location.search.match(/[?&]id=([\w-]+)/)||[])[1] || '13Kr-zyhnwBruBEmHwhi3dTh5bXEpJgBiwY5hpFtjybk';   // ID gsheet master baru (bisa ditimpa lewat ?id=)
 const NEW_TABS = {   // kunci -> [nama tab, teks header yang harus ada (gviz mengembalikan tab pertama kalau nama tab salah)]
   kab:['Master Kab-Kota','Kabupaten/Kota'], fac:['Master Fasilitas','Nama Fasilitas'], cov:['Coverage','Fasilitas'],
   chain:['Rantai Hub','HUB Feeder'], leg:['Leg','LT Darat'], tarif:['Tarif','Armada'], rute:['Rute','Jenis'], armada:['Armada','Kapasitas']
@@ -489,7 +489,7 @@ const NEW_TABS = {   // kunci -> [nama tab, teks header yang harus ada (gviz men
 let NEW_OLD = {};   // nama tab lama -> teks CSV hasil konversi
 function csvOut(rows){ return rows.map(r=>r.map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n'); }
 async function loadNewTabs(){
-  if(!GSHEET_ID_NEW) throw new Error('ID gsheet master baru belum diisi (pakai ?src=new&id=<ID gsheet>)');
+  if(!GSHEET_ID_NEW) throw new Error('ID gsheet master baru belum diisi (pakai ?id=<ID gsheet>)');
   const out = {};
   await Promise.all(Object.entries(NEW_TABS).map(async ([k,[name,hdr]])=>{
     const res = await fetch(gvizUrl(name, GSHEET_ID_NEW)+'&_ts='+Date.now());
