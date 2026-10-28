@@ -2,6 +2,13 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-28 (migrasi master data)
+- **Reader format master baru** (opsional): `?src=new&id=<ID gsheet master baru>` membaca 8 tab (`Master Kab-Kota`, `Master Fasilitas`, `Coverage`, `Rantai Hub`, `Leg`, `Tarif`, `Rute`, `Armada`) lalu mengubahnya ke bentuk 18 tab lama (`newToOld`), jadi semua logika tampilan/rute/cost tetap sama. **Default tetap 18 tab lama** (tab lama hidup paralel sampai hasilnya terbukti sama). Tidak ada data yang di-hardcode.
+- Refactor kecil: semua fetch tab lewat `sheetText(nama)`; `gvizUrl(nama, id?)` menerima ID gsheet lain.
+- `scripts/compare_sources.js`: bandingkan lama vs baru (struktur data + teks panel Delivery Segment untuk semua kab/kota, kedua BU). Hasil dengan snapshot 28 Okt: **semua identik (1.028 panel)**.
+- `scripts/migrate_master_data.py`: isi file master baru (.xlsx) dari CSV 18 tab lama.
+- Smoke test: +4 tes (147 total).
+
 ## 2026-10-28
 - Scorecard **"Sampai HUB"** dan **"Baru NDC"** dihapus dari panel Home (ringkasan tinggal Total Kab/Kota & Total Fasilitas), atas permintaan Apip.
 - Tombol **zoom in/out peta dipindah ke kanan atas** peta (sebelumnya kiri atas, bentrok dengan panel Home).
