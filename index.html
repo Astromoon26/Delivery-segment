@@ -1205,8 +1205,6 @@ function toggleType(t){
 }
 function renderSummary(){
   const cov = Object.values(COVERAGE[currentBU]);
-  const counts = {HUB:0,SDC:0,RDC:0,NDC:0};
-  cov.forEach(c=>counts[deepestTier(c)]++);
   const fac = visibleFacilities();
   const facCounts = {NDC:0,RDC:0,SDC:0,HUB:0};
   fac.forEach(f=>facCounts[f.type]!==undefined && facCounts[f.type]++);
@@ -1214,8 +1212,6 @@ function renderSummary(){
   document.getElementById('summary-grid').innerHTML = `
     <div class="sum-card"><div class="lbl">TOTAL KAB/KOTA</div><div class="val">${cov.length}</div></div>
     <div class="sum-card"><div class="lbl">TOTAL FASILITAS</div><div class="val">${fac.length}</div></div>
-    <div class="sum-card"><div class="lbl">SAMPAI HUB</div><div class="val" style="color:${TYPE_COLOR.HUB}">${counts.HUB}</div></div>
-    <div class="sum-card"><div class="lbl">BARU NDC</div><div class="val" style="color:${TYPE_COLOR.NDC}">${counts.NDC}</div></div>
   `;
 
   // daftar area: jumlah kab/kota (sheet) + fasilitas per tipe (lokasi fasilitas)

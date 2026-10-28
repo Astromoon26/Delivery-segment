@@ -111,6 +111,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await page.click('#leg-all'); await page.waitForTimeout(400);
   check('legenda: "Tampilkan semua" mengembalikan semua tipe', await page.evaluate(() => visibleTypes.size === 4 && !document.getElementById('leg-all')) && (await nMk()) === mk0);
 
+  check('scorecard "Sampai HUB" & "Baru NDC" sudah dihapus (sisa Total Kab/Kota & Total Fasilitas)', await page.$$eval('#summary-grid .sum-card .lbl', e => e.map(x => x.textContent.trim()).join('|')) === 'TOTAL KAB/KOTA|TOTAL FASILITAS');
   // --- Export Coverage (tombol di header, menggantikan tab Tabel Coverage)
   const exp = await exportCsv(page);
   const expLines = exp.text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
