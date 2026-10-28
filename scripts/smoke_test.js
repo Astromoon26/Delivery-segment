@@ -51,6 +51,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     await new Promise(r => setTimeout(r, 1000));
     url = `http://localhost:${port}/index.html`;
   }
+  const LEG = url + (url.includes('?') ? '&' : '?') + 'src=old';   // test lama men-stub tab gsheet lama -> pakai mode ?src=old; mode default (master baru) dites terpisah
   const browser = await chromium.launch({ args: ['--ignore-certificate-errors'] });
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true })).newPage();
   const pageErrors = [], dialogs = [], tileHosts = {}, badHttp = [];
@@ -66,7 +67,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const emptyRouteTabs = async pg => { for (const bu of ['HCI', 'AHI']) await pg.route(new RegExp('sheet=Rute%20Numbered%20' + bu), r => r.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' })); };
   await emptyRouteTabs(page);
   await injectDumai(page);
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await page.waitForTimeout(3500);
 
   // --- load & errors
@@ -74,8 +75,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('gviz memaksa 1 baris header (headers=1) agar baris awal bertanda "-" tidak ikut terbaca sebagai header', /[?&]headers=1\b/.test(await page.evaluate(() => gvizUrl('Cost Facility to Facility HCI'))), '');
   check('tidak ada HTTP >= 400', badHttp.length === 0, badHttp.slice(0, 3).join(' | '));
 
-  // --- format master baru (?src=new): default tetap tab lama; konversi master baru -> bentuk tab lama
-  check('sumber default = 18 tab lama (SRC_NEW false) & gvizUrl menerima ID gsheet lain', await page.evaluate(() => SRC_NEW === false && gvizUrl('X', 'IDBARU').includes('/d/IDBARU/gviz') && gvizUrl('X').includes('/d/' + GSHEET_ID + '/gviz')));
+  // --- format master baru: default = master baru; ?src=old = 18 tab lama (halaman ini); konversi master baru -> bentuk tab lama
+  check('halaman ini mode ?src=old (SRC_NEW false) & gvizUrl menerima ID gsheet lain', await page.evaluate(() => SRC_NEW === false && gvizUrl('X', 'IDBARU').includes('/d/IDBARU/gviz') && gvizUrl('X').includes('/d/' + GSHEET_ID + '/gviz')));
   const conv = await page.evaluate(() => {
     const T = { kab: [{ 'No': '1', 'Kabupaten/Kota': 'Kota A', 'Tipe': 'Kota', 'Provinsi': 'P', 'Pulau/Kepulauan': 'Jawa' }], fac: [{ BU: 'HCI', Tipe: 'NDC', 'Nama Fasilitas': 'N1', Long: '107', Lat: '-6' }],
       cov: [{ BU: 'HCI', 'Kabupaten/Kota': 'Kota A', Tier: 'NDC', Fasilitas: 'N1', 'Feeder (via hub)': '', 'NDC Reguler': '', 'LT Darat (hari)': '2', 'LT Laut (hari)': '' }],
@@ -86,10 +87,11 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   });
   check('newToOld: NDC <BU> memuat No/Tipe/Provinsi/Pulau dari Master Kab-Kota, Lead Time & kolom Langsung', conv.ndc['Kabupaten/Kota'] === 'Kota A' && conv.ndc['Tipe'] === 'Kota' && conv.ndc['Provinsi'] === 'P' && conv.ndc['NDC'] === 'N1' && conv.ndc['Lead Time Land'] === '2' && conv.ndc['Cost/Trip'] === '500' && conv.ndc['Cost/CBM'] === '50', JSON.stringify(conv.ndc));
   check('newToOld: Cost F2F pakai kolom "<Armada> <Mode>", Lead Time & Matriks (hub feeder) & Rute terbaca parser lama', /"Fuso Darat"/.test(conv.cost) && conv.lt.a === 'N1' && conv.lt.land === '1' && conv.f2f.HUB_2 === 'H0' && /N1/.test(conv.rute), JSON.stringify(conv));
-  const pgNew = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage(); const dNew = [];
-  pgNew.on('dialog', d => { dNew.push(d.message()); d.dismiss(); });
-  await pgNew.goto(url + '?src=new'); await pgNew.waitForTimeout(2500); await pgNew.close();
-  check('?src=new tanpa ID gsheet baru -> pesan jelas, bukan crash diam-diam', dNew.some(m => /ID gsheet master baru/.test(m)), dNew.join(' | '));
+  const pgNew = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage(); const dNew = [], eNew = [];
+  pgNew.on('dialog', d => { dNew.push(d.message()); d.dismiss(); }); pgNew.on('pageerror', e => eNew.push(e.message));
+  await pgNew.goto(url, { waitUntil: 'networkidle', timeout: 90000 }); await pgNew.waitForTimeout(3500);
+  const defInfo = await pgNew.evaluate(() => ({ nw: SRC_NEW, id: GSHEET_ID_NEW, kab: Object.keys(COVERAGE.HCI).length, fac: FACILITIES.length, arm: ARMADA.length })); await pgNew.close();
+  check('tanpa parameter = master baru (live): 500+ kab/kota, fasilitas & armada terbaca, tanpa error/alert', defInfo.nw === true && defInfo.id.length > 20 && defInfo.kab > 500 && defInfo.fac > 50 && defInfo.arm > 0 && !dNew.length && !eNew.length, JSON.stringify(defInfo) + dNew.join('|') + eNew.join('|'));
 
   // --- basemap (CARTO sekarang minta API key -> watermark; jangan balik ke sana)
   check('basemap bukan CARTO (butuh API key)', !Object.keys(tileHosts).some(h => /cartocdn/.test(h)), JSON.stringify(tileHosts));
@@ -285,7 +287,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     await route.fulfill({ response: res, body: out.join('\n') });
   });
   await emptyRouteTabs(p2);
-  await p2.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p2.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p2.waitForTimeout(3500);
   await p2.click('.island-chip[data-island=\"Sumatera\"]');
   await p2.fill('#seg-search-input', 'Kota Palu'); await p2.waitForTimeout(400);
@@ -316,7 +318,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // tab AHI belum ada -> gviz mengembalikan sheet pertama (Name of Facility): harus diabaikan, bukan dianggap rute
   await p3.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Bussines Unit","Type","Name Site","Long","Lat"\n"HCI & AHI","NDC","Jakarta","-6.3","107.1"\n' }));
-  await p3.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p3.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p3.waitForTimeout(3500);
   check('rute numbered: tab dari sheet pertama (header tidak cocok) diabaikan', await p3.evaluate(() => Object.keys(ROUTE_ALT.AHI).length === 0 && Object.keys(ROUTE_ALT.HCI).length === 4), await p3.evaluate(() => JSON.stringify(Object.keys(ROUTE_ALT.HCI))));
   await p3.click('.island-chip[data-island=\"Sumatera\"]');
@@ -367,7 +369,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     '"Kota Padang","Sumatera Barat","","","","Sidoarjo",""\n' +
     '"Kota Palu","Sulawesi Tengah","Sidoarjo - Tallo - Palu","","","",""\n' }));
   await p4.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
-  await p4.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p4.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p4.waitForTimeout(3500);
   await p4.click('.island-chip[data-island=\"Sumatera\"]');
   const open4 = async q => { await p4.fill('#seg-search-input', q); await p4.waitForTimeout(400); await p4.click('#seg-ac-list .autocomplete-item'); await p4.waitForTimeout(1200); };
@@ -408,7 +410,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p5.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
   // tab Armada di gsheet asli sudah ada -> simulasikan 'tidak ada' (gviz mengembalikan sheet pertama)
   await p5.route(/sheet=Armada/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Name of Facility","Type"\n"Jakarta","NDC"\n' }));
-  await p5.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p5.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p5.waitForFunction(() => document.getElementById('last-updated').textContent.includes('Update'), { timeout: 60000 });
   await p5.click('.island-chip[data-island=\"Sumatera\"]');
   await p5.fill('#seg-search-input', 'Kota Banda Aceh'); await p5.waitForTimeout(400);
@@ -463,7 +465,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     '"Remark","Facility","Facility","Cost Land","Cost Sea","CDDL","Fuso","Cont-20 Laut","Kolom Bebas"\n' +
     '"","Jakarta","Tamora","","","10.000.000","20.000.000","8.000.000","x"\n' +
     '"","Tamora","Pekanbaru","","","2.000.000","","3.000.000","x"\n' }));
-  await p6.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p6.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p6.waitForTimeout(3500);
   await p6.click('.island-chip[data-island=\"Sumatera\"]');
   await p6.fill('#seg-search-input', 'Kota Dumai'); await p6.waitForTimeout(400);
@@ -548,7 +550,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     '"No","Kabupaten/Kota","Tipe","Provinsi","Pulau/Kepulauan","NDC","Lead Time Land","Lead Time Sea","Cost Land","Cost Sea","NDC Reguler","CDDL","Cost/Trip","Cost/CBM"\n' +
     '"1","Kota Dumai","Kota","Riau","Sumatra","Jakarta","6","","","","","4.000.000","3.000.000","150.000"\n' +
     '"2","Kota Dumai","Kota","Riau","Sumatra","Sidoarjo","4","9","","","","3.000.000","2.500.000","100.000"\n' }));
-  await p7.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p7.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p7.waitForTimeout(3500);
   await p7.click('.island-chip[data-island=\"Sumatera\"]');
   await p7.fill('#seg-search-input', 'Kota Dumai'); await p7.waitForTimeout(400);
@@ -583,7 +585,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p8.route(/sheet=Rute%20Numbered%20HCI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body:
     '"Kabupaten/Kota","Provinsi","Rute 2"\n"Kota Dumai","Riau","Jakarta - Sidoarjo - Pekanbaru - Dumai"\n' }));
   await p8.route(/sheet=Rute%20Numbered%20AHI/, route => route.fulfill({ status: 200, contentType: 'text/csv', body: '"Kabupaten/Kota","Provinsi"\n' }));
-  await p8.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  await p8.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 });
   await p8.waitForTimeout(3500);
   await p8.click('.island-chip[data-island=\"Sumatera\"]');
   await p8.fill('#seg-search-input', 'Kota Dumai'); await p8.waitForTimeout(400);

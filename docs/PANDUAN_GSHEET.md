@@ -78,8 +78,8 @@ Untuk bug: sebut BU (HCI/AHI), tab dashboard, kab/kota, dan apa yang kelihatan v
 7. **Transit di NDC lain** (tab `Rute Numbered`): nama di tengah rantai boleh NDC, mis. `Jakarta - Sidoarjo - Bali` = barang dari NDC Jakarta transit di NDC Sidoarjo lalu ke hub tujuan. LT/cost leg `Jakarta → Sidoarjo` dibaca dari tab Lead Time / Cost Facility to Facility (leg NDC to NDC), dan legend peta menulis "· transit NDC Sidoarjo" di rute itu.
 8. **Project rute 2, 3, … dari NDC lain (direct)**: kalau di tab `Rute Numbered` kolom `Project rute 2` cuma berisi nama NDC (mis. `Sidoarjo`) sedangkan NDC utama di tab NDC adalah `Jakarta`, isi datanya dengan **menambah baris kedua di tab `NDC HCI|AHI` untuk kab/kota yang sama** (kolom `Kabupaten/Kota` dst. disalin, kolom `NDC` = `Sidoarjo`), lalu isi `Lead Time Land` / `Lead Time Sea` dan kolom armada / `Cost/Trip` / `Cost/CBM` di baris itu. **Baris pertama** kab/kota = NDC utama (Project rute 1, tabel Coverage, peta); baris dengan NDC lain hanya dipakai untuk Project rute direct dari NDC itu. Kolom `NDC Reguler` cukup diisi di baris pertama. Kalau Project rute-nya rantai (`Sidoarjo - Pontianak - Singkawang`), tidak perlu baris kedua: datanya dari tab Lead Time / Cost Facility to Facility + last mile Hub/SDC/RDC.
 
-## Format master baru (8 tab) — tahap paralel
-Dibaca dashboard hanya lewat `?src=new&id=<ID gsheet master baru>`; tab lama tetap sumber default.
+## Format master baru (8 tab) — sumber utama dashboard
+Gsheet `13Kr-zyhnwBruBEmHwhi3dTh5bXEpJgBiwY5hpFtjybk`. Edit data di sini; tab lama (`?src=old`) cuma cadangan.
 | Tab | Kolom |
 |---|---|
 | Master Kab-Kota | No, Kabupaten/Kota, Tipe, Provinsi, Pulau/Kepulauan (ditulis sekali di sini) |

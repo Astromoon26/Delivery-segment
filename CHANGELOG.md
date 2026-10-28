@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-28 (master baru jadi default)
+- **Dashboard sekarang membaca master data baru** (gsheet `13Kr-zyhnwBruBEmHwhi3dTh5bXEpJgBiwY5hpFtjybk`, 8 tab) sebagai sumber utama, atas persetujuan Apip. Cadangan: `?src=old` = 18 tab lama (`GSHEET_ID`); `?id=<ID>` menimpa ID master. Hasil identik dengan tab lama (`compare_sources.js`: 1.028 panel Delivery Segment sama).
+- Smoke test: tes lama memakai `?src=old` (men-stub tab lama); +1 tes mode default terhadap master baru live (147 total).
+
 ## 2026-10-28 (migrasi master data)
 - **Reader format master baru** (opsional): `?src=new&id=<ID gsheet master baru>` membaca 8 tab (`Master Kab-Kota`, `Master Fasilitas`, `Coverage`, `Rantai Hub`, `Leg`, `Tarif`, `Rute`, `Armada`) lalu mengubahnya ke bentuk 18 tab lama (`newToOld`), jadi semua logika tampilan/rute/cost tetap sama. **Default tetap 18 tab lama** (tab lama hidup paralel sampai hasilnya terbukti sama). Tidak ada data yang di-hardcode.
 - Refactor kecil: semua fetch tab lewat `sheetText(nama)`; `gvizUrl(nama, id?)` menerima ID gsheet lain.
