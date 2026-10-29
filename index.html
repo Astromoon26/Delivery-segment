@@ -104,6 +104,8 @@ body.resizing{cursor:col-resize;user-select:none}
 .seg-legend-title{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:5px}
 .seg-legend-row{display:flex;align-items:center;gap:8px;padding:2px 0;white-space:nowrap}
 .seg-legend-row svg{flex:none}
+.seg-legend-row[data-rid]{cursor:pointer;border-radius:5px;padding:2px 5px;margin:0 -5px;transition:background .15s}
+.seg-legend-row[data-rid]:hover,.seg-legend-row[data-rid].on,.seg-legend-row[data-rid]:focus-visible{background:rgba(255,255,255,.09);outline:none}
 .seg-empty{padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
 .seg-dest-header{padding:14px 14px 4px}
 .seg-dest-title{font-size:15px;font-weight:600}
@@ -235,11 +237,11 @@ body[data-view="island"] #back-home{display:inline-flex}
 @keyframes homein{from{opacity:0;transform:translateX(-14px)}}
 @keyframes fadeup{from{opacity:0;transform:translateY(8px)}}
 @keyframes facpop{from{opacity:0;transform:scale(.2)}}
-@keyframes routein{from{opacity:0}}
 body[data-view="island"] .fac-panel{animation:panelin .32s cubic-bezier(.2,.7,.2,1) backwards}
 body[data-view="island"] .seg-left{animation:panelin .36s cubic-bezier(.2,.7,.2,1) .05s backwards}
 body[data-view="home"] .home-panel{animation:homein .32s cubic-bezier(.2,.7,.2,1) backwards}
-.leaflet-overlay-pane svg path.leaflet-interactive{transition:fill .25s,fill-opacity .25s,stroke .25s,stroke-opacity .25s,stroke-width .2s}
+.leaflet-overlay-pane svg path.leaflet-interactive{transition:fill .25s,fill-opacity .25s,stroke .25s,stroke-opacity .25s,stroke-width .2s,opacity .3s,filter .3s}
+.leaflet-overlay-pane svg path.route-dim{opacity:.16}
 body.anim-fac .fac-dot{animation:facpop .38s cubic-bezier(.2,.9,.3,1.3) backwards;animation-delay:var(--d,0ms)}
 body.anim-fac .fac-item,body.anim-fac .fac-group,body.anim-fac .island-chip{animation:fadeup .3s ease-out backwards;animation-delay:calc(var(--i,0)*24ms)}
 .fx-up{animation:fadeup .3s ease-out backwards}
@@ -486,7 +488,7 @@ function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout
 // ANIMASI (halus; semuanya dilewati kalau "reduce motion" aktif)
 // ============================================================
 const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-let animTimer = null, ROUTE_TOKEN = 0;
+let animTimer = null;
 // marker fasilitas muncul bertahap + daftar (area / fasilitas) bergeser masuk: dipanggil sebelum render saat load, ganti BU, masuk/keluar area
 function playIntro(){
   if(REDUCED) return;
@@ -522,7 +524,6 @@ function fitTo(bounds, o){
   o = o || {};
   if(REDUCED || o.instant) map.fitBounds(bounds, o); else map.flyToBounds(bounds, Object.assign({duration:.9, easeLinearity:.25}, o));
 }
-// garis rute: muncul (fade) lalu tergambar dari NDC ke tujuan, lalu titik kecil berjalan searah pengiriman
 // garis rute yang memakai leg (pasangan titik) yang sama dipisah jadi jalur melengkung berdampingan supaya tidak bertumpuk;
 // leg yang dipakai satu rute tetap lurus. Lengkung proporsional dengan panjang leg (tidak tergantung zoom), ujungnya tetap di titik fasilitas.
 function legId(a, b){ const ka = a[0].toFixed(4)+','+a[1].toFixed(4), kb = b[0].toFixed(4)+','+b[1].toFixed(4); return ka<kb ? {k:ka+'>'+kb, fwd:true} : {k:kb+'>'+ka, fwd:false}; }
@@ -544,39 +545,70 @@ function lanePts(pts, use, route){
   }
   return out;
 }
-function animateRoute(poly, i, token){
+// ===== animasi rute bergantian: satu rute aktif (tergambar + titik berjalan), rute lain redup; hover legend = rute itu berulang terus =====
+let ROUTE_LINES = [];   // [{id, poly}] garis rute yang sedang tampil (urutan = urutan legend)
+let ROUTE_RUN = 0;      // dinaikkan tiap render rute / hover; callback lama berhenti kalau nomornya sudah beda
+// activeId: undefined/null = semua normal; string = hanya rute itu terang (+ glow), lainnya redup; '' = semua redup
+function dimRoutes(activeId){
+  const on = activeId!=null;
+  ROUTE_LINES.forEach(e=>{
+    const el = e.poly.getElement(); if(!el) return;
+    el.classList.toggle('route-dim', on && e.id!==activeId);
+    el.style.filter = (on && e.id===activeId && !REDUCED) ? `drop-shadow(0 0 4px ${e.poly.options.color})` : '';
+  });
+  if(segLegendEl) segLegendEl.querySelectorAll('.seg-legend-row[data-rid]').forEach(r=>r.classList.toggle('on', on && r.dataset.rid===activeId));
+}
+// satu putaran untuk satu rute: garis solid tergambar dari awal, garis putus-putus cukup disorot; lalu titik berjalan searah pengiriman
+function activateRoute(e, run){
   if(REDUCED) return;
-  const el = poly.getElement && poly.getElement(); if(!el) return;
-  const delay = 80 + i*160;
-  el.style.animation = `routein .45s ease ${delay}ms backwards`;
+  const poly = e.poly; poly.bringToFront();
+  const el = poly.getElement(); if(!el) return;
   if(!poly.options.dashArray){
-    let len = 0; try{ len = el.getTotalLength(); }catch(e){}
+    let len = 0; try{ len = el.getTotalLength(); }catch(err){}
     if(len>0){
       el.style.transition = 'none'; el.style.strokeDasharray = len; el.style.strokeDashoffset = len; el.getBoundingClientRect();
-      el.style.transition = `stroke-dashoffset .9s ease-out ${delay}ms`; el.style.strokeDashoffset = 0;
-      setTimeout(()=>{ el.style.strokeDasharray=''; el.style.strokeDashoffset=''; el.style.transition=''; }, delay+1000);
+      el.style.transition = 'stroke-dashoffset .7s ease-out'; el.style.strokeDashoffset = 0;
+      setTimeout(()=>{ if(run!==ROUTE_RUN) return; el.style.strokeDasharray=''; el.style.strokeDashoffset=''; el.style.transition=''; }, 800);
     }
   }
-  setTimeout(()=>travelDot(poly, token), delay+800);
+  travelDot(poly, ()=>run===ROUTE_RUN);
 }
-function travelDot(poly, token){
-  if(token!==ROUTE_TOKEN || !segLayer.hasLayer(poly)) return;
+function clearRouteFx(){
+  ROUTE_LINES.forEach(e=>{ const el = e.poly.getElement(); if(el){ el.style.strokeDasharray=''; el.style.strokeDashoffset=''; el.style.transition=''; el.style.filter=''; el.classList.remove('route-dim'); } });
+  if(segLayer) segLayer.eachLayer(l=>{ if(l._routeDot) segLayer.removeLayer(l); });
+}
+// urutan awal (sekali): tiap rute dapat giliran ~1,5 dtk; setelah selesai semua kembali normal
+function playRouteSequence(run){
+  if(REDUCED || !ROUTE_LINES.length) return;
+  const slot = 1500; dimRoutes('');
+  ROUTE_LINES.forEach((e,i)=>setTimeout(()=>{ if(run!==ROUTE_RUN) return; dimRoutes(e.id); activateRoute(e, run); }, 150+i*slot));
+  setTimeout(()=>{ if(run!==ROUTE_RUN) return; clearRouteFx(); dimRoutes(null); }, 150+ROUTE_LINES.length*slot+200);
+}
+// hover/fokus pada baris legend: rute itu terus beranimasi (berulang) dan rute lain redup; keluar = semua normal
+function routeHover(id){
+  const run = ++ROUTE_RUN;
+  clearRouteFx();
+  if(id==null){ dimRoutes(null); return; }
+  const e = ROUTE_LINES.find(x=>x.id===id); if(!e){ dimRoutes(null); return; }
+  dimRoutes(id); if(REDUCED){ e.poly.bringToFront(); return; }
+  const loop = ()=>{ if(run!==ROUTE_RUN) return; activateRoute(e, run); setTimeout(loop, 1900); };
+  loop();
+}
+function travelDot(poly, alive){
   const ll = poly.getLatLngs().map(p=>L.latLng(p)); if(ll.length<2) return;
   const pr = ll.map(p=>map.project(p, 6)), cum = [0];
   for(let k=1;k<pr.length;k++) cum.push(cum[k-1]+pr[k].distanceTo(pr[k-1]));
   const total = cum[cum.length-1]; if(!(total>0)) return;
   const dot = L.circleMarker(ll[0], {radius:3.5, color:'#fff', weight:1.5, fillColor:poly.options.color, fillOpacity:1, interactive:false}).addTo(segLayer);
-  const dur = 1500, t0 = performance.now(); let rounds = 0;
+  dot._routeDot = true;
+  const dur = 1200, t0 = performance.now();
   const step = now=>{
-    if(token!==ROUTE_TOKEN || !segLayer.hasLayer(dot)) return;
-    const p = Math.min(1,(now-t0-rounds*(dur+500))/dur);
-    if(p<0){ requestAnimationFrame(step); return; }
+    if(!alive() || !segLayer.hasLayer(dot)){ segLayer.removeLayer(dot); return; }
+    const p = Math.min(1,(now-t0)/dur);
     const d = (1-Math.pow(1-p,2))*total; let k = 1; while(k<cum.length-1 && cum[k]<d) k++;
     const f = cum[k]===cum[k-1] ? 1 : (d-cum[k-1])/(cum[k]-cum[k-1]);
     dot.setLatLng([ll[k-1].lat+(ll[k].lat-ll[k-1].lat)*f, ll[k-1].lng+(ll[k].lng-ll[k-1].lng)*f]);
-    if(p<1) requestAnimationFrame(step);
-    else if(++rounds<2) requestAnimationFrame(step);
-    else segLayer.removeLayer(dot);
+    if(p<1) requestAnimationFrame(step); else segLayer.removeLayer(dot);
   };
   requestAnimationFrame(step);
 }
@@ -1173,8 +1205,13 @@ function setSegLegend(items){
   if(!segLegendEl) return;
   if(!items || !items.length){ segLegendEl.style.display = 'none'; return; }
   segLegendEl.innerHTML = '<div class="seg-legend-title">Legend rute</div>' + items.map(i=>
-    `<div class="seg-legend-row"><svg width="34" height="8" aria-hidden="true"><line x1="1" y1="4" x2="33" y2="4" stroke="${i.color}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="${i.dash}"/></svg><span>${i.label}</span></div>`).join('');
+    `<div class="seg-legend-row"${i.id?` data-rid="${escapeHtml(i.id)}" tabindex="0" title="Arahkan kursor: sorot rute ini"`:''}><svg width="34" height="8" aria-hidden="true"><line x1="1" y1="4" x2="33" y2="4" stroke="${i.color}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="${i.dash}"/></svg><span>${i.label}</span></div>`).join('');
   segLegendEl.style.display = 'block';
+  segLegendEl.querySelectorAll('.seg-legend-row[data-rid]').forEach(row=>{
+    const id = row.dataset.rid;
+    row.onmouseenter = row.onfocus = ()=>routeHover(id);
+    row.onmouseleave = row.onblur = ()=>routeHover(null);
+  });
 }
 
 // ============================================================
@@ -1526,6 +1563,7 @@ function fitFacility(){
 function clearSegment(o){
   o = o || {};
   currentSegKey = null;
+  ROUTE_RUN++; ROUTE_LINES = [];
   segLayer.clearLayers(); setSegLegend(null);
   document.getElementById('seg-route').style.display = 'none';
   document.getElementById('seg-empty').style.display = 'block';
@@ -2082,7 +2120,7 @@ function renderSegmentRoute(c, opts){
       className:'', iconAnchor:[r,r]
     })}).bindTooltip(`${s.tier}: ${s.d.name}`).addTo(segLayer);
   });
-  const routeLines = [], token = ++ROUTE_TOKEN;
+  const routeLines = [];
   // leg yang dipakai >1 rute: kumpulkan dulu supaya garisnya bisa dipisah (lihat lanePts)
   const legUse = {};
   const useOf = (route, pts)=>{ for(let i=0;i<pts.length-1;i++){ if(pts[i][0]===pts[i+1][0] && pts[i][1]===pts[i+1][1]) continue; const k = legId(pts[i], pts[i+1]).k; (legUse[k] = legUse[k]||[]).push(route); } };
@@ -2092,7 +2130,7 @@ function renderSegmentRoute(c, opts){
   showRoutes.forEach(r=>{
     const pts = r.steps.map(pointOf).filter(Boolean);
     if(destCenter) pts.push(destCenter);
-    if(pts.length>1) routeLines.push(L.polyline(lanePts(pts, legUse, r), {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer));
+    if(pts.length>1) routeLines.push({id:r.id, poly:L.polyline(lanePts(pts, legUse, r), {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer)});
     const o = pointOf(r.steps[0]);
     if(o){ bounds.push(o);
       const st0 = r.steps[0];
@@ -2107,21 +2145,23 @@ function renderSegmentRoute(c, opts){
     if(o) bounds.push(o);
     if(!(hasMid||hasAlt) || !o) return;      // Project rute = Rute 1 (tanpa HUB/SDC/RDC): garisnya sudah digambar sebagai Rute 1
     if(destCenter) pts.push(destCenter);
-    if(pts.length>1) routeLines.push(L.polyline(lanePts(pts, legUse, pr), {color:pr.color, weight:2.5, opacity:.85, dashArray:pr.dash}).bindTooltip(pr.id+(pr.steps.length<=1?' → Cust / Sto':'')).addTo(segLayer));
+    if(pts.length>1) routeLines.push({id:pr.id, poly:L.polyline(lanePts(pts, legUse, pr), {color:pr.color, weight:2.5, opacity:.85, dashArray:pr.dash}).bindTooltip(pr.id+(pr.steps.length<=1?' → Cust / Sto':'')).addTo(segLayer)});
     if(!showRoutes.some(r=>normFacName(r.ndc)===normFacName(pr.steps[0].d.name)))
       L.marker(o, {icon:ndcIcon(pr.color, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${pr.steps[0].d.name} (asal ${pr.id})`).addTo(segLayer);
   });
   // legend: urutan sama dengan tabel (Rute 1 -> Opsional rute -> Project rute); rute yang transit di NDC lain diberi keterangan
   const legendLabel = r => { const t = r.steps.slice(1,-1).filter(s=>s.tier==='NDC' && !s.unresolved).map(s=>escapeHtml(s.d.name)); return t.length ? r.id+' · transit NDC '+t.join(', ') : r.id; };
   setSegLegend((hasMid||hasAlt)
-    ? showRoutes.map(r=>({label:legendLabel(r), color:r.color, dash:r.dash})).concat(showProject ? projects.map(pr=>({label:legendLabel(pr), color:pr.color, dash:pr.dash})) : [])
+    ? showRoutes.map(r=>({id:r.id, label:legendLabel(r), color:r.color, dash:r.dash})).concat(showProject ? projects.map(pr=>({id:pr.id, label:legendLabel(pr), color:pr.color, dash:pr.dash})) : [])
     : [{label:'Project rute = Rute 1', color:DIRECT_COLOR, dash:'8,6'}]);
   if(bounds.length && !opts.keepView) segMap.fitBounds(L.latLngBounds(bounds), {padding:[50,50], maxZoom:9});
+  const run = ++ROUTE_RUN; ROUTE_LINES = routeLines;
   if(!opts.keepView && !REDUCED){
-    // animasi garis rute baru jalan setelah peta selesai bergerak (supaya panjang garis sudah final)
+    // urutan animasi rute jalan setelah peta selesai bergerak (panjang garis sudah final); sebelum itu semua rute redup
     fxIn(document.getElementById('seg-route'), 70);
+    dimRoutes('');
     let started = false;
-    const go = ()=>{ if(started || token!==ROUTE_TOKEN) return; started = true; routeLines.forEach((pl,i)=>animateRoute(pl, i, token)); };
+    const go = ()=>{ if(started || run!==ROUTE_RUN) return; started = true; playRouteSequence(run); };
     segMap.once('moveend', go); setTimeout(go, 700);
   }
 }

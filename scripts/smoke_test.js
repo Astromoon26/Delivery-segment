@@ -615,17 +615,30 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     return { n1: o1.length, endsOk: same(o1[0], A) && same(o1[o1.length - 1], C) && same(o2[o2.length - 1], D), sep12: !same(mid(o1), mid(o2)), sep13: !same(mid(o1), mid(o3)), single: lanePts([A, D], {}, r1).length === 2 };
   });
   check('garis leg yang sama dipisah (melengkung), ujung tetap di fasilitas, leg tunggal tetap lurus', lane.n1 > 3 && lane.endsOk && lane.sep12 && lane.sep13 && lane.single, JSON.stringify(lane));
-  // animasi garis rute: setelah selesai, dasharray/dashoffset inline harus dibersihkan (garis putus-putus asli tidak boleh rusak)
+  // animasi rute bergantian: satu rute terang & rute lain redup; sesudah selesai semua normal & bersih; hover legend = hanya rute itu terang + berulang
   const pa = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eA = [];
   pa.on('pageerror', e => eA.push(e.message));
   await pa.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 }); await pa.waitForTimeout(2500);
   const aInfo = await pa.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
     const k = Object.keys(COVERAGE.HCI).find(x => COVERAGE.HCI[x].RDC || COVERAGE.HCI[x].HUB); selectKabkota(COVERAGE.HCI[k]);
-    await new Promise(r => setTimeout(r, 5500));
+    const n = ROUTE_LINES.length, bright = () => ROUTE_LINES.filter(e => !e.poly.getElement().classList.contains('route-dim')).length;
+    await wait(500); const startDim = bright();                       // paling banyak satu rute terang (yang sedang giliran), tidak pernah semua terang
+    const seen = new Set(); const t0 = Date.now(); let maxBright = 0;
+    while (Date.now() - t0 < n * 1500 - 400) { const b = ROUTE_LINES.filter(e => !e.poly.getElement().classList.contains('route-dim')).map(e => e.id); if (b.length) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } await wait(120); }
+    await wait(1400);   // sisa urutan + pembersihan akhir
     const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];
-    return { lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length, dots: segLayer.getLayers().filter(l => l instanceof L.CircleMarker).length, stuck: ps.filter(x => x.style.strokeDasharray).length };
+    const done = { dim: ps.filter(x => x.classList.contains('route-dim')).length, stuck: ps.filter(x => x.style.strokeDasharray).length, glow: ps.filter(x => x.style.filter).length, dots: segLayer.getLayers().filter(l => l._routeDot).length };
+    // hover legend
+    const row = segLegendEl.querySelector('.seg-legend-row[data-rid]'); row.dispatchEvent(new MouseEvent('mouseenter'));
+    await wait(900); const hov = { bright: bright(), on: segLegendEl.querySelectorAll('.seg-legend-row.on').length, dim: ROUTE_LINES.filter(e => e.poly.getElement().classList.contains('route-dim')).length };
+    await wait(2600); const dotsWhileHover = segLayer.getLayers().filter(l => l._routeDot).length >= 0;
+    row.dispatchEvent(new MouseEvent('mouseleave')); await wait(400);
+    const after = { dim: ROUTE_LINES.filter(e => e.poly.getElement().classList.contains('route-dim')).length, dots: segLayer.getLayers().filter(l => l._routeDot).length, on: segLegendEl.querySelectorAll('.seg-legend-row.on').length };
+    return { n, startDim, seen: seen.size, maxBright, done, hov, after, lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length };
   }); await pa.close();
-  check('animasi rute: garis tergambar, titik berjalan sudah dibersihkan, tanpa sisa dash inline & error', aInfo.lines > 0 && aInfo.dots === 0 && aInfo.stuck === 0 && !eA.length, JSON.stringify(aInfo) + eA.join('|'));
+  check('animasi rute bergantian: rute lain redup, tiap rute dapat giliran (hanya satu terang), akhirnya normal & bersih', aInfo.n > 1 && aInfo.startDim <= 1 && aInfo.seen === aInfo.n && aInfo.maxBright === 1 && aInfo.done.dim === 0 && aInfo.done.stuck === 0 && aInfo.done.glow === 0 && aInfo.done.dots === 0 && !eA.length, JSON.stringify(aInfo) + eA.join('|'));
+  check('hover legend rute: hanya rute itu terang (baris legend menyala), rute lain redup; keluar kursor = semua normal', aInfo.hov.bright === 1 && aInfo.hov.on === 1 && aInfo.hov.dim === aInfo.n - 1 && aInfo.after.dim === 0 && aInfo.after.dots === 0 && aInfo.after.on === 0, JSON.stringify(aInfo.hov) + JSON.stringify(aInfo.after));
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;
