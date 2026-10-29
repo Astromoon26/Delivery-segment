@@ -87,6 +87,13 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   });
   check('newToOld: NDC <BU> memuat No/Tipe/Provinsi/Pulau dari Master Kab-Kota, Lead Time & kolom Langsung', conv.ndc['Kabupaten/Kota'] === 'Kota A' && conv.ndc['Tipe'] === 'Kota' && conv.ndc['Provinsi'] === 'P' && conv.ndc['NDC'] === 'N1' && conv.ndc['Lead Time Land'] === '2' && conv.ndc['Cost/Trip'] === '500' && conv.ndc['Cost/CBM'] === '50', JSON.stringify(conv.ndc));
   check('newToOld: Cost F2F pakai kolom "<Armada> <Mode>", Lead Time & Matriks (hub feeder) & Rute terbaca parser lama', /"Fuso Darat"/.test(conv.cost) && conv.lt.a === 'N1' && conv.lt.land === '1' && conv.f2f.HUB_2 === 'H0' && /N1/.test(conv.rute), JSON.stringify(conv));
+  // --- animasi: intro marker selesai & angka ringkasan berakhir di nilai benar; reduce motion mematikan semuanya
+  check('animasi: kelas intro (anim-fac) sudah dilepas & angka Total Kab/Kota = jumlah coverage', await page.evaluate(() => !document.body.classList.contains('anim-fac') && +document.getElementById('sum-kab').textContent === Object.keys(COVERAGE[currentBU]).length && +document.getElementById('sum-fac').textContent === visibleFacilities().length));
+  const pgRed = await (await browser.newContext({ ignoreHTTPSErrors: true, reducedMotion: 'reduce' })).newPage(); const eRed = [];
+  pgRed.on('pageerror', e => eRed.push(e.message));
+  await pgRed.goto(url, { waitUntil: 'networkidle', timeout: 90000 }); await pgRed.waitForTimeout(1200);
+  const red = await pgRed.evaluate(() => ({ r: REDUCED, cls: document.body.className, kab: +document.getElementById('sum-kab').textContent, n: Object.keys(COVERAGE[currentBU]).length })); await pgRed.close();
+  check('reduce motion: tidak ada animasi intro, angka langsung final, tanpa error', red.r === true && red.cls === '' && red.kab === red.n && !eRed.length, JSON.stringify(red) + eRed.join('|'));
   const pgNew = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage(); const dNew = [], eNew = [];
   pgNew.on('dialog', d => { dNew.push(d.message()); d.dismiss(); }); pgNew.on('pageerror', e => eNew.push(e.message));
   await pgNew.goto(url, { waitUntil: 'networkidle', timeout: 90000 }); await pgNew.waitForTimeout(3500);
@@ -598,6 +605,17 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('transit NDC: tanpa JS error', err8.length === 0, err8.join(' | '));
   await ctx8.close();
 
+  // animasi garis rute: setelah selesai, dasharray/dashoffset inline harus dibersihkan (garis putus-putus asli tidak boleh rusak)
+  const pa = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eA = [];
+  pa.on('pageerror', e => eA.push(e.message));
+  await pa.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 }); await pa.waitForTimeout(2500);
+  const aInfo = await pa.evaluate(async () => {
+    const k = Object.keys(COVERAGE.HCI).find(x => COVERAGE.HCI[x].RDC || COVERAGE.HCI[x].HUB); selectKabkota(COVERAGE.HCI[k]);
+    await new Promise(r => setTimeout(r, 5500));
+    const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];
+    return { lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length, dots: segLayer.getLayers().filter(l => l instanceof L.CircleMarker).length, stuck: ps.filter(x => x.style.strokeDasharray).length };
+  }); await pa.close();
+  check('animasi rute: garis tergambar, titik berjalan sudah dibersihkan, tanpa sisa dash inline & error', aInfo.lines > 0 && aInfo.dots === 0 && aInfo.stuck === 0 && !eA.length, JSON.stringify(aInfo) + eA.join('|'));
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;

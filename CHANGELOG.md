@@ -2,6 +2,10 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-10-29
+- **Animasi halus** (atas permintaan Apip): (1) **garis rute** di peta muncul lalu tergambar dari NDC ke tujuan, lalu titik kecil berjalan searah pengiriman (2x); (2) **transisi Home ↔ Area**: peta terbang halus (`flyToBounds`), panel kiri/tengah/kanan bergeser masuk, polygon kab/kota berganti warna dengan transisi; (3) **marker fasilitas** muncul bertahap saat load / ganti BU / masuk-keluar area (kelas sementara `anim-fac`), daftar area & fasilitas masuk berurutan; (4) **angka** (Total Kab/Kota, Total Fasilitas, jumlah per tipe) naik/turun ke nilai baru (`countUp`), konten Delivery Segment fade-in berurutan (`fxIn`). Durasi 0,3-0,9 dtk. **Otomatis mati kalau OS/browser memakai "reduce motion"** (`REDUCED`).
+- Smoke test: +3 tes animasi (150 total).
+
 ## 2026-10-28 (master baru jadi default)
 - **Dashboard sekarang membaca master data baru** (gsheet `13Kr-zyhnwBruBEmHwhi3dTh5bXEpJgBiwY5hpFtjybk`, 8 tab) sebagai sumber utama, atas persetujuan Apip. Cadangan: `?src=old` = 18 tab lama (`GSHEET_ID`); `?id=<ID>` menimpa ID master. Hasil identik dengan tab lama (`compare_sources.js`: 1.028 panel Delivery Segment sama).
 - Smoke test: tes lama memakai `?src=old` (men-stub tab lama); +1 tes mode default terhadap master baru live (147 total).
