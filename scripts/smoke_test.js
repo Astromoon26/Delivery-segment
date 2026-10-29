@@ -605,6 +605,16 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('transit NDC: tanpa JS error', err8.length === 0, err8.join(' | '));
   await ctx8.close();
 
+  // garis rute yang berbagi leg dipisah jadi jalur melengkung berdampingan (tidak bertumpuk); leg yang tidak dibagi tetap lurus
+  const lane = await page.evaluate(() => {
+    const A = [-6.3, 107.1], B = [-7.4, 112.7], C = [-5.1, 119.4], D = [-2.5, 120.1], r1 = {}, r2 = {}, r3 = {};
+    const p1 = [A, B, C], p2 = [A, B, D], p3 = [A, B, C], use = {};
+    [[r1, p1], [r2, p2], [r3, p3]].forEach(([r, ps]) => { for (let i = 0; i < ps.length - 1; i++) { const k = legId(ps[i], ps[i + 1]).k; (use[k] = use[k] || []).push(r); } });
+    const o1 = lanePts(p1, use, r1), o2 = lanePts(p2, use, r2), o3 = lanePts(p3, use, r3), mid = a => a[Math.floor(a.length / 4)];
+    const same = (x, y) => Math.abs(x[0] - y[0]) < 1e-9 && Math.abs(x[1] - y[1]) < 1e-9;
+    return { n1: o1.length, endsOk: same(o1[0], A) && same(o1[o1.length - 1], C) && same(o2[o2.length - 1], D), sep12: !same(mid(o1), mid(o2)), sep13: !same(mid(o1), mid(o3)), single: lanePts([A, D], {}, r1).length === 2 };
+  });
+  check('garis leg yang sama dipisah (melengkung), ujung tetap di fasilitas, leg tunggal tetap lurus', lane.n1 > 3 && lane.endsOk && lane.sep12 && lane.sep13 && lane.single, JSON.stringify(lane));
   // animasi garis rute: setelah selesai, dasharray/dashoffset inline harus dibersihkan (garis putus-putus asli tidak boleh rusak)
   const pa = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eA = [];
   pa.on('pageerror', e => eA.push(e.message));

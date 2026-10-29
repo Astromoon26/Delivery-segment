@@ -523,6 +523,27 @@ function fitTo(bounds, o){
   if(REDUCED || o.instant) map.fitBounds(bounds, o); else map.flyToBounds(bounds, Object.assign({duration:.9, easeLinearity:.25}, o));
 }
 // garis rute: muncul (fade) lalu tergambar dari NDC ke tujuan, lalu titik kecil berjalan searah pengiriman
+// garis rute yang memakai leg (pasangan titik) yang sama dipisah jadi jalur melengkung berdampingan supaya tidak bertumpuk;
+// leg yang dipakai satu rute tetap lurus. Lengkung proporsional dengan panjang leg (tidak tergantung zoom), ujungnya tetap di titik fasilitas.
+function legId(a, b){ const ka = a[0].toFixed(4)+','+a[1].toFixed(4), kb = b[0].toFixed(4)+','+b[1].toFixed(4); return ka<kb ? {k:ka+'>'+kb, fwd:true} : {k:kb+'>'+ka, fwd:false}; }
+function curveLeg(a, b, off){
+  const P = L.Projection.SphericalMercator, pa = P.project(L.latLng(a)), pb = P.project(L.latLng(b));
+  const dx = pb.x-pa.x, dy = pb.y-pa.y, mx = (pa.x+pb.x)/2 - dy*off, my = (pa.y+pb.y)/2 + dx*off, out = [];
+  for(let i=0;i<=28;i++){ const t=i/28, u=1-t, ll = P.unproject(L.point(u*u*pa.x+2*u*t*mx+t*t*pb.x, u*u*pa.y+2*u*t*my+t*t*pb.y)); out.push([ll.lat, ll.lng]); }
+  return out;
+}
+function lanePts(pts, use, route){
+  if(pts.length<2) return pts;
+  const out = [pts[0]];
+  for(let i=0;i<pts.length-1;i++){
+    const a = pts[i], b = pts[i+1], {k, fwd} = legId(a, b), users = use[k]||[], n = users.length, lane = users.indexOf(route);
+    if(n<2 || lane<0 || (a[0]===b[0] && a[1]===b[1])){ out.push(b); continue; }
+    const s = Math.min(0.06, 0.22/n), o = (lane-(n-1)/2)*2*s;   // + = ke kiri arah A->B kanonik
+    const c = fwd ? curveLeg(a, b, o) : curveLeg(b, a, o).reverse();
+    for(let j=1;j<c.length;j++) out.push(c[j]);
+  }
+  return out;
+}
 function animateRoute(poly, i, token){
   if(REDUCED) return;
   const el = poly.getElement && poly.getElement(); if(!el) return;
@@ -2062,11 +2083,16 @@ function renderSegmentRoute(c, opts){
     })}).bindTooltip(`${s.tier}: ${s.d.name}`).addTo(segLayer);
   });
   const routeLines = [], token = ++ROUTE_TOKEN;
+  // leg yang dipakai >1 rute: kumpulkan dulu supaya garisnya bisa dipisah (lihat lanePts)
+  const legUse = {};
+  const useOf = (route, pts)=>{ for(let i=0;i<pts.length-1;i++){ if(pts[i][0]===pts[i+1][0] && pts[i][1]===pts[i+1][1]) continue; const k = legId(pts[i], pts[i+1]).k; (legUse[k] = legUse[k]||[]).push(route); } };
+  showRoutes.forEach(r=>{ const pts = r.steps.map(pointOf).filter(Boolean); if(destCenter) pts.push(destCenter); useOf(r, pts); });
+  if(showProject && (hasMid||hasAlt)) projects.forEach(pr=>{ if(!pointOf(pr.steps[0])) return; const pts = pr.steps.map(pointOf).filter(Boolean); if(destCenter) pts.push(destCenter); useOf(pr, pts); });
   // route lines + their NDC markers
   showRoutes.forEach(r=>{
     const pts = r.steps.map(pointOf).filter(Boolean);
     if(destCenter) pts.push(destCenter);
-    if(pts.length>1) routeLines.push(L.polyline(pts, {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer));
+    if(pts.length>1) routeLines.push(L.polyline(lanePts(pts, legUse, r), {color:r.color, weight:r.first?2:2.5, opacity:r.first?.6:.9, dashArray:r.dash}).bindTooltip(r.id).addTo(segLayer));
     const o = pointOf(r.steps[0]);
     if(o){ bounds.push(o);
       const st0 = r.steps[0];
@@ -2081,7 +2107,7 @@ function renderSegmentRoute(c, opts){
     if(o) bounds.push(o);
     if(!(hasMid||hasAlt) || !o) return;      // Project rute = Rute 1 (tanpa HUB/SDC/RDC): garisnya sudah digambar sebagai Rute 1
     if(destCenter) pts.push(destCenter);
-    if(pts.length>1) routeLines.push(L.polyline(pts, {color:pr.color, weight:2.5, opacity:.85, dashArray:pr.dash}).bindTooltip(pr.id+(pr.steps.length<=1?' → Cust / Sto':'')).addTo(segLayer));
+    if(pts.length>1) routeLines.push(L.polyline(lanePts(pts, legUse, pr), {color:pr.color, weight:2.5, opacity:.85, dashArray:pr.dash}).bindTooltip(pr.id+(pr.steps.length<=1?' → Cust / Sto':'')).addTo(segLayer));
     if(!showRoutes.some(r=>normFacName(r.ndc)===normFacName(pr.steps[0].d.name)))
       L.marker(o, {icon:ndcIcon(pr.color, TYPE_COLOR.NDC+'33', true)}).bindTooltip(`NDC: ${pr.steps[0].d.name} (asal ${pr.id})`).addTo(segLayer);
   });
