@@ -426,7 +426,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const bd5 = await p5.$$eval('#seg-compare .seg-bd-title', e => e.map(x => x.textContent.trim()));
   check('Rute 1 dari RDC: judul "mulai dari RDC Tamora" dan tidak ada warning "bukan NDC"', bd5.some(t => /^Rute 1 \(mulai dari RDC Tamora\)/.test(t)) && !/bukan NDC/.test(tx5), JSON.stringify(bd5));
   check('Rute 1 dari RDC: segmen RDC → HUB di breakdown', /RDC → HUB/.test(await p5.$eval('#seg-compare #seg-breakdown', e => e.innerText)));
-  const line5 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1$/.test(l._tooltip.getContent()) && l.getLatLngs().length >= 3) n = l.getLatLngs().length; }); return n; });
+  const line5 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1( · via Darat)?$/.test(l._tooltip.getContent())) n += l.getLatLngs().length; }); return n; });
   check('Rute 1 dari RDC: garis peta mulai dari Tamora (>=3 titik) dan legend memuat Rute 1', line5 >= 3 && (await p5.$eval('.seg-legend', e => e.textContent)).includes('Rute 1'), 'titik=' + line5);
   await p5.screenshot({ path: path.join(OUT, '9_rute1_dari_rdc.png') });
   // satu nama RDC saja = RDC -> Cust / Sto (priority booking dari RDC/SDC)
@@ -436,7 +436,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const bdw6 = await p5.$eval('#seg-compare #seg-breakdown', e => e.innerText.replace(/\s+/g, ' '));
   const pts6 = await p5.evaluate(() => { let n = 0; segLayer.eachLayer(l => { if (l.getLatLngs && l._tooltip && /^Rute 1$/.test(l._tooltip.getContent())) n = l.getLatLngs().length; }); return n; });
   check('satu nama (Rute 1 = "Tamora"): Tamora → Cust / Sto, last mile RDC, tanpa warning', /Tamora → Cust \/ Sto/.test(tx6) && /last mile RDC/.test(bdw6) && !/belum tersedia|bukan RDC|bukan HUB|tidak ditemukan|bukan NDC/.test(tx6), tx6.slice(0, 300));
-  check('satu nama: garis peta dari Tamora ke Cust / Sto (2 titik)', pts6 === 2, 'titik=' + pts6);
+  check('satu nama: garis peta dari Tamora ke Cust / Sto (satu leg, >= 2 titik; jalan nyata kalau geometrinya ada)', pts6 >= 2, 'titik=' + pts6);
   await p5.fill('#seg-search-input', 'Kota Palu'); await p5.waitForTimeout(400);
   await p5.click('#seg-ac-list .autocomplete-item'); await p5.waitForTimeout(1200);
   const tx7 = await p5.$eval('#seg-compare', e => e.innerText.replace(/\s+/g, ' '));
@@ -605,16 +605,22 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('transit NDC: tanpa JS error', err8.length === 0, err8.join(' | '));
   await ctx8.close();
 
-  // garis rute yang berbagi leg dipisah jadi jalur melengkung berdampingan (tidak bertumpuk); leg yang tidak dibagi tetap lurus
+  // rute yang berbagi potongan jalur digeser ke samping (piksel) supaya tidak bertumpuk; tanpa geser = jalur yang sama; jumlah titik tetap
   const lane = await page.evaluate(() => {
-    const A = [-6.3, 107.1], B = [-7.4, 112.7], C = [-5.1, 119.4], D = [-2.5, 120.1], r1 = {}, r2 = {}, r3 = {};
-    const p1 = [A, B, C], p2 = [A, B, D], p3 = [A, B, C], use = {};
-    [[r1, p1], [r2, p2], [r3, p3]].forEach(([r, ps]) => { for (let i = 0; i < ps.length - 1; i++) { const k = legId(ps[i], ps[i + 1]).k; (use[k] = use[k] || []).push(r); } });
-    const o1 = lanePts(p1, use, r1), o2 = lanePts(p2, use, r2), o3 = lanePts(p3, use, r3), mid = a => a[Math.floor(a.length / 4)];
-    const same = (x, y) => Math.abs(x[0] - y[0]) < 1e-9 && Math.abs(x[1] - y[1]) < 1e-9;
-    return { n1: o1.length, endsOk: same(o1[0], A) && same(o1[o1.length - 1], C) && same(o2[o2.length - 1], D), sep12: !same(mid(o1), mid(o2)), sep13: !same(mid(o1), mid(o3)), single: lanePts([A, D], {}, r1).length === 2 };
+    const P = [[-6.3, 107.1], [-6.9, 109.5], [-7.4, 112.7]], up = offsetPts(P, 4.5), dn = offsetPts(P, -4.5), same = (x, y) => Math.abs(x[0] - y[0]) < 1e-7 && Math.abs(x[1] - y[1]) < 1e-7;
+    return { n: up.length === P.length && dn.length === P.length, ident: offsetPts(P, 0) === P, sep: !same(up[1], dn[1]) && !same(up[1], P[1]), sym: Math.abs((up[1][0] + dn[1][0]) / 2 - P[1][0]) < 5e-3 };
   });
-  check('garis leg yang sama dipisah (melengkung), ujung tetap di fasilitas, leg tunggal tetap lurus', lane.n1 > 3 && lane.endsOk && lane.sep12 && lane.sep13 && lane.single, JSON.stringify(lane));
+  check('offsetPts: jalur digeser ke dua sisi (simetris), tanpa geser = jalur asli', lane.n && lane.ident && lane.sep && lane.sym, JSON.stringify(lane));
+  // geometri jalan: decPoly membaca polyline 1e-4; legRuns menyambung ujung jalur ke titik fasilitas & mencatat leg yang belum ada (GEO_MISS)
+  const geoT = await page.evaluate(() => {
+    const enc = pts => { let pl = 0, pg = 0, s = ''; const e = v => { v = v < 0 ? ~(v << 1) : v << 1; let o = ''; while (v >= 32) { o += String.fromCharCode((32 | (v & 31)) + 63); v >>= 5; } return o + String.fromCharCode(v + 63); }; for (const [la, lo] of pts) { const a = Math.round(la * 1e4), b = Math.round(lo * 1e4); s += e(a - pl) + e(b - pg); pl = a; pg = b; } return s; };
+    const road = [[-6.3, 107.1], [-6.5, 107.4], [-6.9, 107.6]], a = [-6.3001, 107.1002], b = [-6.9, 107.6001];
+    GEO[gkey(a, b, 'land')] = { r: [['l', enc(road)]] };
+    const r1 = legRuns(a, b, 'land', 'fac'), r2 = legRuns([-1.1, 100.1], [-1.2, 100.2], 'sea', 'fac');
+    const dec = decPoly(enc(road));
+    return { dec: dec.length === 3 && Math.abs(dec[1][0] + 6.5) < 1e-4 && Math.abs(dec[1][1] - 107.4) < 1e-4, join: r1.length === 1 && r1[0].m === 'land' && r1[0].pts[0][0] === a[0] && r1[0].pts[r1[0].pts.length - 1][1] === b[1] && r1[0].pts.length === 5, fb: r2.length === 1 && r2[0].m === 'sea' && r2[0].fb === true && GEO_MISS.has(gkey([-1.1, 100.1], [-1.2, 100.2], 'sea')) };
+  });
+  check('geometri jalan: polyline terbaca, ujung disambung ke fasilitas, leg tanpa geometri jatuh ke garis lurus & tercatat (GEO_MISS)', geoT.dec && geoT.join && geoT.fb, JSON.stringify(geoT));
   // animasi rute bergantian: satu rute terang & rute lain redup; sesudah selesai semua normal & bersih; hover legend = hanya rute itu terang + berulang
   const pa = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eA = [];
   pa.on('pageerror', e => eA.push(e.message));
@@ -622,23 +628,48 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const aInfo = await pa.evaluate(async () => {
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const k = Object.keys(COVERAGE.HCI).find(x => COVERAGE.HCI[x].RDC || COVERAGE.HCI[x].HUB); selectKabkota(COVERAGE.HCI[k]);
-    const n = ROUTE_LINES.length, bright = () => ROUTE_LINES.filter(e => !e.poly.getElement().classList.contains('route-dim')).length;
+    for (let i = 0; i < 40 && !ROUTE_LINES.length; i++) await wait(100);      // geometri rute dimuat dulu (async) baru digambar
+    const n = ROUTE_LINES.length, isDim = e => lineEls(e).every(el => el.classList.contains('route-dim')), fxIds = () => new Set(segLayer.getLayers().filter(l => l._routeFx).map(l => l._routeFx)), lit = () => ROUTE_LINES.filter(e => !isDim(e) || fxIds().has(e.id)), bright = () => lit().length;
     await wait(500); const startDim = bright();                       // paling banyak satu rute terang (yang sedang giliran), tidak pernah semua terang
     const seen = new Set(); const t0 = Date.now(); let maxBright = 0;
-    while (Date.now() - t0 < n * 1500 - 400) { const b = ROUTE_LINES.filter(e => !e.poly.getElement().classList.contains('route-dim')).map(e => e.id); if (b.length) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } await wait(120); }
+    while (Date.now() - t0 < n * 1500 - 400) { const b = lit().map(e => e.id); if (b.length) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } await wait(120); }
     await wait(1400);   // sisa urutan + pembersihan akhir
     const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];
-    const done = { dim: ps.filter(x => x.classList.contains('route-dim')).length, stuck: ps.filter(x => x.style.strokeDasharray).length, glow: ps.filter(x => x.style.filter).length, dots: segLayer.getLayers().filter(l => l._routeDot).length };
+    const done = { dim: ps.filter(x => x.classList.contains('route-dim')).length, stuck: segLayer.getLayers().filter(l => l._routeFx).length, glow: ps.filter(x => x.style.filter).length, dots: segLayer.getLayers().filter(l => l._routeDot).length };
     // hover legend
     const row = segLegendEl.querySelector('.seg-legend-row[data-rid]'); row.dispatchEvent(new MouseEvent('mouseenter'));
-    await wait(900); const hov = { bright: bright(), on: segLegendEl.querySelectorAll('.seg-legend-row.on').length, dim: ROUTE_LINES.filter(e => e.poly.getElement().classList.contains('route-dim')).length };
+    await wait(900); const hov = { bright: bright(), on: segLegendEl.querySelectorAll('.seg-legend-row.on').length, dim: ROUTE_LINES.filter(e => !lit().includes(e)).length };
     await wait(2600); const dotsWhileHover = segLayer.getLayers().filter(l => l._routeDot).length >= 0;
     row.dispatchEvent(new MouseEvent('mouseleave')); await wait(400);
-    const after = { dim: ROUTE_LINES.filter(e => e.poly.getElement().classList.contains('route-dim')).length, dots: segLayer.getLayers().filter(l => l._routeDot).length, on: segLegendEl.querySelectorAll('.seg-legend-row.on').length };
+    const after = { dim: ROUTE_LINES.filter(e => isDim(e)).length, dots: segLayer.getLayers().filter(l => l._routeDot).length, on: segLegendEl.querySelectorAll('.seg-legend-row.on').length };
     return { n, startDim, seen: seen.size, maxBright, done, hov, after, lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length };
   }); await pa.close();
   check('animasi rute bergantian: rute lain redup, tiap rute dapat giliran (hanya satu terang), akhirnya normal & bersih', aInfo.n > 1 && aInfo.startDim <= 1 && aInfo.seen === aInfo.n && aInfo.maxBright === 1 && aInfo.done.dim === 0 && aInfo.done.stuck === 0 && aInfo.done.glow === 0 && aInfo.done.dots === 0 && !eA.length, JSON.stringify(aInfo) + eA.join('|'));
   check('hover legend rute: hanya rute itu terang (baris legend menyala), rute lain redup; keluar kursor = semua normal', aInfo.hov.bright === 1 && aInfo.hov.on === 1 && aInfo.hov.dim === aInfo.n - 1 && aInfo.after.dim === 0 && aInfo.after.dots === 0 && aInfo.after.on === 0, JSON.stringify(aInfo.hov) + JSON.stringify(aInfo.after));
+  // varian Darat/Laut: leg dengan LT Darat DAN Laut = dua pilihan -> dua entri "via Darat" / "via Laut" (laut = potongan titik-titik); tanpa leg seperti itu tetap satu entri
+  const pv = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eV = [];
+  pv.on('pageerror', e => eV.push(e.message));
+  await pv.goto(LEG, { waitUntil: 'networkidle', timeout: 90000 }); await pv.waitForTimeout(2500);
+  const vInfo = await pv.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+    const altBak = ROUTE_ALT.HCI; ROUTE_ALT.HCI = {};                               // tanpa rute custom: Rute 1 = rantai coverage biasa
+    const k = Object.keys(COVERAGE.HCI).find(x => { const c = COVERAGE.HCI[x]; return c.NDC && (c.RDC || c.SDC || c.HUB) && normFacName(c.NDC.name) !== normFacName((c.RDC || c.SDC || c.HUB).name); }); const c = COVERAGE.HCI[k];
+    const old = LEAD_TIME.HCI; LEAD_TIME.HCI = Object.fromEntries(Object.entries(old).map(([kk, v]) => [kk, { ...v, land: '2', sea: '4' }]));   // semua leg punya LT Darat DAN Laut
+    selectKabkota(c); for (let i = 0; i < 40 && !ROUTE_LINES.length; i++) await wait(100); await wait(300);
+    const ids = ROUTE_LINES.map(e => e.id), rows = [...segLegendEl.querySelectorAll('.seg-legend-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
+    const laut = ROUTE_LINES.find(e => e.id === 'Rute 1|laut'), darat = ROUTE_LINES.find(e => e.id === 'Rute 1|darat');
+    out.ids = ids; out.rows = rows;
+    out.seaDots = !!laut && laut.runs.some(r => r.m === 'sea' && r.poly.options.dashArray === '0.1 7' && r.poly.options.lineCap === 'round');
+    out.daratLand = !!darat && darat.runs.every(r => r.m === 'land');
+    out.solid = !!darat && darat.runs.every(r => !r.poly.options.dashArray);       // Rute = solid
+    out.note = /titik-titik = laut/.test(segLegendEl.textContent);
+    out.dim = document.getElementById('map').classList.contains('seg-on');
+    clearSegment(); out.dimOff = !document.getElementById('map').classList.contains('seg-on');
+    LEAD_TIME.HCI = old; ROUTE_ALT.HCI = altBak;
+    return out;
+  }); await pv.close();
+  check('varian Darat/Laut: leg Darat+Laut -> legend "Rute 1 · via Darat" & "via Laut" (dengan LT), laut bertitik, darat solid, catatan laut', vInfo.ids.includes('Rute 1|darat') && vInfo.ids.includes('Rute 1|laut') && vInfo.rows.some(r => /Rute 1 · via Darat/.test(r)) && vInfo.rows.some(r => /Rute 1 · via Laut/.test(r)) && vInfo.seaDots && vInfo.daratLand && vInfo.solid && vInfo.note && !eV.length, JSON.stringify(vInfo) + eV.join('|'));
+  check('basemap diredupkan saat rute tampil (kelas seg-on) dan pulih saat rute ditutup', vInfo.dim && vInfo.dimOff, JSON.stringify({ dim: vInfo.dim, off: vInfo.dimOff }));
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;
