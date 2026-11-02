@@ -631,11 +631,13 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     for (let i = 0; i < 40 && !ROUTE_LINES.length; i++) await wait(100);      // geometri rute dimuat dulu (async) baru digambar
     const n = ROUTE_LINES.length, isDim = e => lineEls(e).every(el => el.classList.contains('route-dim')), fxIds = () => new Set(segLayer.getLayers().filter(l => l._routeFx).map(l => l._routeFx)), lit = () => ROUTE_LINES.filter(e => !isDim(e) || fxIds().has(e.id)), bright = () => lit().length;
     await wait(500); const startDim = bright();                       // paling banyak satu rute terang (yang sedang giliran), tidak pernah semua terang
-    const seen = new Set(); const t0 = Date.now(); let maxBright = 0; const z0 = map.getZoom(), c0 = map.getCenter(); let zMax = z0;
+    const seen = new Set(); const t0 = Date.now(); let maxBright = 0; const z0 = map.getZoom(), c0 = map.getCenter(); let zMax = z0, zPrev = z0, nPrev = 0, idPrev = '', flySamples = 0, drawnWhileFly = 0;
     // urutan berantai (tiap rute tergambar, kamera zoom-in ke tujuan lalu kembali): tunggu sampai selesai (maks 300 dtk; animasi 4x lebih lambat)
-    while (Date.now() - t0 < 300000) { const b = lit().map(e => e.id); if (b.length && SEQ_UNWATCH) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } zMax = Math.max(zMax, map.getZoom()); if (seen.size === n && SEQ_UNWATCH === null && !fxIds().size && !CAM_HOME && b.length === n) break; await wait(100); }
+    while (Date.now() - t0 < 300000) { const b = lit().map(e => e.id); if (b.length && SEQ_UNWATCH) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } const zNow = map.getZoom(), fxN = segLayer.getLayers().filter(l => l._routeFx).reduce((a, l) => a + l.getLatLngs().length, 0), fxId = [...fxIds()].join();
+      if (Math.abs(zNow - zPrev) > 0.02 && fxN > 0 && fxId === idPrev) { flySamples++; if (fxN !== nPrev) drawnWhileFly++; } zPrev = zNow; nPrev = fxN; idPrev = fxId;      // saat kamera terbang garis tidak boleh bertambah (dijeda)
+      zMax = Math.max(zMax, zNow); if (seen.size === n && SEQ_UNWATCH === null && !fxIds().size && !CAM_HOME && b.length === n) break; await wait(100); }
     await wait(1500);   // pembersihan akhir
-    const cam = { zoomedIn: zMax - z0, backZoom: Math.abs(map.getZoom() - z0), backMove: map.distance(map.getCenter(), c0), camHome: CAM_HOME };
+    const cam = { flySamples, drawnWhileFly, zoomedIn: zMax - z0, backZoom: Math.abs(map.getZoom() - z0), backMove: map.distance(map.getCenter(), c0), camHome: CAM_HOME };
     const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];
     const done = { dim: ps.filter(x => x.classList.contains('route-dim')).length, stuck: segLayer.getLayers().filter(l => l._routeFx).length, glow: ps.filter(x => x.style.filter).length, dots: segLayer.getLayers().filter(l => l._routeDot).length };
     // hover legend
@@ -647,7 +649,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     return { n, startDim, seen: seen.size, maxBright, done, cam, hov, after, lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length };
   }); await pa.close();
   check('animasi rute bergantian: rute lain redup, tiap rute dapat giliran (hanya satu terang), akhirnya normal & bersih', aInfo.n > 1 && aInfo.startDim <= 1 && aInfo.seen === aInfo.n && aInfo.maxBright === 1 && aInfo.done.dim === 0 && aInfo.done.stuck === 0 && aInfo.done.glow === 0 && aInfo.done.dots === 0 && !eA.length, JSON.stringify(aInfo) + eA.join('|'));
-  check('kamera: saat rute mendekati tujuan peta zoom-in (>= 1 level) ke ujung rute, lalu kembali ke tampilan awal setelah selesai', aInfo.cam.zoomedIn >= 1 && aInfo.cam.backZoom < 0.05 && aInfo.cam.backMove < 2000 && !aInfo.cam.camHome, JSON.stringify(aInfo.cam));
+  check('kamera: saat rute mendekati tujuan peta zoom-in (>= 1 level) ke ujung rute, garis dijeda selama kamera terbang, lalu kembali ke tampilan awal setelah selesai', aInfo.cam.flySamples >= 3 && aInfo.cam.drawnWhileFly === 0 && aInfo.cam.zoomedIn >= 1 && aInfo.cam.backZoom < 0.05 && aInfo.cam.backMove < 2000 && !aInfo.cam.camHome, JSON.stringify(aInfo.cam));
   check('hover legend rute: hanya rute itu terang (baris legend menyala), rute lain redup; keluar kursor = semua normal', aInfo.hov.bright === 1 && aInfo.hov.on === 1 && aInfo.hov.dim === aInfo.n - 1 && aInfo.after.dim === 0 && aInfo.after.dots === 0 && aInfo.after.on === 0, JSON.stringify(aInfo.hov) + JSON.stringify(aInfo.after));
   // varian Darat/Laut: leg dengan LT Darat DAN Laut = dua pilihan -> dua entri "via Darat" / "via Laut" (laut = potongan titik-titik); tanpa leg seperti itu tetap satu entri
   const pv = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eV = [];
