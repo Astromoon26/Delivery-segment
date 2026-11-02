@@ -632,8 +632,8 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     const n = ROUTE_LINES.length, isDim = e => lineEls(e).every(el => el.classList.contains('route-dim')), fxIds = () => new Set(segLayer.getLayers().filter(l => l._routeFx).map(l => l._routeFx)), lit = () => ROUTE_LINES.filter(e => !isDim(e) || fxIds().has(e.id)), bright = () => lit().length;
     await wait(500); const startDim = bright();                       // paling banyak satu rute terang (yang sedang giliran), tidak pernah semua terang
     const seen = new Set(); const t0 = Date.now(); let maxBright = 0; const z0 = map.getZoom(), c0 = map.getCenter(); let zMax = z0;
-    // urutan berantai (tiap rute tergambar, kamera zoom-in ke tujuan lalu kembali): tunggu sampai selesai (maks 90 dtk)
-    while (Date.now() - t0 < 90000) { const b = lit().map(e => e.id); if (b.length && SEQ_UNWATCH) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } zMax = Math.max(zMax, map.getZoom()); if (seen.size === n && SEQ_UNWATCH === null && !fxIds().size && !CAM_HOME && b.length === n) break; await wait(100); }
+    // urutan berantai (tiap rute tergambar, kamera zoom-in ke tujuan lalu kembali): tunggu sampai selesai (maks 300 dtk; animasi 4x lebih lambat)
+    while (Date.now() - t0 < 300000) { const b = lit().map(e => e.id); if (b.length && SEQ_UNWATCH) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } zMax = Math.max(zMax, map.getZoom()); if (seen.size === n && SEQ_UNWATCH === null && !fxIds().size && !CAM_HOME && b.length === n) break; await wait(100); }
     await wait(1500);   // pembersihan akhir
     const cam = { zoomedIn: zMax - z0, backZoom: Math.abs(map.getZoom() - z0), backMove: map.distance(map.getCenter(), c0), camHome: CAM_HOME };
     const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];

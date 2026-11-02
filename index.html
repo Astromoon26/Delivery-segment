@@ -599,7 +599,9 @@ function dimRoutes(activeId){
 }
 // kecepatan animasi rute (ms): FX_MS = lama satu rute tergambar (tanpa zoom), ROUTE_GAP = jeda antar rute, ROUTE_LOOP = jeda ulang saat hover legend
 // kamera (urutan awal saja): CAM_MS = lama terbang zoom-in ke tujuan, CAM_HOLD = tahan di tujuan sebelum kembali ke tampilan awal, CAM_TAIL_M = ujung rute (meter dari tujuan) yang dibingkai
-const FX_MS = 2400, ROUTE_GAP = 600, ROUTE_LOOP = 3400, CAM_MS = 2000, CAM_HOLD = 800, CAM_TAIL_M = 200000;
+// ROUTE_SLOW = pengali kecepatan semua animasi rute (1 = dasar, 4 = 4x lebih lambat); ubah angka ini saja untuk mempercepat/memperlambat
+const ROUTE_SLOW = 4;
+const FX_MS = 2400*ROUTE_SLOW, ROUTE_GAP = 600*ROUTE_SLOW, ROUTE_LOOP = 3400*ROUTE_SLOW, CAM_MS = 2000*ROUTE_SLOW, CAM_HOLD = 800*ROUTE_SLOW, CAM_TAIL_M = 200000;
 // potongan jalur sampai pecahan frac dari panjangnya
 function partialLL(sg, frac){
   if(frac<=0) return [sg.ll[0]];
@@ -659,7 +661,7 @@ function activateRoute(e, run, o){
   let segs = routeSegs(e), layVer = LAY_VER, total = segs.reduce((s,x)=>s+x.len, 0);
   if(!(total>0)){ if(o.onEnd) o.onEnd(false); return; }
   const tp = o.cam ? tailPlan(segs) : null, f0 = tp ? tp.f0 : 1;
-  const T1 = tp ? Math.max(900, FX_MS*f0) : FX_MS, T2 = CAM_MS + 400;
+  const T1 = tp ? Math.max(900*ROUTE_SLOW, FX_MS*f0) : FX_MS, T2 = CAM_MS + 400*ROUTE_SLOW;
   const els = lineEls(e); els.forEach(el=>el.classList.add('route-dim'));      // dasar redup selama tergambar ulang
   const fx = e.runs.map(r=>{
     const f = L.polyline([], Object.assign({}, r.poly.options, {interactive:false, opacity:1})).addTo(segLayer); f._routeFx = e.id;
@@ -710,7 +712,7 @@ function playRouteSequence(run){
     activateRoute(e, run, {cam:true, home, onEnd: moved=>{
       if(run!==ROUTE_RUN) return;
       if(!moved){ setTimeout(next, ROUTE_GAP); return; }
-      setTimeout(()=>{ if(run!==ROUTE_RUN) return; restoreCam(.9); setTimeout(next, 1100); }, CAM_HOLD);
+      setTimeout(()=>{ if(run!==ROUTE_RUN) return; restoreCam(.9*ROUTE_SLOW); setTimeout(next, 1100*ROUTE_SLOW); }, CAM_HOLD);
     }});
   };
   setTimeout(next, 150);
