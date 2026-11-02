@@ -171,7 +171,7 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 /* ===== layout: Home (peta Indonesia) <-> Island (3 panel: peta | fasilitas | delivery segment) ===== */
 .body{display:flex;flex:1;min-height:0;position:relative}
 .map-col{flex:1;min-width:0;position:relative}
-#map{position:absolute;inset:0}
+#map{position:absolute;inset:0;background:#0b0f17}   /* latar gelap: tile basemap diredupkan saat rute tampil, jangan sampai latar terang bawaan Leaflet kelihatan */
 body[data-view="home"] .fac-panel,body[data-view="home"] .seg-left,body[data-view="home"] .seg-resizer{display:none}
 body[data-view="island"] .home-panel{display:none}
 #back-home{display:none}
