@@ -596,7 +596,8 @@ function dimRoutes(activeId){
   });
   if(segLegendEl) segLegendEl.querySelectorAll('.seg-legend-row[data-rid]').forEach(r=>r.classList.toggle('on', on && r.dataset.rid===activeId));
 }
-const FX_MS = 1300;
+// kecepatan animasi rute (ms): FX_MS = lama satu rute tergambar, ROUTE_SLOT = giliran tiap rute di urutan awal, ROUTE_LOOP = jeda ulang saat hover legend
+const FX_MS = 2400, ROUTE_SLOT = 3000, ROUTE_LOOP = 3400;
 // potongan jalur sampai pecahan frac dari panjangnya
 function partialLL(sg, frac){
   if(frac<=0) return [sg.ll[0]];
@@ -648,7 +649,7 @@ function clearRouteFx(){
 // urutan awal (sekali): tiap rute dapat giliran ~1,5 dtk; setelah selesai semua kembali normal
 function playRouteSequence(run){
   if(REDUCED || !ROUTE_LINES.length) return;
-  const slot = 1500; dimRoutes('');
+  const slot = ROUTE_SLOT; dimRoutes('');
   ROUTE_LINES.forEach((e,i)=>setTimeout(()=>{ if(run!==ROUTE_RUN) return; dimRoutes(e.id); activateRoute(e, run); }, 150+i*slot));
   setTimeout(()=>{ if(run!==ROUTE_RUN) return; clearRouteFx(); dimRoutes(null); }, 150+ROUTE_LINES.length*slot+200);
 }
@@ -659,7 +660,7 @@ function routeHover(id){
   if(id==null){ dimRoutes(null); return; }
   const e = ROUTE_LINES.find(x=>x.id===id); if(!e){ dimRoutes(null); return; }
   dimRoutes(id); if(REDUCED){ e.runs.forEach(r=>r.poly.bringToFront()); return; }
-  const loop = ()=>{ if(run!==ROUTE_RUN) return; activateRoute(e, run); setTimeout(loop, 1900); };
+  const loop = ()=>{ if(run!==ROUTE_RUN) return; activateRoute(e, run); setTimeout(loop, ROUTE_LOOP); };
   loop();
 }
 

@@ -632,14 +632,14 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     const n = ROUTE_LINES.length, isDim = e => lineEls(e).every(el => el.classList.contains('route-dim')), fxIds = () => new Set(segLayer.getLayers().filter(l => l._routeFx).map(l => l._routeFx)), lit = () => ROUTE_LINES.filter(e => !isDim(e) || fxIds().has(e.id)), bright = () => lit().length;
     await wait(500); const startDim = bright();                       // paling banyak satu rute terang (yang sedang giliran), tidak pernah semua terang
     const seen = new Set(); const t0 = Date.now(); let maxBright = 0;
-    while (Date.now() - t0 < n * 1500 - 400) { const b = lit().map(e => e.id); if (b.length) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } await wait(120); }
+    while (Date.now() - t0 < n * ROUTE_SLOT - 400) { const b = lit().map(e => e.id); if (b.length) { maxBright = Math.max(maxBright, b.length); b.forEach(x => seen.add(x)); } await wait(120); }
     await wait(1400);   // sisa urutan + pembersihan akhir
     const ps = [...document.querySelectorAll('.leaflet-overlay-pane path')];
     const done = { dim: ps.filter(x => x.classList.contains('route-dim')).length, stuck: segLayer.getLayers().filter(l => l._routeFx).length, glow: ps.filter(x => x.style.filter).length, dots: segLayer.getLayers().filter(l => l._routeDot).length };
     // hover legend
     const row = segLegendEl.querySelector('.seg-legend-row[data-rid]'); row.dispatchEvent(new MouseEvent('mouseenter'));
     await wait(900); const hov = { bright: bright(), on: segLegendEl.querySelectorAll('.seg-legend-row.on').length, dim: ROUTE_LINES.filter(e => !lit().includes(e)).length };
-    await wait(2600); const dotsWhileHover = segLayer.getLayers().filter(l => l._routeDot).length >= 0;
+    await wait(ROUTE_LOOP - 300); const dotsWhileHover = segLayer.getLayers().filter(l => l._routeDot).length >= 0;
     row.dispatchEvent(new MouseEvent('mouseleave')); await wait(400);
     const after = { dim: ROUTE_LINES.filter(e => isDim(e)).length, dots: segLayer.getLayers().filter(l => l._routeDot).length, on: segLegendEl.querySelectorAll('.seg-legend-row.on').length };
     return { n, startDim, seen: seen.size, maxBright, done, hov, after, lines: segLayer.getLayers().filter(l => l instanceof L.Polyline && !(l instanceof L.Polygon)).length };
