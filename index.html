@@ -12,7 +12,7 @@
 :root{
   --bg:#0f1117;--surface:#181c27;--surface2:#1e2335;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
-  --text:#e8eaf0;--muted:#6b7280;
+  --text:#e8eaf0;--muted:#8b93a3;
   --NDC:#f59e0b;--RDC:#3b82f6;--SDC:#a78bfa;--HUB:#34d399;
   --NDC-bg:rgba(245,158,11,0.12);--RDC-bg:rgba(59,130,246,0.12);
   --SDC-bg:rgba(167,139,250,0.12);--HUB-bg:rgba(52,211,153,0.12);
@@ -23,16 +23,16 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:300;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px}
 .brand-title{font-size:15px;font-weight:600}
-.brand-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+.brand-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .bu-toggle{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:3px;gap:3px}
 .bu-btn{padding:7px 18px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;transition:all .15s}
-.bu-btn.active{background:#3b82f6;color:#fff}
+.bu-btn.active{background:#2563eb;color:#fff}
 .btn{padding:7px 13px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);font-family:'Sora',sans-serif;transition:all .15s;background:transparent;color:var(--muted);display:flex;align-items:center;gap:6px}
 .btn:hover{background:var(--surface2);color:var(--text)}
 .btn.spin svg{animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-#last-updated{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+#last-updated{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 
 .sidebar-top{padding:12px;border-bottom:1px solid var(--border)}
 .search-wrap{position:relative}
@@ -42,27 +42,27 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .autocomplete-item{padding:9px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border)}
 .autocomplete-item:hover{background:var(--surface)}
 .autocomplete-item .ac-name{font-weight:500}
-.autocomplete-item .ac-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.autocomplete-item .ac-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
 
 .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border)}
 .sum-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
-.sum-card .lbl{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:2px}
+.sum-card .lbl{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:2px}
 .sum-card .val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
 
 .legend-box{padding:10px 12px;border-bottom:1px solid var(--border)}
-.legend-title{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:8px}
+.legend-title{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:8px}
 .legend-row{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:4px 0;cursor:pointer;user-select:none}
 .legend-row:hover{opacity:.85}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .legend-swatch{width:14px;height:10px;border-radius:2px;flex-shrink:0}
 .legend-row.off{opacity:.35}
-.legend-count{margin-left:auto;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.legend-count{margin-left:auto;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
 
-.gap-note{padding:9px 12px;font-size:10.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--border)}
+.gap-note{padding:9px 12px;font-size:11.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--border)}
 .gap-note b{color:var(--text)}
 
 .seg-cmp{margin:8px 14px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2,rgba(255,255,255,.02))}
-.seg-cmp-title{padding:8px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)}
+.seg-cmp-title{padding:8px 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)}
 .seg-cmp table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
 .seg-cmp th:nth-child(1),.seg-cmp td:nth-child(1){width:104px}
 .seg-cmp thead th .sw{margin-right:4px}
@@ -70,19 +70,19 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-cmp td,.seg-cmp th{white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 .seg-cmp th,.seg-cmp td{padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
 .seg-cmp tr:last-child td{border-bottom:0}
-.seg-cmp th{font-size:10px;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace}
-.seg-cmp td:first-child{color:var(--muted);font-size:10.5px}
+.seg-cmp th{font-size:11px;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace}
+.seg-cmp td:first-child{color:var(--muted);font-size:11.5px}
 .seg-cmp .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:5px;vertical-align:middle}
 .seg-cmp .val{font-family:'DM Mono',monospace}
 .seg-cmp .na{color:var(--muted);opacity:.6}
 .seg-cmp .good{color:#34d399}.seg-cmp .bad{color:#f59e0b}
-.seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:10px;opacity:.8}
-.seg-bd-note{padding:0 10px 6px;font-size:10.5px;color:var(--muted);font-style:italic}
+.seg-cmp-hint{padding-top:5px;padding-bottom:7px;font-size:11px;opacity:.8}
+.seg-bd-note{padding:0 10px 6px;font-size:11.5px;color:var(--muted);font-style:italic}
 .seg-tbl-scroll{overflow-x:auto}
 .seg-cmp.many .seg-main-tbl{width:100%}
 .seg-cmp.many .seg-main-tbl td:first-child,.seg-cmp.many .seg-main-tbl th:first-child{min-width:84px;position:sticky;left:0;background:var(--surface);z-index:1}
 .seg-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 10px;border-bottom:1px solid var(--border)}
-.seg-toggles .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-right:2px}
+.seg-toggles .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-right:2px}
 .seg-toggle{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border:1px solid var(--border2);border-radius:999px;font-size:11px;cursor:pointer;user-select:none;color:var(--muted);transition:all .15s}
 .seg-toggle input{position:absolute;opacity:0;pointer-events:none}
 .seg-toggle .dot{width:16px;height:0;border-top:2px dashed var(--c);opacity:.35}
@@ -90,9 +90,9 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-toggle.on .dot{opacity:1}
 .seg-toggle:focus-within{outline:2px solid #3b82f6;outline-offset:1px}
 .seg-cmp th.grp,.seg-cmp td.grp{border-left:1px solid var(--border2)}
-.seg-cmp th .gtag{display:block;font-size:8.5px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:1px}
+.seg-cmp th .gtag{display:block;font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;opacity:.65;margin-bottom:1px}
 .seg-cmp th.c-top{box-shadow:inset 0 2px 0 var(--c)}
-.seg-cmp-note{padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
+.seg-cmp-note{padding:8px 10px;font-size:11.5px;line-height:1.5;color:var(--muted);border-top:1px solid var(--border)}
 .seg-left .sidebar-top{position:sticky;top:0;z-index:30;background:var(--surface)}
 .seg-resizer{flex:none;width:7px;margin:0 -3px;z-index:500;cursor:col-resize;position:relative;touch-action:none;background:transparent}
 .seg-resizer::before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--border2);transition:background .15s,width .15s,left .15s}
@@ -101,27 +101,27 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .seg-resizer:hover::after,.seg-resizer.drag::after{background:#3b82f6}
 body.resizing{cursor:col-resize;user-select:none}
 .seg-legend{background:rgba(15,19,28,.88);border:1px solid var(--border2);border-radius:8px;padding:8px 11px 7px;margin:0 0 14px 10px!important;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);backdrop-filter:blur(3px)}
-.seg-legend-title{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:5px}
+.seg-legend-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:5px}
 .seg-legend-row{display:flex;align-items:center;gap:8px;padding:2px 0;white-space:nowrap}
 .seg-legend-row svg{flex:none}
 .seg-legend-lt{font-family:'DM Mono',monospace;color:var(--muted);margin-left:2px}
-.seg-legend-note{margin-top:5px;padding-top:5px;border-top:1px solid var(--border2);font-size:9.5px;color:var(--muted)}
+.seg-legend-note{margin-top:5px;padding-top:5px;border-top:1px solid var(--border2);font-size:11px;color:var(--muted)}
 /* basemap diredupkan saat rute tampil; label fasilitas = pil */
 #map .leaflet-tile-pane{transition:opacity .5s}
 #map.seg-on .leaflet-tile-pane{opacity:.28}
-.leaflet-tooltip.fl-pill{background:rgba(9,9,11,.78);color:#e4e4e7;border:1px solid #3f3f46;border-radius:999px;padding:1px 7px;font:500 10.5px 'Sora',sans-serif;box-shadow:none;pointer-events:none}
+.leaflet-tooltip.fl-pill{background:rgba(9,9,11,.78);color:#e4e4e7;border:1px solid #3f3f46;border-radius:999px;padding:1px 7px;font:500 11.5px 'Sora',sans-serif;box-shadow:none;pointer-events:none}
 .leaflet-tooltip.fl-pill:before{display:none}
 .seg-legend-row[data-rid]{cursor:pointer;border-radius:5px;padding:2px 5px;margin:0 -5px;transition:background .15s}
 .seg-legend-row[data-rid]:hover,.seg-legend-row[data-rid].on,.seg-legend-row[data-rid]:focus-visible{background:rgba(255,255,255,.09);outline:none}
 .seg-empty{padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
 .seg-dest-header{padding:14px 14px 4px}
 .seg-dest-title{font-size:15px;font-weight:600}
-.seg-dest-sub{font-size:10.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.seg-dest-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
 
 
 
 table{width:100%;border-collapse:collapse;font-size:12.5px}
-thead th{background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.4px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap;cursor:pointer}
+thead th{background:var(--surface);padding:9px 12px;text-align:left;font-size:11px;font-weight:500;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.4px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap;cursor:pointer}
 thead th:hover{color:var(--text)}
 tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
@@ -133,14 +133,14 @@ tbody tr:hover{background:rgba(255,255,255,.02);cursor:pointer}
 .popup-row{display:flex;justify-content:space-between;gap:14px;font-size:11.5px;padding:3px 0}
 .popup-row .k{color:var(--muted)}
 .popup-divider{height:1px;background:var(--border);margin:6px 0}
-.popup-sla{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+.popup-sla{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 
 
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-.tier-via{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap}
-.seg-cmp .sub{font-size:9.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px;font-weight:400}
-.seg-cmp-subtitle{padding:10px 10px 2px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace}
+.tier-via{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap}
+.seg-cmp .sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px;font-weight:400}
+.seg-cmp-subtitle{padding:10px 10px 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace}
 .seg-bd-wrap{border-top:1px solid var(--border)}
 .seg-bd-title{padding:8px 10px 2px;font-size:11px;font-weight:600}
 .seg-diff-title{padding:8px 10px 2px;font-size:11px;font-weight:600}
@@ -178,45 +178,45 @@ body[data-view="island"] .home-panel{display:none}
 body[data-view="island"] #back-home{display:inline-flex}
 .crumb{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
 .crumb b{color:var(--text);font-weight:600}
-.btn.primary{background:#3b82f6;border-color:#3b82f6;color:#fff}
-.btn.primary:hover{background:#2f6fd8;color:#fff}
+.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn.primary:hover{background:#1d4ed8;color:#fff}
 
 .home-panel{position:absolute;left:14px;top:14px;z-index:450;width:310px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(24,28,39,.95);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45);scrollbar-width:thin}
 .home-panel .sidebar-top{border-bottom:1px solid var(--border)}
-.panel-title{padding:11px 12px 6px;font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
+.panel-title{padding:11px 12px 6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
 .island-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);border-left:3px solid var(--ic);transition:background .12s;user-select:none}
 .island-chip:hover,.island-chip.hov{background:rgba(255,255,255,.05)}
 .island-chip:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
 .island-chip .nm{font-size:13px;font-weight:600;flex:1}
-.island-chip .sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;font-weight:400}
+.island-chip .sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;font-weight:400}
 .island-chip .badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:130px}
-.mini-badge{font-size:9.5px;font-family:'DM Mono',monospace;font-weight:600;padding:2px 6px;border-radius:5px}
+.mini-badge{font-size:11px;font-family:'DM Mono',monospace;font-weight:600;padding:2px 6px;border-radius:5px}
 .island-label{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none}
 
 .fac-panel{width:290px;min-width:230px;flex:none;background:var(--surface);border-left:1px solid var(--border);flex-direction:column;min-height:0;display:flex}
 .fac-head{padding:12px 14px 10px;border-bottom:1px solid var(--border)}
 .fac-title{font-size:15px;font-weight:600}
-.fac-sub{font-size:10.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.fac-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
 .fac-types{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
-.type-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;border:1px solid var(--border2);font-size:10.5px;font-family:'DM Mono',monospace;cursor:pointer;user-select:none;color:var(--text)}
+.type-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:999px;border:1px solid var(--border2);font-size:11.5px;font-family:'DM Mono',monospace;cursor:pointer;user-select:none;color:var(--text)}
 .type-chip .legend-dot{width:8px;height:8px}
 .type-chip.off{opacity:.38}
 .fac-list{flex:1;overflow-y:auto;scrollbar-width:thin;min-height:0}
-.fac-group{padding:10px 14px 4px;font-size:9px;letter-spacing:.08em;color:var(--muted);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2}
+.fac-group{padding:10px 14px 4px;font-size:11px;letter-spacing:.08em;color:var(--muted);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2}
 .fac-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;border-left:3px solid transparent;font-size:12.5px;user-select:none}
 .fac-item:hover{background:rgba(255,255,255,.04)}
 .fac-item:focus-visible,.served-item:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
 .fac-item .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent)}
 .fac-item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fac-item .ct{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+.fac-item .ct{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
 .fac-item.sel{background:rgba(255,255,255,.07);border-left-color:var(--c)}
 .served{background:rgba(0,0,0,.18);border-bottom:1px solid var(--border)}
-.served-h{padding:7px 14px 4px 26px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.5}
+.served-h{padding:7px 14px 4px 26px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.5}
 .served-item{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 26px;font-size:11.5px;cursor:pointer}
 .served-item:hover{background:rgba(255,255,255,.05)}
 .served-item.sel{background:rgba(59,130,246,.2);box-shadow:inset 2px 0 0 #3b82f6}
 .served-item .nm{flex:1;min-width:0}
-.served-item .tg{font-size:9.5px;font-family:'DM Mono',monospace;font-weight:600}
+.served-item .tg{font-size:11px;font-family:'DM Mono',monospace;font-weight:600}
 .fac-empty{padding:16px 14px;font-size:12px;color:var(--muted);line-height:1.6}
 
 /* legenda fasilitas interaktif: kartu tipe (klik = tampil/sembunyi, klik 2x = hanya tipe ini, hover = sorot di peta) */
@@ -229,12 +229,12 @@ body[data-view="island"] #back-home{display:inline-flex}
 .leg-card .legend-count{margin-left:auto;font-size:13px;font-weight:600;color:var(--text)}
 .leg-card.off{opacity:.4;background:transparent;border-left-color:var(--border2)}
 .leg-card.off .legend-dot{background:transparent;border:2px solid var(--c);box-shadow:none}
-.leg-hint{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:10px;color:var(--muted);line-height:1.4}
-.leg-all{padding:3px 9px;font-size:10.5px}
+.leg-hint{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.4}
+.leg-all{padding:3px 9px;font-size:11.5px}
 .type-chip{transition:transform .12s,background .12s,opacity .12s}
 .type-chip:hover{transform:translateY(-1px);background:rgba(255,255,255,.07)}
 .type-chip:focus-visible{outline:2px solid #3b82f6;outline-offset:1px}
-.fac-hint{margin-top:7px;font-size:10px;color:var(--muted)}
+.fac-hint{margin-top:7px;font-size:11px;color:var(--muted)}
 @keyframes facpulse{0%{box-shadow:0 0 0 0 var(--pc),0 0 0 3px var(--pc)}100%{box-shadow:0 0 0 18px transparent,0 0 0 3px transparent}}
 .fac-dot.pulse{animation:facpulse 1s ease-out infinite;transform:scale(1.25)}
 .fac-dot{transition:transform .15s}
@@ -269,13 +269,42 @@ body.resizing #map{pointer-events:none}
   .home-panel{width:calc(100% - 28px);max-height:46%}
 }
 
+
+#back-home{white-space:nowrap}
+.fac-item .ct.zero{opacity:.7;font-style:italic}
+@media (max-width:600px){
+  .header{flex-wrap:wrap;padding:10px 14px;gap:10px}
+  .brand{flex:1 1 100%;min-width:0}
+  .brand-sub{display:none}
+  #back-home .bk-t{display:none}
+  #back-home{padding:7px 11px}
+  .header-right{width:100%;justify-content:space-between}
+}
+@media (pointer:coarse){
+  .btn,.bu-btn{min-height:40px}
+  .type-chip,.island-chip{min-height:40px}
+}
+.seg-help{margin-top:4px}
+.seg-help summary{cursor:pointer;color:var(--text);opacity:.85;width:max-content}
+.seg-help summary:focus-visible{outline:2px solid #9db4ff;outline-offset:2px;border-radius:3px}
+/* lead time = angka utama tiap rute */
+.seg-cmp tr.lt-row td{padding-top:9px;padding-bottom:9px}
+.seg-cmp tr.lt-row td .val{font-size:15px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.seg-cmp tr.lt-row td:first-child{font-size:11.5px}
+
+/* kontrol & atribusi Leaflet mengikuti tema gelap */
+.leaflet-bar a,.leaflet-bar a:hover{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border2)}
+.leaflet-bar a:hover{background:var(--surface2)}
+.leaflet-bar{border:1px solid var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.leaflet-control-attribution{background:rgba(15,17,23,.78)!important;color:var(--muted)!important;font-size:11px}
+.leaflet-control-attribution a{color:#9db4ff!important}
 </style>
 </head>
 <body data-view="home">
 <div class="app">
   <div class="header">
     <div class="brand">
-      <button class="btn" id="back-home" title="Kembali ke peta Indonesia (Esc)">&larr; Semua area</button>
+      <button class="btn" id="back-home" title="Kembali ke peta Indonesia (Esc)" aria-label="Kembali ke semua area">&larr; <span class="bk-t">Semua area</span></button>
       <div>
         <div class="brand-title">Delivery Network</div>
         <div class="brand-sub">NDC · RDC · SDC · HUB Coverage — live dari Google Sheets</div>
@@ -1649,7 +1678,7 @@ function renderFacPanel(){
       const served = servedIn(f._fk, isl);
       const sel = view.facKey === f._fk;
       html += `<div class="fac-item ${sel?'sel':''}" data-fk="${escapeHtml(f._fk)}" style="--c:${TYPE_COLOR[t]}" role="button" tabindex="0">
-        <span class="dot"></span><span class="nm" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span><span class="ct">${served.length} kab/kota</span></div>`;
+        <span class="dot"></span><span class="nm" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span><span class="ct${served.length?'':' zero'}"${served.length?'':' title="Belum ada kab/kota yang tercatat dilayani fasilitas ini di coverage"'}>${served.length?served.length+' kab/kota':'belum ada coverage'}</span></div>`;
       if(sel){
         const total = SERVED[f._fk] ? SERVED[f._fk].size : 0;
         html += `<div class="served"><div class="served-h">Melayani ${served.length} kab/kota di ${escapeHtml(islandName(isl))}${total>served.length?` (total ${total} di seluruh Indonesia)`:''} — klik untuk lihat delivery segment</div>`
@@ -1929,7 +1958,7 @@ function renderCompare(c, routes, projects){
   const grp = (x,i) => (i>0 && cols[i-1].kind!==x.kind) ? ' grp' : '';        // pemisah antar kelompok
 
   const ltCell = (v, partial) => v==null ? na : `<span class="val">${partial?'≥':''}${fmtD(v)}${partial?'*':''}</span>`;
-  const row = (label, fn) => `<tr><td>${label}</td>${cols.map((x,i)=>`<td class="${grp(x,i).trim()}">${fn(x)}</td>`).join('')}</tr>`;
+  const row = (label, fn, cls) => `<tr${cls?` class="${cls}"`:''}><td>${label}</td>${cols.map((x,i)=>`<td class="${grp(x,i).trim()}">${fn(x)}</td>`).join('')}</tr>`;
 
   // Selisih lead time (hari): hanya angka yang dimiliki kedua sisi, rute yang belum lengkap tidak dibandingkan
   const diff = (v, dir, partial) => {
@@ -2056,7 +2085,8 @@ function renderCompare(c, routes, projects){
       ${legs.map(l=>`<tr><td><div>${escapeHtml(l.a)} → ${escapeHtml(l.b)}</div>${l.last?`<div class="sub">${l.tier==='NDC'?'project NDC (tab NDC)':'last mile '+escapeHtml(l.tier)}</div>`:''}</td>${aCols.map(c=>armCell(x,l,c)).join('')}</tr>`).join('')}
       </tbody></table></div>${armTotBlock(x)}`; }).join('');
     return `<div class="seg-cmp-subtitle">Cost per armada</div>
-      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilihnya (klik lagi = batal); klik nama kolom di header untuk memilihnya di semua segmen rute itu. Total = jumlah armada terpilih; cost/cbm = cost/trip ÷ kapasitas efektif (tab Armada). Kolom <b>Langsung</b> = Cost/Trip &amp; Cost/CBM yang diisi sendiri di tab Hub/SDC/RDC (last mile) atau tab NDC (Project rute). * = ada segmen belum dipilih / belum diisi.</div>
+      <div class="seg-cmp-note seg-cmp-hint">Klik sel armada di tiap segmen untuk memilihnya (klik lagi = batal); klik nama kolom = pilih untuk semua segmen rute itu.
+        <details class="seg-help"><summary>Cara hitung &amp; keterangan</summary>Total = jumlah armada terpilih; cost/cbm = cost/trip ÷ kapasitas efektif (tab Armada). Kolom <b>Langsung</b> = Cost/Trip &amp; Cost/CBM yang diisi sendiri di tab Hub/SDC/RDC (last mile) atau tab NDC (Project rute). * = ada segmen belum dipilih / belum diisi.</details></div>
       ${detail}`;
   };
   const armadaHtml = (!aCols.length || !armXcols.length) ? '' : `<div class="seg-bd-wrap" id="seg-armada">${armadaInner()}</div>`;
@@ -2068,13 +2098,13 @@ function renderCompare(c, routes, projects){
       ${toggle('project','Project rute', DIRECT_COLOR, SEG_VIS.project)}
     </div>
     <div class="seg-tbl-scroll"><table class="seg-main-tbl"${cols.length>4?` style="min-width:${84+cols.length*104}px"`:''}>
-      <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}"><span class="gtag">${kindLabel[x.kind]}</span>${x.id}</th>`).join('')}</tr></thead>
+      <thead><tr><th></th>${cols.map((x,i)=>`<th class="c-top${grp(x,i)}" style="--c:${x.color}">${x.id}</th>`).join('')}</tr></thead>
       <tbody>
         ${row('Rute', x=>x.path)}
-        ${row('Titik transit', x=>`<span class="val">${x.transit}</span>`)}
+        ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial), 'lt-row')}
+        ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial), 'lt-row')}
+        ${cols.some(x=>+x.transit>0) ? row('Titik transit', x=>`<span class="val">${x.transit}</span>`) : ''}
         ${SEG_VIS.project && cols.some(x=>x.kind==='project' && x.direct) ? row('Note', x=>x.kind==='project' && x.direct ? `<span class="val">${PROJECT_NOTE.replace('Note : ','')}</span>` : na) : ''}
-        ${row('Lead time Darat', x=>x.kind==='project' && x.T.land==null ? todo : ltCell(x.T.land,x.partial))}
-        ${row('Lead time Laut', x=>x.kind==='project' && x.T.sea==null ? todo : ltCell(x.T.sea,x.partial))}
       </tbody></table></div>
     ${armadaHtml}
     <div class="seg-bd-wrap" id="seg-breakdown">
@@ -2521,7 +2551,7 @@ async function loadAll(){
 
     buildIslandIndex();
     if(firstFit) playIntro();
-    document.getElementById('last-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID');
+    document.getElementById('last-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
     rerenderAll();
   }catch(err){
     console.error(err);
