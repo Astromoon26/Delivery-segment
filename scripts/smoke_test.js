@@ -687,15 +687,23 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('landing: pilih BU AHI menyamakan tombol header, mengganti BU, dan menyegarkan ringkasan angka', l2.bu === 'AHI' && l2.hdr === 'AHI' && l2.ldAct === 'AHI' && l2.stats.includes(String(l2.nKab)), JSON.stringify(l2));
   await pl.click('#ld-enter'); await pl.waitForTimeout(700);
   const l3 = await pl.evaluate(() => ({ hidden: document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), focus: document.activeElement.id, bodyCls: document.body.classList.contains('landing-on'), mode: view.mode }));
+  const l3b = await pl.evaluate(() => { const by = {}; document.querySelectorAll('.fac-dot[data-t]').forEach(e => { (by[e.dataset.t] = by[e.dataset.t] || []).push(parseInt(e.style.getPropertyValue('--d'))); }); const mn = t => Math.min(...(by[t] || [1e9])); return { n: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.length])), min: { NDC: mn('NDC'), RDC: mn('RDC'), SDC: mn('SDC'), HUB: mn('HUB') }, ring: getComputedStyle(document.querySelector('.fac-dot[data-t="NDC"]')).animationName, cls: document.body.classList.contains('anim-fac') }; });
+  check('adegan jaringan menyala: marker muncul berurutan NDC → RDC → SDC → HUB (jeda --d naik per tipe), NDC punya cincin facring', l3b.min.NDC < l3b.min.RDC && l3b.min.RDC < l3b.min.SDC && l3b.min.SDC < l3b.min.HUB && l3b.min.HUB < 1e9 && /facring/.test(l3b.ring) && l3b.cls, JSON.stringify(l3b));
   check('landing: klik Buka dashboard menutup landing, dashboard aktif lagi (tidak inert), fokus ke pencarian, tetap di Home', l3.hidden && !l3.inert && l3.focus === 'search-input' && !l3.bodyCls && l3.mode === 'home', JSON.stringify(l3));
   const l4 = await pl.evaluate(async () => {
     const wait = ms => new Promise(r => setTimeout(r, ms)), ov = document.getElementById('refresh-ov'); const before = document.getElementById('last-updated').textContent;
     document.getElementById('refresh-btn').click(); let seen = false, msgs = new Set();
     for (let i = 0; i < 300 && LOAD.state !== 'ready' || i < 2; i++) { if (!ov.hidden) { seen = true; msgs.add(document.getElementById('ro-msg').textContent); } await wait(20); if (LOAD.state === 'ready' && i > 2) break; }
-    await wait(600);
-    return { seen, steps: msgs.size, hiddenAfter: ov.hidden, mode: view.mode, pct: LOAD.pct, state: LOAD.state, landingHidden: document.getElementById('landing').hidden };
+    await wait(500);
+    const card = ov.querySelector('.ro-card'), doneShown = !ov.hidden && card.classList.contains('done') && [...ov.querySelectorAll('#ro-steps li')].every(li => li.classList.contains('done')) && !document.getElementById('ro-chg').hidden && /Data diperbarui/.test(document.getElementById('ro-title').textContent) && !document.getElementById('ro-actions').hidden && getComputedStyle(document.getElementById('ro-retry')).display === 'none';
+    const chgTxt = document.getElementById('ro-chg').textContent;
+    await wait(3800);
+    return { seen, steps: msgs.size, doneShown, chgTxt, hiddenAfter: ov.hidden, mode: view.mode, pct: LOAD.pct, state: LOAD.state, landingHidden: document.getElementById('landing').hidden };
   });
   check('Refresh data (header): overlay progres muncul saat memuat lalu hilang, tampilan (Home) tidak berubah, landing tidak muncul lagi', l4.seen && l4.hiddenAfter && l4.mode === 'home' && l4.state === 'ready' && l4.pct === 100 && l4.landingHidden, JSON.stringify(l4));
+  check('adegan refresh: tiap tahap tercentang, centang selesai tergambar, daftar "Berubah dari pembacaan terakhir" tampil (tanpa perubahan = pesan sama seperti sebelumnya) lalu overlay menutup sendiri', l4.doneShown && /Berubah dari pembacaan terakhir/.test(l4.chgTxt) && /sama seperti sebelumnya/.test(l4.chgTxt), JSON.stringify(l4));
+  const l4b = await pl.evaluate(() => { const a = netSnap(), b = JSON.parse(JSON.stringify(a)); b.HCI.fac += 1; b.AHI.kab -= 2; return diffSnap(a, b); });
+  check('adegan refresh: diffSnap melaporkan hanya angka yang berubah (Fasilitas HCI, Kab/kota AHI)', l4b.length === 2 && l4b.some(r => r.l === 'Fasilitas HCI' && r.b === r.a + 1) && l4b.some(r => r.l === 'Kab/kota AHI' && r.b === r.a - 2), JSON.stringify(l4b));
   await pl.route('**/gviz/tq**', r => r.fulfill({ status: 500, body: 'x' }));
   await pl.click('#refresh-btn'); await pl.waitForFunction(() => LOAD.state === 'error', null, { timeout: 60000 }); await pl.waitForTimeout(300);
   const l5 = await pl.evaluate(() => ({ ov: !document.getElementById('refresh-ov').hidden, title: document.getElementById('ro-title').textContent, retry: !document.getElementById('ro-actions').hidden, btnEnabled: !document.getElementById('refresh-btn').disabled }));

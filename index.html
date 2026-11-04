@@ -250,6 +250,8 @@ body[data-view="home"] .home-panel{animation:homein .32s cubic-bezier(.2,.7,.2,1
 .leaflet-overlay-pane svg path.leaflet-interactive{transition:fill .25s,fill-opacity .25s,stroke .25s,stroke-opacity .25s,stroke-width .2s,opacity .3s,filter .3s}
 .leaflet-overlay-pane svg path.route-dim{opacity:.16}
 body.anim-fac .fac-dot{animation:facpop .38s cubic-bezier(.2,.9,.3,1.3) backwards;animation-delay:var(--d,0ms)}
+body.anim-fac .fac-dot[data-t="NDC"]{animation:facpop .38s cubic-bezier(.2,.9,.3,1.3) backwards,facring 1.1s ease-out backwards;animation-delay:var(--d,0ms),calc(var(--d,0ms) + 300ms)}
+@keyframes facring{from{box-shadow:0 0 0 3px var(--pc)}to{box-shadow:0 0 0 24px transparent}}
 body.anim-fac .fac-item,body.anim-fac .fac-group,body.anim-fac .island-chip{animation:fadeup .3s ease-out backwards;animation-delay:calc(var(--i,0)*24ms)}
 .fx-up{animation:fadeup .3s ease-out backwards}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
@@ -332,7 +334,31 @@ body.landing-on .leaflet-control-container{visibility:hidden}
 .ro-title{font-size:15px;font-weight:600}
 .ro-msg{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;min-height:19px}
 .ro-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
-.ro-actions[hidden]{display:none}
+.ro-actions[hidden],.ro-actions .btn[hidden]{display:none}
+.ro-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ro-ok{flex:none;width:22px;height:22px;opacity:0;transition:opacity .15s}
+.ro-ok circle,.ro-ok path,.ro-steps path{fill:none;stroke:var(--HUB);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ro-ok circle,.ro-ok .chk,.ro-steps .chk{stroke-dasharray:1;stroke-dashoffset:1}
+.ro-ok .chk,.ro-steps .chk{opacity:0}
+.ro-card.done .ro-ok{opacity:1}
+.ro-card.done .ro-ok circle{stroke-dashoffset:0;transition:stroke-dashoffset .5s ease}
+.ro-card.done .ro-ok .chk{stroke-dashoffset:0;opacity:1;transition:stroke-dashoffset .3s ease .38s}
+.ro-steps{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:6px}
+.ro-steps li{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.ro-steps li.cur,.ro-steps li.done{color:var(--text)}
+.ro-steps svg{width:14px;height:14px;flex:none}
+.ro-steps circle{fill:none;stroke:rgba(255,255,255,.18);stroke-width:1.4}
+.ro-steps li.cur circle{stroke:var(--RDC)}
+.ro-steps .chk{stroke-width:1.8;transition:stroke-dashoffset .26s ease}
+.ro-steps li.done .chk{stroke-dashoffset:0;opacity:1}
+.ro-chg{margin-top:14px;display:grid;gap:6px}
+.ro-chg[hidden]{display:none}
+.ro-chg-h{font:500 11px/1 'DM Mono',monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.ro-chg-r{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;animation:chgflash 1.4s ease-out .3s backwards}
+.ro-chg-r b{font:500 12px 'DM Mono',monospace;font-variant-numeric:tabular-nums}
+.ro-chg-r b em{font-style:normal;color:var(--muted)}
+.ro-chg-none{font-size:12px;color:var(--muted);line-height:1.5}
+@keyframes chgflash{from{background:color-mix(in srgb,var(--NDC) 28%,transparent);border-color:color-mix(in srgb,var(--NDC) 70%,transparent)}}
 @media (max-width:900px){ #landing{background:var(--bg);align-items:flex-start} }
 </style>
 </head>
@@ -354,9 +380,11 @@ body.landing-on .leaflet-control-container{visibility:hidden}
 </div>
 <div id="refresh-ov" hidden>
   <div class="ro-card" role="status" aria-live="polite">
-    <div class="ro-title" id="ro-title">Memuat ulang data</div>
-    <div class="ro-msg" id="ro-msg"></div>
+    <div class="ro-head"><div><div class="ro-title" id="ro-title">Memuat ulang data</div><div class="ro-msg" id="ro-msg"></div></div>
+      <svg class="ro-ok" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" pathLength="1"/><path class="chk" pathLength="1" d="M7.5 12.5l3 3 6-7"/></svg></div>
     <div class="ld-bar"><i id="ro-bar"></i></div>
+    <ul class="ro-steps" id="ro-steps"></ul>
+    <div class="ro-chg" id="ro-chg" hidden></div>
     <div class="ro-actions" id="ro-actions" hidden><button class="btn" id="ro-close">Tutup</button><button class="btn primary" id="ro-retry">Coba lagi</button></div>
   </div>
 </div>
@@ -584,11 +612,11 @@ function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout
 // ============================================================
 const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 let animTimer = null;
-// marker fasilitas muncul bertahap + daftar (area / fasilitas) bergeser masuk: dipanggil sebelum render saat load, ganti BU, masuk/keluar area
+// marker fasilitas "menyala" berurutan per tipe (NDC → RDC → SDC → HUB, tiap tipe dari barat ke timur; lihat renderFacilityMarkers) + daftar (area / fasilitas) bergeser masuk: dipanggil sebelum render saat load, ganti BU, masuk/keluar area
 function playIntro(){
   if(REDUCED) return;
   document.body.classList.add('anim-fac');
-  clearTimeout(animTimer); animTimer = setTimeout(()=>document.body.classList.remove('anim-fac'), 1400);
+  clearTimeout(animTimer); animTimer = setTimeout(()=>document.body.classList.remove('anim-fac'), 2000);
 }
 function staggerIn(sel){ document.querySelectorAll(sel).forEach((el,i)=>el.style.setProperty('--i', Math.min(i,16))); }
 // angka naik/turun ke nilai baru (nilai pertama dihitung dari 0)
@@ -1596,14 +1624,16 @@ function renderFacilityMarkers(){
   facilityLayer.clearLayers();
   if(currentSegKey) return;            // mode rute: marker fasilitas digambar oleh renderSegmentRoute
   const isl = view.mode==='island' ? view.island : undefined;
-  let mi = 0;
-  for(const f of visibleFacilities(isl)){
-    if(!visibleTypes.has(f.type)) continue;
+  const list = visibleFacilities(isl).filter(f=>visibleTypes.has(f.type));
+  // jeda muncul (--d): tipe berurutan NDC → RDC → SDC → HUB, dalam tipe dari barat ke timur; Home penuh, area lebih singkat
+  const T0 = {NDC:0, RDC:260, SDC:480, HUB:760}, ST = {NDC:90, RDC:90, SDC:40, HUB:20}, K = view.mode==='home' ? 1 : .5, dly = new Map();
+  for(const t of Object.keys(T0)) list.filter(f=>f.type===t).sort((a,b)=>a.lon-b.lon).forEach((f,i)=>dly.set(f, Math.round((T0[t]+Math.min(i*ST[t],600))*K)));
+  for(const f of list){
     const sel = view.facKey === f._fk;
     const r = Math.round((TYPE_RADIUS[f.type]||6) * (sel?1.35:1));
     const color = TYPE_COLOR[f.type]||'#999';
     const icon = L.divIcon({
-      html:`<div class="fac-dot" style="--d:${Math.min(mi++*14,600)}ms;--pc:${color}aa;width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid ${sel?'#fff':'rgba(255,255,255,0.85)'};box-shadow:0 0 0 ${sel?5:3}px ${color}${sel?'88':'33'},0 2px 8px rgba(0,0,0,.4)"></div>`,
+      html:`<div class="fac-dot" data-t="${f.type}" style="--d:${dly.get(f)||0}ms;--pc:${color}aa;width:${r*2}px;height:${r*2}px;border-radius:50%;background:${color};border:2px solid ${sel?'#fff':'rgba(255,255,255,0.85)'};box-shadow:0 0 0 ${sel?5:3}px ${color}${sel?'88':'33'},0 2px 8px rgba(0,0,0,.4)"></div>`,
       className:'', iconAnchor:[r,r], popupAnchor:[0,-r-4]
     });
     const m = L.marker([f.lat, f.lon], {icon, zIndexOffset: sel?1000:0});
@@ -2553,6 +2583,7 @@ function rerenderAll(){
 async function loadAll(){
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spin'); btn.disabled = true;
+  const snap = DATA_READY ? netSnap() : null;      // jumlah sebelum refresh, untuk daftar "Berubah dari pembacaan terakhir"
   setLoad('loading', 4, 'Membaca master data dari Google Sheet');
   try{
     if(SRC_NEW) NEW_OLD = newToOld(await loadNewTabs());
@@ -2622,6 +2653,7 @@ async function loadAll(){
     document.getElementById('last-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
     DATA_READY = true;
     rerenderAll();
+    LOAD.diff = snap ? diffSnap(snap, netSnap()) : [];
     setLoad('ready', 100, '');
   }catch(err){
     console.error(err);
@@ -2640,8 +2672,27 @@ document.getElementById('refresh-btn').onclick = loadAll;
 const LP = new URLSearchParams(location.search).get('landing');
 let LANDING_ON = LP==='1' || (LP!=='0' && !navigator.webdriver);
 let DATA_READY = false;
-const LOAD = {state:'loading', pct:0, label:''};
-const ldEl = document.getElementById('landing'), roEl = document.getElementById('refresh-ov');
+const LOAD = {state:'loading', pct:0, label:'', diff:[]};
+// tahap muat data (pct = batas awal tiap tahap, sama dengan setLoad di loadAll) → daftar centang di overlay Refresh
+const STAGES = [['Master data Google Sheet',4],['Batas wilayah kab/kota',22],['Fasilitas & coverage',45],['Rantai hub & lead time',60],['Cost, armada & rute',76],['Render peta',92]];
+function netSnap(){
+  const o = {};
+  for(const bu of ['HCI','AHI']){
+    const seen = new Set();
+    FACILITIES.forEach(f=>{ if(f.bu===bu || f.bu==='HCI & AHI') seen.add(facKeyOf(f.type, f.name)); });
+    o[bu] = {kab:Object.keys(COVERAGE[bu]||{}).length, fac:seen.size};
+  }
+  return o;
+}
+function diffSnap(a, b){
+  const out = [];
+  for(const bu of ['HCI','AHI']) for(const [k,l] of [['kab','Kab/kota'],['fac','Fasilitas']]) if(a[bu][k] !== b[bu][k]) out.push({l:l+' '+bu, a:a[bu][k], b:b[bu][k]});
+  return out;
+}
+const ldEl = document.getElementById('landing'), roEl = document.getElementById('refresh-ov'), roCard = roEl.querySelector('.ro-card'), roChg = document.getElementById('ro-chg');
+let roHold = null, roShown = false;
+document.getElementById('ro-steps').innerHTML = STAGES.map(st=>`<li><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.8"/><path class="chk" pathLength="1" d="M4 7.3l2 2 4-4.6"/></svg><span>${st[0]}</span></li>`).join('');
+const roSteps = [...document.querySelectorAll('#ro-steps li')];
 function setLoad(state, pct, label){ Object.assign(LOAD, {state, pct, label}); paintLoad(); }
 function paintLoad(){
   const loading = LOAD.state==='loading', err = LOAD.state==='error', ready = LOAD.state==='ready';
@@ -2655,13 +2706,31 @@ function paintLoad(){
   if(ready && LANDING_ON && !ldEl.contains(document.activeElement)) enter.focus({preventScroll:true});
   // overlay refresh (hanya kalau landing sudah ditutup)
   if(LANDING_ON){ return; }
-  if(loading && DATA_READY){ roEl.hidden = false; roEl.classList.remove('out'); }      // muat awal tanpa landing: tidak ada overlay (peta kosong sampai siap); overlay hanya untuk Refresh
-  document.getElementById('ro-title').textContent = err ? 'Gagal memuat data' : 'Memuat ulang data';
-  document.getElementById('ro-msg').textContent = err ? LOAD.label.replace(/^Gagal memuat data:\s*/,'') : loading ? LOAD.label+'…' : 'Data diperbarui';
+  if(loading && DATA_READY){ roShown = true; roEl.hidden = false; roEl.classList.remove('out'); roCard.classList.remove('done'); roChg.hidden = true; }      // muat awal tanpa landing: tidak ada overlay (peta kosong sampai siap); overlay hanya untuk Refresh
+  const step = ready ? STAGES.length : STAGES.reduce((a,s,i)=>LOAD.pct>=s[1]?i:a, 0);
+  roSteps.forEach((li,i)=>{ li.classList.toggle('done', i<step); li.classList.toggle('cur', loading && i===step); });
+  document.getElementById('ro-title').textContent = err ? 'Gagal memuat data' : ready ? 'Data diperbarui' : 'Memuat ulang data';
+  document.getElementById('ro-msg').textContent = err ? LOAD.label.replace(/^Gagal memuat data:\s*/,'') : loading ? LOAD.label+'…' : 'Semua tahap selesai';
   document.getElementById('ro-bar').style.width = LOAD.pct+'%';
-  document.getElementById('ro-actions').hidden = !err;
-  if(ready){ roEl.classList.add('out'); setTimeout(()=>{ if(LOAD.state==='ready'){ roEl.hidden = true; roEl.classList.remove('out'); } }, REDUCED?0:220); }
-  if(err){ roEl.hidden = false; roEl.classList.remove('out'); }
+  document.getElementById('ro-actions').hidden = loading;
+  document.getElementById('ro-retry').hidden = !err;
+  if(ready && roShown && !roEl.hidden){
+    roShown = false; roCard.classList.add('done'); paintChanges();
+    clearTimeout(roHold); roHold = setTimeout(closeRo, REDUCED ? 700 : LOAD.diff.length ? 3200 : 1600);      // tahan sebentar supaya centang & perubahan terbaca; Tutup / klik latar = langsung
+  }
+  if(err){ roShown = false; roEl.hidden = false; roEl.classList.remove('out'); }
+}
+function paintChanges(){
+  const d = LOAD.diff || [];
+  roChg.hidden = false;
+  roChg.innerHTML = '<div class="ro-chg-h">Berubah dari pembacaan terakhir</div>' + (d.length
+    ? d.map(r=>`<div class="ro-chg-r"><span>${escapeHtml(r.l)}</span><b><em>${r.a}</em> → ${r.b}</b></div>`).join('')
+    : '<div class="ro-chg-none">Jumlah fasilitas dan kab/kota sama seperti sebelumnya.</div>');
+}
+function closeRo(){
+  if(LOAD.state!=='ready' || roEl.hidden) return;
+  roEl.classList.add('out');
+  setTimeout(()=>{ if(LOAD.state==='ready'){ roEl.hidden = true; roEl.classList.remove('out'); } }, REDUCED?0:220);
 }
 function paintLanding(){
   if(!ldEl || !DATA_READY || !COVERAGE[currentBU]) return;
@@ -2682,7 +2751,8 @@ function enterDashboard(){
 document.querySelectorAll('.ld-bu-btn').forEach(b=>{ b.onclick = ()=>document.querySelector('.header .bu-btn[data-bu="'+b.dataset.ldbu+'"]').click(); });      // pilihan BU di landing = klik tombol BU header (satu sumber kebenaran)
 document.getElementById('ld-enter').onclick = enterDashboard;
 document.getElementById('ld-refresh').onclick = loadAll;
-document.getElementById('ro-close').onclick = ()=>{ roEl.hidden = true; };
+document.getElementById('ro-close').onclick = ()=>{ clearTimeout(roHold); roEl.hidden = true; roEl.classList.remove('out'); };
+roEl.addEventListener('click', e=>{ if(e.target===roEl && LOAD.state==='ready') closeRo(); });
 document.getElementById('ro-retry').onclick = loadAll;
 if(LANDING_ON){ document.querySelector('.app').setAttribute('inert',''); document.body.classList.add('landing-on'); } else { ldEl.hidden = true; }
 
