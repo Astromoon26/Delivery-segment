@@ -675,6 +675,36 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   }); await pv.close();
   check('varian Darat/Laut: leg Darat+Laut -> legend "Rute 1 · via Darat" & "via Laut" (dengan LT), laut bertitik, darat solid, catatan laut', vInfo.ids.includes('Rute 1|darat') && vInfo.ids.includes('Rute 1|laut') && vInfo.rows.some(r => /Rute 1 · via Darat/.test(r)) && vInfo.rows.some(r => /Rute 1 · via Laut/.test(r)) && vInfo.seaDots && vInfo.daratLand && vInfo.solid && vInfo.note && !eV.length, JSON.stringify(vInfo) + eV.join('|'));
   check('basemap diredupkan saat rute tampil (kelas seg-on) dan pulih saat rute ditutup', vInfo.dim && vInfo.dimOff, JSON.stringify({ dim: vInfo.dim, off: vInfo.dimOff }));
+  // landing page + status muat data + overlay refresh
+  const pl = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eL = [], dL = [];
+  pl.on('pageerror', e => eL.push(e.message)); pl.on('dialog', d => { dL.push(d.message()); d.dismiss(); });
+  await pl.goto(LEG + '&landing=1', { waitUntil: 'networkidle', timeout: 90000 });
+  await pl.waitForFunction(() => LOAD.state === 'ready', null, { timeout: 90000 }); await pl.waitForTimeout(500);
+  const l1 = await pl.evaluate(() => ({ vis: !document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), cta: !document.getElementById('ld-enter').disabled, focus: document.activeElement.id, stats: document.getElementById('ld-stats').textContent, status: document.getElementById('ld-status').textContent, title: document.querySelector('#ld-title').textContent, role: document.getElementById('landing').getAttribute('role'), nKab: Object.keys(COVERAGE.HCI).length }));
+  check('landing (?landing=1): tampil, dashboard di belakang inert, tombol Buka aktif & terfokus setelah data siap, status & ringkasan angka terisi', l1.vis && l1.inert && l1.cta && l1.focus === 'ld-enter' && /Data live dari Google Sheet/.test(l1.status) && l1.stats.includes(String(l1.nKab)) && /HUB \d+/.test(l1.stats) && l1.title === 'Delivery Network' && l1.role === 'dialog', JSON.stringify(l1));
+  await pl.click('.ld-bu .ld-bu-btn[data-ldbu="AHI"]'); await pl.waitForTimeout(300);
+  const l2 = await pl.evaluate(() => ({ bu: currentBU, hdr: document.querySelector('.header .bu-btn.active')?.dataset.bu, ldAct: document.querySelector('.ld-bu .ld-bu-btn.active')?.dataset.ldbu, nKab: Object.keys(COVERAGE.AHI).length, stats: document.getElementById('ld-stats').textContent }));
+  check('landing: pilih BU AHI menyamakan tombol header, mengganti BU, dan menyegarkan ringkasan angka', l2.bu === 'AHI' && l2.hdr === 'AHI' && l2.ldAct === 'AHI' && l2.stats.includes(String(l2.nKab)), JSON.stringify(l2));
+  await pl.click('#ld-enter'); await pl.waitForTimeout(700);
+  const l3 = await pl.evaluate(() => ({ hidden: document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), focus: document.activeElement.id, bodyCls: document.body.classList.contains('landing-on'), mode: view.mode }));
+  check('landing: klik Buka dashboard menutup landing, dashboard aktif lagi (tidak inert), fokus ke pencarian, tetap di Home', l3.hidden && !l3.inert && l3.focus === 'search-input' && !l3.bodyCls && l3.mode === 'home', JSON.stringify(l3));
+  const l4 = await pl.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms)), ov = document.getElementById('refresh-ov'); const before = document.getElementById('last-updated').textContent;
+    document.getElementById('refresh-btn').click(); let seen = false, msgs = new Set();
+    for (let i = 0; i < 300 && LOAD.state !== 'ready' || i < 2; i++) { if (!ov.hidden) { seen = true; msgs.add(document.getElementById('ro-msg').textContent); } await wait(20); if (LOAD.state === 'ready' && i > 2) break; }
+    await wait(600);
+    return { seen, steps: msgs.size, hiddenAfter: ov.hidden, mode: view.mode, pct: LOAD.pct, state: LOAD.state, landingHidden: document.getElementById('landing').hidden };
+  });
+  check('Refresh data (header): overlay progres muncul saat memuat lalu hilang, tampilan (Home) tidak berubah, landing tidak muncul lagi', l4.seen && l4.hiddenAfter && l4.mode === 'home' && l4.state === 'ready' && l4.pct === 100 && l4.landingHidden, JSON.stringify(l4));
+  await pl.route('**/gviz/tq**', r => r.fulfill({ status: 500, body: 'x' }));
+  await pl.click('#refresh-btn'); await pl.waitForFunction(() => LOAD.state === 'error', null, { timeout: 60000 }); await pl.waitForTimeout(300);
+  const l5 = await pl.evaluate(() => ({ ov: !document.getElementById('refresh-ov').hidden, title: document.getElementById('ro-title').textContent, retry: !document.getElementById('ro-actions').hidden, btnEnabled: !document.getElementById('refresh-btn').disabled }));
+  check('Refresh gagal: pesan error di overlay (tanpa alert) dengan tombol Tutup / Coba lagi, tombol Refresh header aktif kembali', l5.ov && /Gagal/.test(l5.title) && l5.retry && l5.btnEnabled && dL.length === 0, JSON.stringify({ ...l5, dialogs: dL }));
+  check('landing: tanpa JS error', eL.length === 0, eL.join(' | ')); await pl.close();
+  const pk = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage();
+  await pk.goto(LEG + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pk.waitForTimeout(1200);
+  const l6 = await pk.evaluate(() => ({ hidden: document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), ready: DATA_READY }));
+  check('?landing=0 melewati landing (dashboard langsung aktif)', l6.hidden && !l6.inert && l6.ready, JSON.stringify(l6)); await pk.close();
   await browser.close();
   if (server) server.kill();
   const failed = results.filter(r => !r.ok).length;
