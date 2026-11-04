@@ -13,6 +13,7 @@ Konteks produk untuk pekerjaan desain. Sumber kebenaran perilaku & data: `CLAUDE
 - Pengguna paham istilah domain (NDC/RDC/SDC/HUB, mid mile, last mile). Tidak perlu dijelaskan panjang; yang perlu cepat adalah **angka dan jalurnya**.
 
 ## Tujuan permukaan (mode: Operate)
+0. Landing: layar pembuka (pilih BU, status data live, ringkasan angka, tombol Buka dashboard / Refresh data); dilewati dengan `?landing=0`.
 1. Home: lihat seluruh jaringan fasilitas (NDC/RDC/SDC/HUB) per area dan BU (HCI/AHI).
 2. Area: lihat fasilitas di satu area dan kab/kota yang dilayaninya.
 3. Delivery Segment: untuk satu kab/kota, tampilkan rute (Rute 1, Rute 2, Opsional, Project) di peta + tabel perbandingan lead time + cost per armada + breakdown per segmen + selisih LT.

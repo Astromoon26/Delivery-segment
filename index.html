@@ -26,8 +26,8 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .brand-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .bu-toggle{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:3px;gap:3px}
-.bu-btn{padding:7px 18px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;transition:all .15s}
-.bu-btn.active{background:#2563eb;color:#fff}
+.bu-btn,.ld-bu-btn{padding:7px 18px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;transition:all .15s}
+.bu-btn.active,.ld-bu-btn.active{background:#2563eb;color:#fff}
 .btn{padding:7px 13px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);font-family:'Sora',sans-serif;transition:all .15s;background:transparent;color:var(--muted);display:flex;align-items:center;gap:6px}
 .btn:hover{background:var(--surface2);color:var(--text)}
 .btn.spin svg{animation:spin 0.9s linear infinite}
@@ -281,7 +281,7 @@ body.resizing #map{pointer-events:none}
   .header-right{width:100%;justify-content:space-between}
 }
 @media (pointer:coarse){
-  .btn,.bu-btn{min-height:40px}
+  .btn,.bu-btn,.ld-bu-btn{min-height:40px}
   .type-chip,.island-chip{min-height:40px}
 }
 .seg-help{margin-top:4px}
@@ -298,9 +298,68 @@ body.resizing #map{pointer-events:none}
 .leaflet-bar{border:1px solid var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .leaflet-control-attribution{background:rgba(15,17,23,.78)!important;color:var(--muted)!important;font-size:11px}
 .leaflet-control-attribution a{color:#9db4ff!important}
+/* landing page (layar pembuka) + overlay refresh data */
+#landing{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;padding:clamp(24px,6vw,96px);background:linear-gradient(180deg,var(--bg) 0,var(--bg) 64px,transparent 64px),linear-gradient(90deg,var(--bg) 0,var(--bg) 40%,rgba(15,17,23,.6) 70%,rgba(15,17,23,.3) 100%);transition:opacity .25s ease,transform .25s ease;overflow-y:auto}
+body.landing-on .leaflet-control-container{visibility:hidden}
+#landing[hidden],#refresh-ov[hidden]{display:none}
+#landing.out{opacity:0;transform:translateY(6px);pointer-events:none}
+.ld-inner{width:min(520px,100%);display:flex;flex-direction:column;gap:20px;margin:auto 0}
+#ld-title{font-size:clamp(32px,4.2vw,44px);font-weight:600;letter-spacing:-.02em;line-height:1.08;text-wrap:balance}
+.ld-desc{font-size:15px;line-height:1.65;color:var(--text);opacity:.8;text-wrap:pretty;max-width:60ch}
+.ld-bu{display:flex;align-items:center;gap:12px}
+.ld-lbl{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ld-stats{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end;min-height:62px}
+.ld-stat .n{font-family:'DM Mono',monospace;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.ld-stat .l{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.ld-chips{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.ld-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;border:1px solid var(--border2);font-family:'DM Mono',monospace;font-size:11.5px}
+.ld-chip i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.ld-status{border:1px solid var(--border2);background:var(--surface);border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.5}
+.ld-line{display:flex;align-items:flex-start;gap:9px}
+.ld-dot{flex:none;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--NDC)}
+.ld-dot.ready{background:var(--HUB)} .ld-dot.error{background:#f87171}
+.ld-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}
+.ld-bar i{display:block;height:100%;width:0;background:var(--RDC);transition:width .3s ease}
+.ld-status.ready .ld-bar{display:none}
+.ld-actions{display:flex;flex-wrap:wrap;gap:10px}
+.ld-cta{padding:11px 22px;font-size:14px;font-weight:600}
+.ld-cta:disabled,#ld-refresh:disabled{opacity:.45;cursor:not-allowed}
+.ld-hint{font-size:12.5px;line-height:1.6;color:var(--muted);max-width:60ch}
+#landing :focus-visible,#refresh-ov :focus-visible{outline:2px solid #9db4ff;outline-offset:2px}
+#refresh-ov{position:fixed;inset:0;z-index:1900;display:flex;align-items:center;justify-content:center;background:rgba(9,10,14,.62);transition:opacity .2s ease}
+#refresh-ov.out{opacity:0;pointer-events:none}
+.ro-card{width:min(360px,calc(100% - 32px));background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.ro-title{font-size:15px;font-weight:600}
+.ro-msg{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;min-height:19px}
+.ro-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.ro-actions[hidden]{display:none}
+@media (max-width:900px){ #landing{background:var(--bg);align-items:flex-start} }
 </style>
 </head>
 <body data-view="home">
+<div id="landing" role="dialog" aria-modal="true" aria-labelledby="ld-title">
+  <div class="ld-inner">
+    <h1 id="ld-title">Delivery Network</h1>
+    <p class="ld-desc">Peta jaringan pengiriman Kawan Lama Group: dari NDC lewat RDC, SDC, dan HUB sampai ke tiap kabupaten/kota, lengkap dengan lead time Darat/Laut dan cost per armada.</p>
+    <div class="ld-bu"><span class="ld-lbl" id="ld-bu-lbl">Business unit</span>
+      <div class="bu-toggle" role="group" aria-labelledby="ld-bu-lbl"><button class="ld-bu-btn active" data-ldbu="HCI">HCI</button><button class="ld-bu-btn" data-ldbu="AHI">AHI</button></div></div>
+    <div class="ld-stats" id="ld-stats" aria-live="polite"></div>
+    <div class="ld-status" id="ld-status" role="status"></div>
+    <div class="ld-actions">
+      <button class="btn primary ld-cta" id="ld-enter" disabled>Buka dashboard &rarr;</button>
+      <button class="btn" id="ld-refresh" disabled>Refresh data</button>
+    </div>
+    <p class="ld-hint">Mulai dari klik area di peta, pilih kab/kota Cust / Sto, lalu bandingkan rute. Data dibaca live dari Google Sheet master dan hanya-baca; edit tetap di gsheet.</p>
+  </div>
+</div>
+<div id="refresh-ov" hidden>
+  <div class="ro-card" role="status" aria-live="polite">
+    <div class="ro-title" id="ro-title">Memuat ulang data</div>
+    <div class="ro-msg" id="ro-msg"></div>
+    <div class="ld-bar"><i id="ro-bar"></i></div>
+    <div class="ro-actions" id="ro-actions" hidden><button class="btn" id="ro-close">Tutup</button><button class="btn primary" id="ro-retry">Coba lagi</button></div>
+  </div>
+</div>
 <div class="app">
   <div class="header">
     <div class="brand">
@@ -2461,13 +2520,16 @@ document.getElementById('export-btn').onclick = exportTableCSV;
 document.querySelectorAll('.bu-btn').forEach(btn=>{
   btn.onclick = ()=>{
     currentBU = btn.dataset.bu;
-    document.querySelectorAll('.bu-btn').forEach(b=>b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.bu-btn').forEach(b=>b.classList.toggle('active', b.dataset.bu===btn.dataset.bu));
+    document.querySelectorAll('.ld-bu-btn').forEach(b=>b.classList.toggle('active', b.dataset.ldbu===btn.dataset.bu));
+    if(!DATA_READY){ paintLanding(); return; }      // data belum selesai dimuat (landing): cukup simpan pilihan BU
     playIntro();
     rerenderAll();
   };
 });
 
 function rerenderAll(){
+  paintLanding();
   buildServed();
   if(view.facKey && !visibleFacilities().some(f=>f._fk===view.facKey)) view.facKey = null;   // fasilitas tidak ada di BU ini
   renderChoropleth();
@@ -2491,10 +2553,13 @@ function rerenderAll(){
 async function loadAll(){
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spin'); btn.disabled = true;
+  setLoad('loading', 4, 'Membaca master data dari Google Sheet');
   try{
     if(SRC_NEW) NEW_OLD = newToOld(await loadNewTabs());
+    setLoad('loading', 22, 'Membaca batas wilayah kab/kota');
     const [sheetData, geo] = await Promise.all([ loadGoogleSheetData(), MERGED_GEO ? Promise.resolve(MERGED_GEO) : loadGeoBoundaries() ]);
     MERGED_GEO = geo;
+    setLoad('loading', 45, 'Membangun fasilitas & coverage');
     buildGeoIndex(MERGED_GEO);
 
     FACILITIES = buildFacilities(sheetData.facility);
@@ -2510,6 +2575,7 @@ async function loadAll(){
     buildCoverage('AHI','RDC', sheetData.RDC_AHI);
     buildCoverage('AHI','NDC', sheetData.NDC_AHI);
 
+    setLoad('loading', 60, 'Membaca rantai hub & lead time');
     // re-fetch F2F HCI raw text positionally (duplicate "HUB" header issue)
     const f2fHciText = await sheetText(SHEETS.F2F_HCI);
     const f2fHciRows = parseF2FHci(f2fHciText);
@@ -2527,6 +2593,7 @@ async function loadAll(){
     buildLeadTime('AHI', parseLegSheet(ltAhiText));
     buildLeadTime('HCI', parseLegSheet(ltHciText));
 
+    setLoad('loading', 76, 'Membaca cost, armada & rute');
     // cost per leg (optional tab: a failed fetch must not break the dashboard)
     const fetchCostText = async bu => { try{ return await sheetText(COST_SHEETS[bu]); }catch(e){ return ''; } };
     const [costAhi, costHci] = await Promise.all([fetchCostText("AHI"), fetchCostText("HCI")]);
@@ -2549,18 +2616,75 @@ async function loadAll(){
       if(!resolveGeo(c.kabkota, c.tipe)) unmatchedKabkota.push(c.kabkota);
     }
 
+    setLoad('loading', 92, 'Merender peta');
     buildIslandIndex();
-    if(firstFit) playIntro();
+    if(firstFit && !LANDING_ON) playIntro();
     document.getElementById('last-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    DATA_READY = true;
     rerenderAll();
+    setLoad('ready', 100, '');
   }catch(err){
     console.error(err);
-    alert('Gagal load data: '+err.message);
+    setLoad('error', LOAD.pct, 'Gagal memuat data: '+err.message);
   }finally{
     btn.classList.remove('spin'); btn.disabled = false;
   }
 }
 document.getElementById('refresh-btn').onclick = loadAll;
+
+// ============================================================
+// LANDING PAGE + STATUS MUAT DATA
+// ============================================================
+// Landing tampil tiap halaman dibuka (?landing=0 melewati, ?landing=1 memaksa; otomatis dilewati di browser otomatis/tes).
+// Klik Refresh (header) = overlay progres di atas tampilan yang sedang dibuka; landing punya tombol Refresh data sendiri.
+const LP = new URLSearchParams(location.search).get('landing');
+let LANDING_ON = LP==='1' || (LP!=='0' && !navigator.webdriver);
+let DATA_READY = false;
+const LOAD = {state:'loading', pct:0, label:''};
+const ldEl = document.getElementById('landing'), roEl = document.getElementById('refresh-ov');
+function setLoad(state, pct, label){ Object.assign(LOAD, {state, pct, label}); paintLoad(); }
+function paintLoad(){
+  const loading = LOAD.state==='loading', err = LOAD.state==='error', ready = LOAD.state==='ready';
+  const when = document.getElementById('last-updated').textContent.replace(/^Update:\s*/,'');
+  const msg = loading ? LOAD.label+'…' : err ? LOAD.label : 'Data live dari Google Sheet'+(when?' · Update '+when:'');
+  const st = document.getElementById('ld-status');
+  st.className = 'ld-status '+LOAD.state;
+  st.innerHTML = `<div class="ld-line"><span class="ld-dot ${LOAD.state}"></span><span>${escapeHtml(msg)}</span></div><div class="ld-bar"><i style="width:${LOAD.pct}%"></i></div>`;
+  const enter = document.getElementById('ld-enter'), rf = document.getElementById('ld-refresh');
+  enter.disabled = !(ready && DATA_READY); rf.disabled = loading; rf.textContent = err ? 'Coba lagi' : 'Refresh data';
+  if(ready && LANDING_ON && !ldEl.contains(document.activeElement)) enter.focus({preventScroll:true});
+  // overlay refresh (hanya kalau landing sudah ditutup)
+  if(LANDING_ON){ return; }
+  if(loading && DATA_READY){ roEl.hidden = false; roEl.classList.remove('out'); }      // muat awal tanpa landing: tidak ada overlay (peta kosong sampai siap); overlay hanya untuk Refresh
+  document.getElementById('ro-title').textContent = err ? 'Gagal memuat data' : 'Memuat ulang data';
+  document.getElementById('ro-msg').textContent = err ? LOAD.label.replace(/^Gagal memuat data:\s*/,'') : loading ? LOAD.label+'…' : 'Data diperbarui';
+  document.getElementById('ro-bar').style.width = LOAD.pct+'%';
+  document.getElementById('ro-actions').hidden = !err;
+  if(ready){ roEl.classList.add('out'); setTimeout(()=>{ if(LOAD.state==='ready'){ roEl.hidden = true; roEl.classList.remove('out'); } }, REDUCED?0:220); }
+  if(err){ roEl.hidden = false; roEl.classList.remove('out'); }
+}
+function paintLanding(){
+  if(!ldEl || !DATA_READY || !COVERAGE[currentBU]) return;
+  const cov = Object.values(COVERAGE[currentBU]), fac = visibleFacilities();
+  const chips = TIER_ORDER.map(tp=>{ const n = fac.filter(f=>f.type===tp).length; return n ? `<span class="ld-chip" style="--c:${TYPE_COLOR[tp]}"><i></i>${tp} ${n}</span>` : ''; }).join('');
+  document.getElementById('ld-stats').innerHTML = `<div class="ld-stat"><div class="n">${cov.length}</div><div class="l">kab/kota</div></div><div class="ld-stat"><div class="n">${fac.length}</div><div class="l">fasilitas</div></div><div class="ld-chips">${chips}</div>`;
+}
+function enterDashboard(){
+  if(!LANDING_ON || !DATA_READY) return;
+  LANDING_ON = false;
+  document.body.classList.remove('landing-on');
+  document.querySelector('.app').removeAttribute('inert');
+  const fin = ()=>{ ldEl.hidden = true; ldEl.classList.remove('out'); };
+  if(REDUCED) fin(); else { ldEl.classList.add('out'); setTimeout(fin, 260); }
+  playIntro(); rerenderAll();
+  const s = document.getElementById('search-input'); if(s) s.focus({preventScroll:true});
+}
+document.querySelectorAll('.ld-bu-btn').forEach(b=>{ b.onclick = ()=>document.querySelector('.header .bu-btn[data-bu="'+b.dataset.ldbu+'"]').click(); });      // pilihan BU di landing = klik tombol BU header (satu sumber kebenaran)
+document.getElementById('ld-enter').onclick = enterDashboard;
+document.getElementById('ld-refresh').onclick = loadAll;
+document.getElementById('ro-close').onclick = ()=>{ roEl.hidden = true; };
+document.getElementById('ro-retry').onclick = loadAll;
+if(LANDING_ON){ document.querySelector('.app').setAttribute('inert',''); document.body.classList.add('landing-on'); } else { ldEl.hidden = true; }
 
 initMap();
 setupSearch();

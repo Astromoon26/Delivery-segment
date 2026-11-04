@@ -41,6 +41,8 @@ Peta: basemap Esri World Dark Gray diredupkan (`#map.seg-on .leaflet-tile-pane{o
 - **Legenda rute** (`setSegLegend`): pojok kiri bawah peta; contoh garis solid/putus-putus/titik-titik sesuai jenis yang tampil.
 - **Pil label fasilitas** (`.fl-pill`) dan **cincin tujuan** di peta.
 - **Kontrol Leaflet** (zoom, atribusi) di-theme gelap lewat token.
+- **Landing page** (`#landing`): layar pembuka satu kolom (maks 520px) di kiri, peta Home redup terlihat di kanan (gradien dari `--bg`); judul `clamp(32px,4.2vw,44px)` 600, penjelasan 15px, pilih BU, angka ringkasan (DM Mono 26px tabular) + chip tipe fasilitas, **kartu status data** (titik hijau/oranye/merah + progres bar 3px) dan CTA primer "Buka dashboard". Mobile ≤ 900px: latar solid, kolom penuh. Tanpa animasi berulang; keluar = fade 250 ms.
+- **Overlay Refresh** (`#refresh-ov`): kartu 360px di tengah di atas latar redup `rgba(9,10,14,.62)` (tanpa blur): judul, langkah saat ini, progres bar; error = pesan + Tutup / Coba lagi.
 
 ## State
 Setiap kontrol interaktif: default, hover, `focus-visible` (outline jelas), aktif/terpilih, disabled. Empty state mengajari (mis. "Pilih kab/kota Cust / Sto…"). Loading memakai tampilan bertahap, bukan spinner di tengah konten.
