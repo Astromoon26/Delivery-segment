@@ -183,6 +183,14 @@ body[data-view="island"] #back-home{display:inline-flex}
 
 .home-panel{position:absolute;left:14px;top:14px;z-index:450;width:310px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(24,28,39,.95);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45);scrollbar-width:thin}
 .home-panel .sidebar-top{border-bottom:1px solid var(--border)}
+/* menu Fasilitas DC: panel area didok di kanan (seperti Delivery Segment), tanpa pencarian & Total Kab/Kota */
+body[data-menu="dc"] .home-panel{position:static;flex:none;width:340px;max-height:none;border-radius:0;border:0;border-left:1px solid var(--border);box-shadow:none;background:var(--surface)}
+body[data-menu="dc"] #home-panel .sidebar-top,body[data-menu="dc"] #home-panel .sum-kab{display:none}
+body[data-menu="dc"] #home-panel .summary-grid{grid-template-columns:1fr}
+.leaflet-tooltip.fl-pill.fl-NDC{border-color:var(--NDC,#f59e0b)}
+.leaflet-tooltip.fl-pill.fl-RDC{border-color:var(--RDC,#3b82f6)}
+.leaflet-tooltip.fl-pill.fl-SDC{border-color:var(--SDC,#a78bfa)}
+.leaflet-tooltip.fl-pill.fl-HUB{border-color:var(--HUB,#34d399)}
 .panel-title{padding:11px 12px 6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
 .island-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);border-left:3px solid var(--ic);transition:background .12s;user-select:none}
 .island-chip:hover,.island-chip.hov{background:rgba(255,255,255,.05)}
@@ -269,6 +277,9 @@ body.resizing #map{pointer-events:none}
   body[data-view="island"] .seg-left{width:100%!important;max-width:none;min-width:0;flex:none;border-left:0;border-top:1px solid var(--border)}
   .seg-resizer{display:none!important}
   .home-panel{width:calc(100% - 28px);max-height:46%}
+  body[data-menu="dc"][data-view="home"] .body{flex-direction:column;overflow-y:auto}
+  body[data-menu="dc"][data-view="home"] .map-col{flex:none;height:46vh;min-height:260px}
+  body[data-menu="dc"] .home-panel{width:100%;max-height:none;flex:none;border-left:0;border-top:1px solid var(--border)}
 }
 
 
@@ -471,24 +482,24 @@ body[data-menu="dc"] .seg-left,body[data-menu="dc"] .seg-resizer{display:none}
     <!-- KIRI: peta (Home = seluruh Indonesia + fasilitas DC; Island = zoom ke pulau / rute) -->
     <div class="map-col">
       <div id="map"></div>
+    </div>
 
-      <!-- panel Home: cari kab/kota, ringkasan, 7 area island, legenda fasilitas -->
-      <div class="home-panel" id="home-panel">
-        <div class="sidebar-top">
-          <div class="search-wrap" id="home-search-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
-            <div class="autocomplete-list" id="ac-list"></div>
-          </div>
-        </div>
-        <div class="summary-grid" id="summary-grid"></div>
-        <div class="panel-title">PILIH AREA (klik pulau di peta atau daftar ini)</div>
-        <div id="island-list"></div>
-        <div class="legend-box" style="border-top:1px solid var(--border);border-bottom:0">
-          <div class="legend-title">FASILITAS (klik untuk toggle)</div>
-          <div id="facility-legend"></div>
-        </div>
+    <!-- panel Home: cari kab/kota (menu Delivery Segment), ringkasan, daftar area, legenda fasilitas. Menu Fasilitas DC: didok di kanan, tanpa pencarian & total kab/kota -->
+    <div class="home-panel" id="home-panel">
+    <div class="sidebar-top">
+      <div class="search-wrap" id="home-search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
+        <div class="autocomplete-list" id="ac-list"></div>
       </div>
+    </div>
+    <div class="summary-grid" id="summary-grid"></div>
+    <div class="panel-title">PILIH AREA (klik pulau di peta atau daftar ini)</div>
+    <div id="island-list"></div>
+    <div class="legend-box" style="border-top:1px solid var(--border);border-bottom:0">
+      <div class="legend-title">FASILITAS (klik untuk toggle)</div>
+      <div id="facility-legend"></div>
+    </div>
     </div>
 
     <!-- TENGAH: fasilitas DC di pulau terpilih -->
@@ -1702,7 +1713,8 @@ function renderFacilityMarkers(){
     const m = L.marker([f.lat, f.lon], {icon, zIndexOffset: sel?1000:0});
     m._f = f;
     if(view.mode==='island'){
-      m.bindTooltip(`${f.type}: ${escapeHtml(f.name)}`);
+      if(MENU==='dc') m.bindTooltip(escapeHtml(f.name), {permanent:true, className:'fl-pill fl-'+f.type, direction:'top', offset:[0,-r-1]});
+      else m.bindTooltip(`${f.type}: ${escapeHtml(f.name)}`);
       m.on('click', ()=>selectFacility(f._fk));
     } else {
       const box = document.createElement('div');
@@ -1730,6 +1742,7 @@ function highlightFac(pred){
     if(!m._f) return;
     const on = !pred || pred(m._f);
     m.setOpacity(on ? 1 : 0.15);
+    const tt = m.getTooltip && m.getTooltip(); if(tt && tt.getElement()) tt.getElement().style.opacity = on ? '' : '.15';
     m.setZIndexOffset(pred && on ? 2000 : (view.facKey===m._f._fk ? 1000 : 0));
     const d = m.getElement() && m.getElement().querySelector('.fac-dot');
     if(d) d.classList.toggle('pulse', !!pred && on);
@@ -1763,7 +1776,7 @@ function renderSummary(){
   fac.forEach(f=>facCounts[f.type]!==undefined && facCounts[f.type]++);
 
   document.getElementById('summary-grid').innerHTML = `
-    <div class="sum-card"><div class="lbl">TOTAL KAB/KOTA</div><div class="val" id="sum-kab">${cov.length}</div></div>
+    <div class="sum-card sum-kab"><div class="lbl">TOTAL KAB/KOTA</div><div class="val" id="sum-kab">${cov.length}</div></div>
     <div class="sum-card"><div class="lbl">TOTAL FASILITAS</div><div class="val" id="sum-fac">${fac.length}</div></div>
   `;
   countUp(document.getElementById('sum-kab'), 'kab', cov.length);
@@ -1857,7 +1870,7 @@ function renderFacPanel(){
 function updateCrumb(){
   document.getElementById('crumb').innerHTML = view.mode==='island' ? `Indonesia › <b>${escapeHtml(islandName(view.island))}</b>` : '';
 }
-function fitIndonesia(o){ fitTo(INDO_BOUNDS, Object.assign({paddingTopLeft:[view.mode==='home'?340:20,10], paddingBottomRight:[10,10]}, o)); }
+function fitIndonesia(o){ fitTo(INDO_BOUNDS, Object.assign({paddingTopLeft:[view.mode==='home' && MENU!=='dc'?340:20,10], paddingBottomRight:[10,10]}, o)); }
 function fitIsland(){
   const B = ISLAND_BOUNDS[view.island];
   if(B) fitTo([[B[1],B[0]],[B[3],B[2]]], {padding:[24,24], maxZoom:8});
@@ -1945,7 +1958,7 @@ function setMenu(m, o){
   if(prev===m && !o.init) return;
   if(m!=='segment' && currentSegKey) clearSegment();                                   // rute hanya hidup di Delivery Segment
   if(m==='segment' && !o.noEnter && !o.init && DATA_READY && view.mode==='home') enterIsland(lastIsland || ISLANDS[0].id);
-  if(m==='dc' || m==='segment') requestAnimationFrame(()=>{ try{ map.invalidateSize({animate:false}); }catch(e){} });
+  if(m==='dc' || m==='segment') requestAnimationFrame(()=>{ try{ map.invalidateSize({animate:false}); if(DATA_READY && !currentSegKey){ if(view.mode==='home') fitIndonesia({instant:true}); else renderFacilityMarkers(); } }catch(e){} });
 }
 document.querySelectorAll('.side-item').forEach(b=>{ b.onclick = ()=>setMenu(b.dataset.menu); });
 document.querySelectorAll('.menu-pane [data-goto]').forEach(b=>{ b.onclick = ()=>setMenu(b.dataset.goto); });
