@@ -12,7 +12,7 @@
 :root{
   --bg:#0f1117;--surface:#181c27;--surface2:#1e2335;
   --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
-  --text:#e8eaf0;--muted:#8b93a3;
+  --text:#e8eaf0;--muted:#8b93a3;--accent:#2563eb;
   --NDC:#f59e0b;--RDC:#3b82f6;--SDC:#a78bfa;--HUB:#34d399;
   --NDC-bg:rgba(245,158,11,0.12);--RDC-bg:rgba(59,130,246,0.12);
   --SDC-bg:rgba(167,139,250,0.12);--HUB-bg:rgba(52,211,153,0.12);
@@ -183,6 +183,14 @@ body[data-view="island"] #back-home{display:inline-flex}
 
 .home-panel{position:absolute;left:14px;top:14px;z-index:450;width:310px;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(24,28,39,.95);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45);scrollbar-width:thin}
 .home-panel .sidebar-top{border-bottom:1px solid var(--border)}
+/* menu Fasilitas DC: panel area didok di kanan (seperti Delivery Segment), tanpa pencarian & Total Kab/Kota */
+body[data-menu="dc"] .home-panel{position:static;flex:none;width:340px;max-height:none;border-radius:0;border:0;border-left:1px solid var(--border);box-shadow:none;background:var(--surface)}
+body[data-menu="dc"] #home-panel .sidebar-top,body[data-menu="dc"] #home-panel .sum-kab{display:none}
+body[data-menu="dc"] #home-panel .summary-grid{grid-template-columns:1fr}
+.leaflet-tooltip.fl-pill.fl-NDC{border-color:var(--NDC,#f59e0b)}
+.leaflet-tooltip.fl-pill.fl-RDC{border-color:var(--RDC,#3b82f6)}
+.leaflet-tooltip.fl-pill.fl-SDC{border-color:var(--SDC,#a78bfa)}
+.leaflet-tooltip.fl-pill.fl-HUB{border-color:var(--HUB,#34d399)}
 .panel-title{padding:11px 12px 6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px}
 .island-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);border-left:3px solid var(--ic);transition:background .12s;user-select:none}
 .island-chip:hover,.island-chip.hov{background:rgba(255,255,255,.05)}
@@ -269,6 +277,9 @@ body.resizing #map{pointer-events:none}
   body[data-view="island"] .seg-left{width:100%!important;max-width:none;min-width:0;flex:none;border-left:0;border-top:1px solid var(--border)}
   .seg-resizer{display:none!important}
   .home-panel{width:calc(100% - 28px);max-height:46%}
+  body[data-menu="dc"][data-view="home"] .body{flex-direction:column;overflow-y:auto}
+  body[data-menu="dc"][data-view="home"] .map-col{flex:none;height:46vh;min-height:260px}
+  body[data-menu="dc"] .home-panel{width:100%;max-height:none;flex:none;border-left:0;border-top:1px solid var(--border)}
 }
 
 
@@ -360,9 +371,52 @@ body.landing-on .leaflet-control-container{visibility:hidden}
 .ro-chg-none{font-size:12px;color:var(--muted);line-height:1.5}
 @keyframes chgflash{from{background:color-mix(in srgb,var(--NDC) 28%,transparent);border-color:color-mix(in srgb,var(--NDC) 70%,transparent)}}
 @media (max-width:900px){ #landing{background:var(--bg);align-items:flex-start} }
+
+/* ===== sidebar menu kiri: Fasilitas DC · Store · Delivery Segment · Simulasi ===== */
+.shell{display:flex;flex:1;min-height:0;min-width:0}
+.shell>.body{flex:1;min-width:0}
+.side{width:204px;flex:none;display:flex;flex-direction:column;gap:2px;padding:10px 8px;background:var(--surface);border-right:1px solid var(--border);transition:width .18s cubic-bezier(.2,.7,.2,1);overflow:hidden}
+.side-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px;border-radius:8px;border:0;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;font-size:12.5px;font-weight:500;text-align:left;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.side-item svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.side-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.side-item:focus-visible,.side-toggle:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}
+.side-item[aria-current="page"]{background:color-mix(in srgb,var(--accent) 24%,transparent);color:#fff}
+.side-item[aria-current="page"] svg{color:#93b4ff}
+.side-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.side-soon{font-family:'DM Mono',monospace;font-size:11px;font-weight:400;color:var(--muted);padding:1px 6px;border:1px solid var(--border2);border-radius:999px}
+.side-item[aria-current="page"] .side-soon{color:#cbd5ff;border-color:rgba(255,255,255,.28)}
+.side-sp{flex:1}
+.side-toggle{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border-radius:8px;border:0;background:transparent;color:var(--muted);font-family:'Sora',sans-serif;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.side-toggle:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.side-toggle svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s}
+.side.collapsed{width:58px}
+.side.collapsed .side-nm,.side.collapsed .side-soon,.side.collapsed .side-tt{display:none}
+.side.collapsed .side-toggle svg{transform:rotate(180deg)}
+/* menu yang isinya menyusul */
+.menu-pane{display:none;flex:1;min-width:0;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+.menu-pane-in{max-width:440px;display:flex;flex-direction:column;gap:12px}
+.menu-pane h2{font-size:22px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.menu-pane p{font-size:13px;line-height:1.65;color:var(--muted);text-wrap:pretty}
+.menu-pane-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+body[data-menu="store"] #pane-store,body[data-menu="sim"] #pane-sim{display:flex;animation:fadeup .25s ease-out backwards}
+body[data-menu="store"] .shell>.body,body[data-menu="sim"] .shell>.body{display:none}
+body[data-menu="store"] #crumb,body[data-menu="sim"] #crumb,body[data-menu="store"] #export-btn,body[data-menu="sim"] #export-btn,body[data-menu="store"] #back-home,body[data-menu="sim"] #back-home{display:none}
+/* Fasilitas DC = peta + daftar fasilitas (tanpa panel Delivery Segment) */
+body[data-menu="dc"] .seg-left,body[data-menu="dc"] .seg-resizer{display:none}
+@media (max-width:900px){
+  .shell{flex-direction:column}
+  .side{width:100%;flex-direction:row;gap:4px;padding:6px 8px;border-right:0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+  .side-item{width:auto;flex:none;padding:8px 11px}
+  .side-sp,.side-toggle{display:none}
+  .side.collapsed{width:100%}
+  .side.collapsed .side-nm{display:block}
+  .side-soon{display:none}
+}
+@media (max-width:600px){ .side{gap:2px;padding:6px} .side-item{flex:1;flex-direction:column;justify-content:center;gap:3px;padding:7px 4px;font-size:11px;line-height:1.2;white-space:normal;text-align:center} .side-nm{flex:none;overflow:visible} }
+@media (pointer:coarse){ .side-item,.side-toggle{min-height:40px} }
 </style>
 </head>
-<body data-view="home">
+<body data-view="home" data-menu="dc">
 <div id="landing" role="dialog" aria-modal="true" aria-labelledby="ld-title">
   <div class="ld-inner">
     <h1 id="ld-title">Delivery Network</h1>
@@ -415,28 +469,37 @@ body.landing-on .leaflet-control-container{visibility:hidden}
     </div>
   </div>
 
+  <div class="shell">
+    <nav class="side" id="side" aria-label="Menu utama">
+      <button class="side-item" data-menu="dc" title="Fasilitas DC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9.5L12 4l9 5.5V21"/><path d="M7 21v-7h10v7"/><path d="M7 17.5h10"/></svg><span class="side-nm">Fasilitas DC</span></button>
+      <button class="side-item" data-menu="store" title="Store"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0"/><path d="M5 12.5V20h14v-7.5"/><path d="M10 20v-4h4v4"/></svg><span class="side-nm">Store</span><span class="side-soon">Segera</span></button>
+      <button class="side-item" data-menu="segment" title="Delivery Segment"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3.2 3.2 0 000-6.4H9A3.2 3.2 0 019 5.2h6.5"/></svg><span class="side-nm">Delivery Segment</span></button>
+      <button class="side-item" data-menu="sim" title="Simulasi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="side-nm">Simulasi</span><span class="side-soon">Segera</span></button>
+      <div class="side-sp"></div>
+      <button class="side-toggle" id="side-toggle" aria-label="Ciutkan menu" aria-expanded="true" title="Ciutkan / lebarkan menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span class="side-tt">Ciutkan</span></button>
+    </nav>
   <div class="body">
     <!-- KIRI: peta (Home = seluruh Indonesia + fasilitas DC; Island = zoom ke pulau / rute) -->
     <div class="map-col">
       <div id="map"></div>
+    </div>
 
-      <!-- panel Home: cari kab/kota, ringkasan, 7 area island, legenda fasilitas -->
-      <div class="home-panel" id="home-panel">
-        <div class="sidebar-top">
-          <div class="search-wrap" id="home-search-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
-            <div class="autocomplete-list" id="ac-list"></div>
-          </div>
-        </div>
-        <div class="summary-grid" id="summary-grid"></div>
-        <div class="panel-title">PILIH AREA (klik pulau di peta atau daftar ini)</div>
-        <div id="island-list"></div>
-        <div class="legend-box" style="border-top:1px solid var(--border);border-bottom:0">
-          <div class="legend-title">FASILITAS (klik untuk toggle)</div>
-          <div id="facility-legend"></div>
-        </div>
+    <!-- panel Home: cari kab/kota (menu Delivery Segment), ringkasan, daftar area, legenda fasilitas. Menu Fasilitas DC: didok di kanan, tanpa pencarian & total kab/kota -->
+    <div class="home-panel" id="home-panel">
+    <div class="sidebar-top">
+      <div class="search-wrap" id="home-search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
+        <div class="autocomplete-list" id="ac-list"></div>
       </div>
+    </div>
+    <div class="summary-grid" id="summary-grid"></div>
+    <div class="panel-title">PILIH AREA (klik pulau di peta atau daftar ini)</div>
+    <div id="island-list"></div>
+    <div class="legend-box" style="border-top:1px solid var(--border);border-bottom:0">
+      <div class="legend-title">FASILITAS (klik untuk toggle)</div>
+      <div id="facility-legend"></div>
+    </div>
     </div>
 
     <!-- TENGAH: fasilitas DC di pulau terpilih -->
@@ -472,6 +535,17 @@ body.landing-on .leaflet-control-container{visibility:hidden}
         <div id="seg-compare"></div>
       </div>
     </div>
+  </div>
+  <section class="menu-pane" id="pane-store" aria-labelledby="pane-store-h"><div class="menu-pane-in">
+    <h2 id="pane-store-h">Store</h2>
+    <p>Menu ini belum diisi. Isinya menyusul. Sementara itu, fasilitas DC dan rute pengiriman ke kab/kota sudah bisa dipakai.</p>
+    <div class="menu-pane-act"><button class="btn" data-goto="dc">Fasilitas DC</button><button class="btn primary" data-goto="segment">Delivery Segment</button></div>
+  </div></section>
+  <section class="menu-pane" id="pane-sim" aria-labelledby="pane-sim-h"><div class="menu-pane-in">
+    <h2 id="pane-sim-h">Simulasi</h2>
+    <p>Menu ini belum diisi. Isinya menyusul. Sementara itu, fasilitas DC dan rute pengiriman ke kab/kota sudah bisa dipakai.</p>
+    <div class="menu-pane-act"><button class="btn" data-goto="dc">Fasilitas DC</button><button class="btn primary" data-goto="segment">Delivery Segment</button></div>
+  </div></section>
   </div>
 </div>
 
@@ -1639,7 +1713,8 @@ function renderFacilityMarkers(){
     const m = L.marker([f.lat, f.lon], {icon, zIndexOffset: sel?1000:0});
     m._f = f;
     if(view.mode==='island'){
-      m.bindTooltip(`${f.type}: ${escapeHtml(f.name)}`);
+      if(MENU==='dc') m.bindTooltip(escapeHtml(f.name), {permanent:true, className:'fl-pill fl-'+f.type, direction:'top', offset:[0,-r-1]});
+      else m.bindTooltip(`${f.type}: ${escapeHtml(f.name)}`);
       m.on('click', ()=>selectFacility(f._fk));
     } else {
       const box = document.createElement('div');
@@ -1667,6 +1742,7 @@ function highlightFac(pred){
     if(!m._f) return;
     const on = !pred || pred(m._f);
     m.setOpacity(on ? 1 : 0.15);
+    const tt = m.getTooltip && m.getTooltip(); if(tt && tt.getElement()) tt.getElement().style.opacity = on ? '' : '.15';
     m.setZIndexOffset(pred && on ? 2000 : (view.facKey===m._f._fk ? 1000 : 0));
     const d = m.getElement() && m.getElement().querySelector('.fac-dot');
     if(d) d.classList.toggle('pulse', !!pred && on);
@@ -1700,7 +1776,7 @@ function renderSummary(){
   fac.forEach(f=>facCounts[f.type]!==undefined && facCounts[f.type]++);
 
   document.getElementById('summary-grid').innerHTML = `
-    <div class="sum-card"><div class="lbl">TOTAL KAB/KOTA</div><div class="val" id="sum-kab">${cov.length}</div></div>
+    <div class="sum-card sum-kab"><div class="lbl">TOTAL KAB/KOTA</div><div class="val" id="sum-kab">${cov.length}</div></div>
     <div class="sum-card"><div class="lbl">TOTAL FASILITAS</div><div class="val" id="sum-fac">${fac.length}</div></div>
   `;
   countUp(document.getElementById('sum-kab'), 'kab', cov.length);
@@ -1794,7 +1870,7 @@ function renderFacPanel(){
 function updateCrumb(){
   document.getElementById('crumb').innerHTML = view.mode==='island' ? `Indonesia › <b>${escapeHtml(islandName(view.island))}</b>` : '';
 }
-function fitIndonesia(o){ fitTo(INDO_BOUNDS, Object.assign({paddingTopLeft:[view.mode==='home'?340:20,10], paddingBottomRight:[10,10]}, o)); }
+function fitIndonesia(o){ fitTo(INDO_BOUNDS, Object.assign({paddingTopLeft:[view.mode==='home' && MENU!=='dc'?340:20,10], paddingBottomRight:[10,10]}, o)); }
 function fitIsland(){
   const B = ISLAND_BOUNDS[view.island];
   if(B) fitTo([[B[1],B[0]],[B[3],B[2]]], {padding:[24,24], maxZoom:8});
@@ -1822,6 +1898,7 @@ function enterIsland(id, o){
   o = o || {};
   const wasHome = view.mode==='home';
   view.mode = 'island'; view.island = id || null; view.facKey = o.fac || null;
+  if(id) lastIsland = id;
   if(id) ['fac', geoShard(id)].forEach(loadGeo);     // geometri jalan/laut dimuat lebih awal supaya rute langsung tergambar
   clearSegment({silent:true});
   playIntro();
@@ -1851,6 +1928,7 @@ function selectFacility(fk){
 }
 // kab/kota Cust / Sto dipilih (peta, daftar fasilitas, atau pencarian): masuk ke areanya kalau belum, lalu gambar rute
 function selectKabkota(c){
+  if(MENU!=='segment') setMenu('segment', {noEnter:true});      // rute hanya tampil di menu Delivery Segment
   const isl = islandOf(c.pulau);
   if(view.mode!=='island' || view.island!==isl) enterIsland(isl, {noFit:true});
   currentSegKey = c._key;
@@ -1863,10 +1941,51 @@ function selectKabkota(c){
   };
   if(geoNames(c).every(n=>GEO_DONE[n])) go(); else ensureGeo(c).then(go);
 }
+// ============================================================
+// MENU SIDEBAR: Fasilitas DC · Store · Delivery Segment · Simulasi
+// dc = peta + daftar fasilitas (tanpa panel rute) · segment = template 3 panel (peta | fasilitas | delivery segment)
+// store & sim = belum berisi (menyusul). ?menu=dc|store|segment|sim membuka menu tertentu.
+// ============================================================
+const MENUS = ['dc','store','segment','sim'];
+let MENU = 'dc', lastIsland = null;
+function setMenu(m, o){
+  o = o || {};
+  if(!MENUS.includes(m)) m = 'dc';
+  const prev = MENU; MENU = m;
+  document.body.dataset.menu = m;
+  applySide();
+  document.querySelectorAll('.side-item').forEach(b=>{ if(b.dataset.menu===m) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  if(prev===m && !o.init) return;
+  if(m!=='segment' && currentSegKey) clearSegment();                                   // rute hanya hidup di Delivery Segment
+  if(m==='segment' && !o.noEnter && !o.init && DATA_READY && view.mode==='home') enterIsland(lastIsland || ISLANDS[0].id);
+  if(m==='dc' || m==='segment') requestAnimationFrame(()=>{ try{ map.invalidateSize({animate:false}); if(DATA_READY && !currentSegKey){ if(view.mode==='home') fitIndonesia({instant:true}); else renderFacilityMarkers(); } }catch(e){} });
+}
+document.querySelectorAll('.side-item').forEach(b=>{ b.onclick = ()=>setMenu(b.dataset.menu); });
+document.querySelectorAll('.menu-pane [data-goto]').forEach(b=>{ b.onclick = ()=>setMenu(b.dataset.goto); });
+// sidebar: lebar penuh atau rel ikon. Pilihan Apip (tombol ciutkan) disimpan di localStorage['side-pref'] = open|rail;
+// kalau belum memilih, menu Delivery Segment (3 panel) otomatis rel ikon di layar < 1700px supaya peta tetap lebar.
+let sidePref = null; try{ sidePref = localStorage.getItem('side-pref'); }catch(e){}
+if(sidePref!=='open' && sidePref!=='rail') sidePref = null;
+function applySide(){
+  const el = document.getElementById('side'), tg = document.getElementById('side-toggle');
+  const c = sidePref ? sidePref==='rail' : (MENU==='segment' && innerWidth<1700);
+  const was = el.classList.contains('collapsed');
+  el.classList.toggle('collapsed', c);
+  tg.setAttribute('aria-expanded', String(!c)); tg.setAttribute('aria-label', c ? 'Lebarkan menu' : 'Ciutkan menu');
+  if(c!==was) setTimeout(()=>{ try{ map.invalidateSize({animate:false}); }catch(e){} }, 220);
+}
+document.getElementById('side-toggle').onclick = ()=>{
+  sidePref = document.getElementById('side').classList.contains('collapsed') ? 'open' : 'rail';
+  try{ localStorage.setItem('side-pref', sidePref); }catch(e){}
+  applySide();
+};
+setMenu(new URLSearchParams(location.search).get('menu') || 'dc', {init:true});
+
 document.getElementById('back-home').onclick = leaveIsland;
 document.getElementById('seg-close').onclick = ()=>clearSegment();
 document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
+  if(MENU==='store' || MENU==='sim') return;
   if(document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)){ document.activeElement.blur(); return; }
   if(currentSegKey) clearSegment();
   else if(view.facKey){ view.facKey = null; restyle(); renderFacilityMarkers(); renderFacPanel(); fitIsland(); }

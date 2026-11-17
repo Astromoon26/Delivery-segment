@@ -15,7 +15,7 @@ Gelap tunggal. Tidak ada mode terang.
 | `--text` | `#e8eaf0` | teks utama |
 | `--muted` | `#8b93a3` | label, teks sekunder (≥ 5:1 di `--surface2`) |
 | `--NDC` `--RDC` `--SDC` `--HUB` | `#f59e0b` `#3b82f6` `#a78bfa` `#34d399` | tipe fasilitas (+ varian `-bg` 12% untuk chip) |
-| aksi primer | `#2563eb` (hover `#1d4ed8`) | tombol aktif (HCI/AHI), `.btn.primary`; putih di atasnya 5,2:1 |
+| `--accent` / aksi primer | `#2563eb` (hover `#1d4ed8`) | tombol aktif (HCI/AHI), `.btn.primary`; putih di atasnya 5,2:1 |
 | tautan atribusi | `#9db4ff` | atribusi Leaflet |
 
 Warna garis rute ada di kode JS (bukan CSS): Project rute `DIRECT_COLOR #f59e0b`, Rute 1 putih, Rute 2+ `NUMBERED_STYLES` (pink, hijau muda, ungu, teal), Opsional `OPSIONAL_STYLES` (cyan, merah, kuning, biru). Warna encode makna rute; jangan dipakai ulang untuk dekorasi.
@@ -41,6 +41,8 @@ Peta: basemap Esri World Dark Gray diredupkan (`#map.seg-on .leaflet-tile-pane{o
 - **Legenda rute** (`setSegLegend`): pojok kiri bawah peta; contoh garis solid/putus-putus/titik-titik sesuai jenis yang tampil.
 - **Pil label fasilitas** (`.fl-pill`) dan **cincin tujuan** di peta.
 - **Kontrol Leaflet** (zoom, atribusi) di-theme gelap lewat token.
+- **Sidebar menu** (`nav.side`, `.side-item`): kolom 204px di kiri, permukaan `--surface`, garis kanan `--border`. Item = ikon garis 18px (stroke 1.75, `currentColor`) + label Sora 12.5px; default `--muted`, hover latar putih 5%, **aktif** (`aria-current="page"`) = latar `--accent` 24% + teks putih + ikon biru muda (tanpa garis samping). Store & Simulasi memakai badge "Segera" (DM Mono 11px, kapsul bergaris) sampai isinya ada. Tombol ciutkan di bawah → rel ikon 58px (label disembunyikan, `title` jadi tooltip); menu Delivery Segment otomatis rel ikon di layar < 1700px kalau Apip belum memilih. ≤ 900px: baris menu di atas konten; ≤ 600px: ikon di atas label, empat item sama lebar. Halaman "menyusul" (`.menu-pane`): judul 22px, satu kalimat penjelas, dua tombol pintas ke menu yang sudah aktif; tanpa ilustrasi.
+- **Panel area Fasilitas DC** (`#home-panel` di menu `dc`): kolom 340px didok di kanan peta (`--surface`, garis kiri `--border`), tanpa pencarian & kartu Total Kab/Kota. Label fasilitas di peta = pil `.fl-pill` dengan border warna tipe (`.fl-NDC/RDC/SDC/HUB`), hanya di island view menu ini.
 - **Landing page** (`#landing`): layar pembuka satu kolom (maks 520px) di kiri, peta Home redup terlihat di kanan (gradien dari `--bg`); judul `clamp(32px,4.2vw,44px)` 600, penjelasan 15px, pilih BU, angka ringkasan (DM Mono 26px tabular) + chip tipe fasilitas, **kartu status data** (titik hijau/oranye/merah + progres bar 3px) dan CTA primer "Buka dashboard". Mobile ≤ 900px: latar solid, kolom penuh. Tanpa animasi berulang; keluar = fade 250 ms.
 - **Overlay Refresh** (`#refresh-ov`): kartu 360px di tengah di atas latar redup `rgba(9,10,14,.62)` (tanpa blur): judul, langkah saat ini, progres bar; tahap muat = daftar centang (`.ro-steps`, centang tergambar lewat `stroke-dashoffset`), selesai = centang besar + daftar perubahan (`.ro-chg`, baris berkedip `chgflash` sekali) lalu menutup sendiri; error = pesan + Tutup / Coba lagi.
 
