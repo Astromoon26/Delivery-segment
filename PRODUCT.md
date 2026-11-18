@@ -18,7 +18,7 @@ Konteks produk untuk pekerjaan desain. Sumber kebenaran perilaku & data: `CLAUDE
 2. Area: lihat fasilitas di satu area dan kab/kota yang dilayaninya.
 3. Delivery Segment: untuk satu kab/kota, tampilkan rute (Rute 1, Rute 2, Opsional, Project) di peta + tabel perbandingan lead time + cost per armada + breakdown per segmen + selisih LT.
 4. Export Coverage (CSV) seluruh kab/kota BU terpilih.
-5. Navigasi: sidebar kiri dengan 4 menu — Fasilitas DC (peta + daftar fasilitas), Store (menyusul), Delivery Segment (template 3 panel), Simulasi (menyusul).
+5. Navigasi: sidebar kiri dengan 3 menu — Fasilitas DC (Home peta + daftar area → area = template 3 panel dengan Delivery Segment di kanan), Store (menyusul), Simulasi (menyusul).
 
 Keberhasilan: pengguna menjawab "berapa lama (Darat/Laut) dan lewat mana ke kab/kota ini?" dalam beberapa detik, dan percaya angkanya.
 
@@ -32,7 +32,7 @@ Keberhasilan: pengguna menjawab "berapa lama (Darat/Laut) dan lewat mana ke kab/
 
 ## Batasan (jangan dilanggar)
 - Jangan hardcode data (coverage, lead time, cost, rute) di `index.html`; semua dari gsheet.
-- Jangan menambah tab/menu baru tanpa diminta Apip (arahan #19; 4 menu sidebar sudah diminta, arahan #25).
+- Jangan menambah tab/menu baru tanpa diminta Apip (arahan #19; 3 menu sidebar sudah diminta, arahan #25).
 - Satu file, tanpa dependensi baru tanpa alasan kuat; CDN hanya cdnjs/jsdelivr/unpkg dengan versi tetap.
 - Smoke test (`scripts/smoke_test.js`) harus 100% lolos; teks/label baris tertentu dipakai tes (mis. "Lead time Darat/Laut"), ubah struktur dengan hati-hati.
 - Kapasitas armada tidak ditampilkan di header tabel (arahan #18).
