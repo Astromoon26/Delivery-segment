@@ -51,7 +51,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     await new Promise(r => setTimeout(r, 1000));
     url = `http://localhost:${port}/index.html`;
   }
-  const LEG = url + (url.includes('?') ? '&' : '?') + 'src=old&menu=segment';   // test lama men-stub tab gsheet lama -> pakai mode ?src=old; &menu=segment = tes lama memakai menu Delivery Segment (template 3 panel); mode default (master baru) dites terpisah
+  const LEG = url + (url.includes('?') ? '&' : '?') + 'src=old&menu=dc';   // test lama men-stub tab gsheet lama -> pakai mode ?src=old; &menu=dc = menu Fasilitas DC (Delivery Segment menyatu di sini, area = template 3 panel); mode default (master baru) dites terpisah
   const browser = await chromium.launch({ args: ['--ignore-certificate-errors'] });
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 950 }, ignoreHTTPSErrors: true })).newPage();
   const pageErrors = [], dialogs = [], tileHosts = {}, badHttp = [];
@@ -271,11 +271,12 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const g2 = await geo();
   check('layout: klik 2x resizer = reset', Math.abs(g2.left - g0.left) <= 2, `${g2.left}`);
 
-  // --- pencarian dari Home (panel kiri atas): langsung masuk area + gambar rute
+  // --- pencarian kab/kota di area lain (kolom cari panel Delivery Segment; Home tidak punya pencarian lagi): pindah area + gambar rute
   await page.click('#back-home'); await page.waitForTimeout(500);
-  await page.fill('#search-input', 'Kota Palu'); await page.waitForTimeout(400);
-  await page.click('#ac-list .autocomplete-item'); await page.waitForTimeout(1200);
-  check('pencarian dari Home: masuk area Sulawesi + Delivery Segment terisi', await page.evaluate(() => document.body.dataset.view === 'island' && view.island === 'Sulawesi') && /Perbandingan rute/i.test(await page.$eval('#seg-compare', e => e.textContent)));
+  await page.click('.island-chip[data-island="Sumatera"]'); await page.waitForTimeout(900);
+  await page.fill('#seg-search-input', 'Kota Palu'); await page.waitForTimeout(400);
+  await page.click('#seg-ac-list .autocomplete-item'); await page.waitForTimeout(1200);
+  check('pencarian ke area lain: pindah ke area Sulawesi + Delivery Segment terisi', await page.evaluate(() => document.body.dataset.view === 'island' && view.island === 'Sulawesi') && /Perbandingan rute/i.test(await page.$eval('#seg-compare', e => e.textContent)));
   // --- BU toggle
   await page.click('.bu-btn[data-bu="AHI"]'); await page.waitForTimeout(1500);
   check('toggle AHI tanpa error', pageErrors.length === 0, pageErrors.join(' | '));
@@ -689,7 +690,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const l3 = await pl.evaluate(() => ({ hidden: document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), focus: document.activeElement.id, bodyCls: document.body.classList.contains('landing-on'), mode: view.mode }));
   const l3b = await pl.evaluate(() => { const by = {}; document.querySelectorAll('.fac-dot[data-t]').forEach(e => { (by[e.dataset.t] = by[e.dataset.t] || []).push(parseInt(e.style.getPropertyValue('--d'))); }); const mn = t => Math.min(...(by[t] || [1e9])); return { n: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.length])), min: { NDC: mn('NDC'), RDC: mn('RDC'), SDC: mn('SDC'), HUB: mn('HUB') }, ring: getComputedStyle(document.querySelector('.fac-dot[data-t="NDC"]')).animationName, cls: document.body.classList.contains('anim-fac') }; });
   check('adegan jaringan menyala: marker muncul berurutan NDC → RDC → SDC → HUB (jeda --d naik per tipe), NDC punya cincin facring', l3b.min.NDC < l3b.min.RDC && l3b.min.RDC < l3b.min.SDC && l3b.min.SDC < l3b.min.HUB && l3b.min.HUB < 1e9 && /facring/.test(l3b.ring) && l3b.cls, JSON.stringify(l3b));
-  check('landing: klik Buka dashboard menutup landing, dashboard aktif lagi (tidak inert), fokus ke pencarian, tetap di Home', l3.hidden && !l3.inert && l3.focus === 'search-input' && !l3.bodyCls && l3.mode === 'home', JSON.stringify(l3));
+  check('landing: klik Buka dashboard menutup landing, dashboard aktif lagi (tidak inert), tetap di Home', l3.hidden && !l3.inert && !l3.bodyCls && l3.mode === 'home', JSON.stringify(l3));
   const l4 = await pl.evaluate(async () => {
     const wait = ms => new Promise(r => setTimeout(r, ms)), ov = document.getElementById('refresh-ov'); const before = document.getElementById('last-updated').textContent;
     document.getElementById('refresh-btn').click(); let seen = false, msgs = new Set();
@@ -713,35 +714,44 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await pk.goto(LEG + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pk.waitForTimeout(1200);
   const l6 = await pk.evaluate(() => ({ hidden: document.getElementById('landing').hidden, inert: document.querySelector('.app').hasAttribute('inert'), ready: DATA_READY }));
   check('?landing=0 melewati landing (dashboard langsung aktif)', l6.hidden && !l6.inert && l6.ready, JSON.stringify(l6)); await pk.close();
+  // landing di menu Fasilitas DC: panel area (kanan) disembunyikan sampai masuk dashboard
+  const pg = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eG = [];
+  pg.on('pageerror', e => eG.push(e.message));
+  await emptyRouteTabs(pg); await pg.goto(LEG + '&landing=1', { waitUntil: 'networkidle', timeout: 90000 });
+  await pg.waitForFunction(() => LOAD.state === 'ready', null, { timeout: 90000 }); await pg.waitForTimeout(500);
+  const ldA = await pg.evaluate(() => ({ disp: getComputedStyle(document.getElementById('home-panel')).display, landing: !document.getElementById('landing').hidden }));
+  await pg.screenshot({ path: path.join(OUT, '18_landing_dc.png') });
+  check('landing (menu Fasilitas DC): panel area di kanan disembunyikan selama landing tampil', ldA.landing && ldA.disp === 'none', JSON.stringify(ldA));
+  await pg.click('#ld-enter'); await pg.waitForTimeout(900);
+  const ldB = await pg.evaluate(() => { const hp = document.getElementById('home-panel').getBoundingClientRect(), mp = document.getElementById('map').getBoundingClientRect(), b = map.getBounds(), c = map.getCenter(); return { disp: getComputedStyle(document.getElementById('home-panel')).display, docked: hp.left >= mp.right - 2 && hp.width >= 300, mapW: Math.round(mp.width), mapFits: mp.right <= hp.left + 2, cLng: Math.round(c.lng) }; });
+  await pg.screenshot({ path: path.join(OUT, '19_landing_dc_masuk.png') });
+  check('landing: setelah Buka dashboard panel area muncul di kanan, peta menyesuaikan lebar & tetap membingkai Indonesia', ldB.disp !== 'none' && ldB.docked && ldB.mapFits && ldB.cLng >= 105 && ldB.cLng <= 125, JSON.stringify(ldB));
+  check('landing (menu Fasilitas DC): tanpa JS error', eG.length === 0, eG.join(' | ')); await pg.close();
   // sidebar menu: Fasilitas DC · Store · Delivery Segment · Simulasi
   const pm = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage(); const eM = [];
   pm.on('pageerror', e => eM.push(e.message)); pm.on('dialog', d => d.dismiss());
   await emptyRouteTabs(pm); await injectDumai(pm);
-  await pm.goto(LEG.replace('menu=segment', 'menu=dc') + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pm.waitForFunction(() => DATA_READY, null, { timeout: 90000 }); await pm.waitForTimeout(600);
+  await pm.goto(LEG + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pm.waitForFunction(() => DATA_READY, null, { timeout: 90000 }); await pm.waitForTimeout(600);
   const m1 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, labels: [...document.querySelectorAll('.side-item .side-nm')].map(e => e.textContent), cur: [...document.querySelectorAll('.side-item[aria-current="page"]')].map(e => e.dataset.menu), soon: document.querySelectorAll('.side-soon').length, nav: document.querySelector('nav.side').getAttribute('aria-label'), sideW: Math.round(document.querySelector('.side').getBoundingClientRect().width), mapLeft: Math.round(document.getElementById('map').getBoundingClientRect().left), mode: view.mode }));
-  check('sidebar kiri: 4 menu berurutan (Fasilitas DC, Store, Delivery Segment, Simulasi), Fasilitas DC aktif (aria-current) di Home, badge "Segera" di Store & Simulasi, peta di kanan sidebar', JSON.stringify(m1.labels) === JSON.stringify(['Fasilitas DC', 'Store', 'Delivery Segment', 'Simulasi']) && m1.menu === 'dc' && m1.cur.length === 1 && m1.cur[0] === 'dc' && m1.soon === 2 && m1.nav === 'Menu utama' && m1.sideW >= 180 && m1.mapLeft >= m1.sideW - 2 && m1.mode === 'home', JSON.stringify(m1));
+  check('sidebar kiri: 3 menu berurutan (Fasilitas DC, Store, Simulasi; Delivery Segment menyatu di Fasilitas DC), Fasilitas DC aktif (aria-current) di Home, badge "Segera" di Store & Simulasi, peta di kanan sidebar', JSON.stringify(m1.labels) === JSON.stringify(['Fasilitas DC', 'Store', 'Simulasi']) && m1.menu === 'dc' && m1.cur.length === 1 && m1.cur[0] === 'dc' && m1.soon === 2 && m1.nav === 'Menu utama' && m1.sideW >= 180 && m1.mapLeft >= m1.sideW - 2 && m1.mode === 'home', JSON.stringify(m1));
   await pm.screenshot({ path: path.join(OUT, '10_menu_dc_home.png') });
   await pm.click('.island-chip[data-island="Sumatera"]'); await pm.waitForTimeout(900);
-  const m2 = await pm.evaluate(() => { const v = s => getComputedStyle(document.querySelector(s)).display; const r = s => document.querySelector(s).getBoundingClientRect(); return { seg: v('.seg-left'), rez: v('.seg-resizer'), fac: v('.fac-panel'), order: r('.side').right <= r('#map').left + 2 && r('#map').right <= r('.fac-panel').left + 2, mapW: Math.round(r('#map').width) }; });
-  check('menu Fasilitas DC, buka area: 2 panel (peta | daftar fasilitas), panel Delivery Segment tidak tampil', m2.seg === 'none' && m2.rez === 'none' && m2.fac !== 'none' && m2.order && m2.mapW >= 600, JSON.stringify(m2));
   await pm.screenshot({ path: path.join(OUT, '11_menu_dc_area.png') });
-  await pm.click('.side-item[data-menu="segment"]'); await pm.waitForTimeout(700);
   const m3 = await pm.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); return { menu: document.body.dataset.menu, cur: document.querySelector('.side-item[aria-current="page"]').dataset.menu, seg: getComputedStyle(document.querySelector('.seg-left')).display, island: view.island, order: r('.side').right <= r('#map').left + 2 && r('#map').right <= r('.fac-panel').left + 2 && r('.fac-panel').right <= r('.seg-left').left + 2, segW: Math.round(r('.seg-left').width), mapW: Math.round(r('#map').width), mapCanvas: Math.round(document.querySelector('#map .leaflet-pane').getBoundingClientRect().width) }; });
-  check('menu Delivery Segment di area yang sama: template 3 panel (sidebar | peta | fasilitas | delivery segment), area tetap Sumatera, peta tidak terpotong', m3.menu === 'segment' && m3.cur === 'segment' && m3.seg !== 'none' && m3.island === 'Sumatera' && m3.order && m3.segW >= 340 && m3.mapW >= 300, JSON.stringify(m3));
-  await pm.screenshot({ path: path.join(OUT, '12_menu_segment.png') });
-  await pm.click('#back-home'); await pm.waitForTimeout(500);
-  await pm.click('.side-item[data-menu="dc"]'); await pm.waitForTimeout(300);
-  await pm.click('.side-item[data-menu="segment"]'); await pm.waitForTimeout(700);
-  const m3b = await pm.evaluate(() => ({ mode: view.mode, island: view.island, menu: document.body.dataset.menu }));
-  check('pindah ke Delivery Segment dari Home: langsung masuk template 3 panel (area terakhir dibuka, atau Sumatera)', m3b.mode === 'island' && m3b.island === 'Sumatera' && m3b.menu === 'segment', JSON.stringify(m3b));
-  await pm.click('.side-item[data-menu="dc"]'); await pm.waitForTimeout(300);
-  await pm.click('#back-home'); await pm.waitForTimeout(500);
+  check('menu Fasilitas DC, buka area: template 3 panel (sidebar | peta | fasilitas | delivery segment), area Sumatera, peta tidak terpotong: template 3 panel (sidebar | peta | fasilitas | delivery segment), area tetap Sumatera, peta tidak terpotong', m3.menu === 'dc' && m3.cur === 'dc' && m3.seg !== 'none' && m3.island === 'Sumatera' && m3.order && m3.segW >= 340 && m3.mapW >= 300, JSON.stringify(m3));
+  await pm.screenshot({ path: path.join(OUT, '12_menu_dc_3panel.png') });
+  const m3b = await pm.evaluate(() => ({ nav: [...document.querySelectorAll('.side-item')].map(e => e.dataset.menu), rail: document.getElementById('side').classList.contains('collapsed') }));
+  check('sidebar tanpa menu Delivery Segment; di dalam area sidebar otomatis rel ikon', JSON.stringify(m3b.nav) === JSON.stringify(['dc', 'store', 'sim']) && m3b.rail, JSON.stringify(m3b));
+  await pm.click('#back-home'); await pm.waitForTimeout(600);
+  const m3c = await pm.evaluate(() => ({ rail: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), mode: view.mode, ls: localStorage.getItem('side-pref') }));
+  check('kembali ke Home (semua area): sidebar melebar lagi otomatis (≈204px), pilihan tersimpan tidak berubah', !m3c.rail && m3c.w >= 180 && m3c.mode === 'home' && m3c.ls === null, JSON.stringify(m3c));
   await pm.evaluate(() => { const c = Object.values(COVERAGE[currentBU]).find(x => /Dumai/.test(x.kabkota)); selectKabkota(c); }); await pm.waitForTimeout(1500);
   const m4 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, key: !!currentSegKey, route: document.getElementById('seg-route').style.display, seg: getComputedStyle(document.querySelector('.seg-left')).display, title: document.getElementById('seg-dest-title').textContent }));
-  check('pilih kab/kota saat di menu Fasilitas DC: otomatis pindah ke Delivery Segment dan rute tampil', m4.menu === 'segment' && m4.key && m4.route === 'block' && m4.seg !== 'none' && /Dumai/.test(m4.title), JSON.stringify(m4));
+  check('pilih kab/kota dari Home menu Fasilitas DC: masuk ke areanya, panel Delivery Segment tampil dan rute tergambar (tetap di menu Fasilitas DC)', m4.menu === 'dc' && m4.key && m4.route === 'block' && m4.seg !== 'none' && /Dumai/.test(m4.title), JSON.stringify(m4));
+  await pm.click('.side-item[data-menu="store"]'); await pm.waitForTimeout(400);
   await pm.click('.side-item[data-menu="dc"]'); await pm.waitForTimeout(600);
-  const m5 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, key: currentSegKey, seg: getComputedStyle(document.querySelector('.seg-left')).display, sel: document.querySelectorAll('#map.seg-on').length, mode: view.mode }));
-  check('kembali ke Fasilitas DC: rute ditutup (peta kembali normal), panel Delivery Segment disembunyikan, tetap di area', m5.menu === 'dc' && !m5.key && m5.seg === 'none' && m5.sel === 0 && m5.mode === 'island', JSON.stringify(m5));
+  const m5 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, key: currentSegKey, seg: getComputedStyle(document.querySelector('.seg-left')).display, sel: document.querySelectorAll('#map.seg-on').length, mode: view.mode, lat: map.getCenter().lat, z: map.getZoom() }));
+  check('pindah ke menu lain lalu kembali ke Fasilitas DC: rute ditutup (peta kembali normal), tetap di area', m5.menu === 'dc' && !m5.key && m5.sel === 0 && m5.mode === 'island' && isFinite(m5.lat) && m5.z >= 5, JSON.stringify(m5));
   await pm.click('.side-item[data-menu="store"]'); await pm.waitForTimeout(400);
   const m6 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, pane: getComputedStyle(document.getElementById('pane-store')).display, body: getComputedStyle(document.querySelector('.shell > .body')).display, h: document.querySelector('#pane-store h2').textContent, cur: document.querySelector('.side-item[aria-current="page"]').dataset.menu, other: getComputedStyle(document.getElementById('pane-sim')).display }));
   await pm.keyboard.press('Escape'); await pm.waitForTimeout(300);
@@ -750,20 +760,20 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await pm.screenshot({ path: path.join(OUT, '13_menu_store.png') });
   await pm.click('.side-item[data-menu="sim"]'); await pm.waitForTimeout(300);
   const m7 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, pane: getComputedStyle(document.getElementById('pane-sim')).display, h: document.querySelector('#pane-sim h2').textContent, store: getComputedStyle(document.getElementById('pane-store')).display }));
-  await pm.click('#pane-sim [data-goto="segment"]'); await pm.waitForTimeout(700);
+  await pm.click('#pane-sim [data-goto="dc"]'); await pm.waitForTimeout(700);
   const m7b = await pm.evaluate(() => ({ menu: document.body.dataset.menu, mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), tiles: document.querySelectorAll('#map .leaflet-tile-loaded').length, cur: document.querySelector('.side-item[aria-current="page"]').dataset.menu, size: map.getSize().x }));
-  check('menu Simulasi: halaman "menyusul" tampil; tombol "Delivery Segment" di dalamnya membuka menu itu dan peta ukurannya benar (tidak kosong/terpotong)', m7.menu === 'sim' && m7.pane !== 'none' && m7.h === 'Simulasi' && m7.store === 'none' && m7b.menu === 'segment' && m7b.cur === 'segment' && m7b.mapW >= 300 && Math.abs(m7b.size - m7b.mapW) <= 2 && m7b.tiles > 0, JSON.stringify({ m7, m7b }));
+  check('menu Simulasi: halaman "menyusul" tampil; tombol "Buka Fasilitas DC" di dalamnya membuka menu itu dan peta ukurannya benar (tidak kosong/terpotong)', m7.menu === 'sim' && m7.pane !== 'none' && m7.h === 'Simulasi' && m7.store === 'none' && m7b.menu === 'dc' && m7b.cur === 'dc' && m7b.mapW >= 300 && Math.abs(m7b.size - m7b.mapW) <= 2 && m7b.tiles > 0, JSON.stringify({ m7, m7b }));
   const m7c = await pm.evaluate(() => ({ cls: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), ls: localStorage.getItem('side-pref') }));
-  check('menu Delivery Segment (template 3 panel): sidebar otomatis jadi rel ikon (≈58px) supaya peta tetap lebar (≥ 500px), tanpa mengubah pilihan tersimpan', m7c.cls && m7c.w <= 62 && m7c.mapW >= 500 && m7c.ls === null, JSON.stringify(m7c));
+  check('area terbuka di Fasilitas DC (template 3 panel): sidebar otomatis jadi rel ikon (≈58px) supaya peta tetap lebar (≥ 500px), tanpa mengubah pilihan tersimpan', m7c.cls && m7c.w <= 62 && m7c.mapW >= 500 && m7c.ls === null, JSON.stringify(m7c));
   await pm.click('#side-toggle'); await pm.waitForTimeout(500);
   const m8a = await pm.evaluate(() => ({ cls: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), exp: document.getElementById('side-toggle').getAttribute('aria-expanded'), ls: localStorage.getItem('side-pref'), size: map.getSize().x, mapW: Math.round(document.getElementById('map').getBoundingClientRect().width) }));
   await pm.click('#side-toggle'); await pm.waitForTimeout(500);
-  const m8 = await pm.evaluate(() => ({ cls: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), exp: document.getElementById('side-toggle').getAttribute('aria-expanded'), ls: localStorage.getItem('side-pref'), mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), size: map.getSize().x, nmVis: [...document.querySelectorAll('.side-nm')].some(e => getComputedStyle(e).display !== 'none'), title: document.querySelector('.side-item[data-menu="segment"]').title }));
-  check('tombol ciutkan/lebarkan sidebar: bisa dilebarkan (≈204px) dan diciutkan lagi (≈58px, label hilang tapi tooltip tetap), pilihan tersimpan di localStorage, ukuran peta disegarkan', !m8a.cls && m8a.w >= 180 && m8a.exp === 'true' && m8a.ls === 'open' && Math.abs(m8a.size - m8a.mapW) <= 2 && m8.cls && m8.w <= 62 && m8.exp === 'false' && m8.ls === 'rail' && !m8.nmVis && m8.title === 'Delivery Segment' && Math.abs(m8.size - m8.mapW) <= 2, JSON.stringify({ m8a, m8 }));
+  const m8 = await pm.evaluate(() => ({ cls: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), exp: document.getElementById('side-toggle').getAttribute('aria-expanded'), ls: localStorage.getItem('side-pref'), mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), size: map.getSize().x, nmVis: [...document.querySelectorAll('.side-nm')].some(e => getComputedStyle(e).display !== 'none'), title: document.querySelector('.side-item[data-menu="dc"]').title }));
+  check('tombol ciutkan/lebarkan sidebar: bisa dilebarkan (≈204px) dan diciutkan lagi (≈58px, label hilang tapi tooltip tetap), pilihan tersimpan di localStorage, ukuran peta disegarkan', !m8a.cls && m8a.w >= 180 && m8a.exp === 'true' && m8a.ls === 'open' && Math.abs(m8a.size - m8a.mapW) <= 2 && m8.cls && m8.w <= 62 && m8.exp === 'false' && m8.ls === 'rail' && !m8.nmVis && m8.title === 'Fasilitas DC' && Math.abs(m8.size - m8.mapW) <= 2, JSON.stringify({ m8a, m8 }));
   await pm.screenshot({ path: path.join(OUT, '14_menu_collapsed.png') });
   check('menu: tanpa JS error', eM.length === 0, eM.join(' | ')); await pm.close();
   const pq = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage();
-  await emptyRouteTabs(pq); await pq.goto(LEG.replace('menu=segment', 'menu=sim') + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pq.waitForTimeout(1200);
+  await emptyRouteTabs(pq); await pq.goto(LEG.replace('menu=dc', 'menu=sim') + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pq.waitForTimeout(1200);
   const m9 = await pq.evaluate(() => ({ menu: document.body.dataset.menu, cur: document.querySelector('.side-item[aria-current="page"]').dataset.menu, pane: getComputedStyle(document.getElementById('pane-sim')).display }));
   check('?menu=sim membuka menu Simulasi langsung', m9.menu === 'sim' && m9.cur === 'sim' && m9.pane !== 'none', JSON.stringify(m9));
   await pq.setViewportSize({ width: 390, height: 800 }); await pq.waitForTimeout(400);
@@ -774,7 +784,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   // ===== menu Fasilitas DC: panel area di kanan, tanpa pencarian & Total Kab/Kota, label nama fasilitas =====
   const pd = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true })).newPage();
   const eD = []; pd.on('pageerror', e => eD.push(e.message));
-  await emptyRouteTabs(pd); await pd.goto(LEG.replace('menu=segment', 'menu=dc') + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pd.waitForTimeout(1500);
+  await emptyRouteTabs(pd); await pd.goto(LEG + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pd.waitForTimeout(1500);
   const d1 = await pd.evaluate(() => { const hp = document.getElementById('home-panel').getBoundingClientRect(), mp = document.getElementById('map').getBoundingClientRect(); const vis = e => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; return { panelRight: hp.left >= mp.right - 2, panelW: Math.round(hp.width), search: vis(document.getElementById('home-search-wrap')), kab: vis(document.querySelector('#home-panel .sum-kab')), fac: !!document.getElementById('sum-fac') && vis(document.getElementById('sum-fac')), chips: document.querySelectorAll('#island-list .island-chip').length }; });
   check('Fasilitas DC (Home): daftar pulau didok di kanan peta, tanpa kolom pencarian & kartu Total Kab/Kota, Total Fasilitas & 7 area tetap ada', d1.panelRight && d1.panelW >= 300 && !d1.search && !d1.kab && d1.fac && d1.chips === 7, JSON.stringify(d1));
   await pd.screenshot({ path: path.join(OUT, '16_dc_home.png') });
@@ -785,10 +795,13 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Fasilitas DC: klik pulau -> zoom ke pulau dan nama tiap fasilitas DC tampil permanen di atas titiknya', d2.mode === 'island' && d2.island === 'Sumatera' && d2.n > 0 && d2.pills === d2.n && d2.cls && d2.names.every(t => t.length > 1) && d2.zoom >= 5, JSON.stringify(d2));
   await pd.mouse.move(700, 880); await pd.waitForTimeout(500);
   await pd.screenshot({ path: path.join(OUT, '17_dc_pulau_label.png') });
-  await pd.click('.island-chip[data-island="Jawa"]').catch(()=>{});
-  await pd.click('.side-item[data-menu="segment"]'); await pd.waitForTimeout(700);
-  const d3 = await pd.evaluate(() => ({ pills: document.querySelectorAll('.leaflet-tooltip.fl-pill.fl-NDC, .leaflet-tooltip.fl-pill.fl-RDC, .leaflet-tooltip.fl-pill.fl-SDC, .leaflet-tooltip.fl-pill.fl-HUB').length }));
-  check('Delivery Segment: label nama fasilitas permanen khusus menu Fasilitas DC (tidak muncul di menu lain)', d3.pills === 0, JSON.stringify(d3));
+  await pd.click('.side-item[data-menu="store"]'); await pd.waitForTimeout(500);
+  await pd.click('.side-item[data-menu="dc"]'); await pd.waitForTimeout(900);
+  const d3 = await pd.evaluate(() => ({ pills: document.querySelectorAll('.leaflet-tooltip.fl-pill.fl-NDC, .leaflet-tooltip.fl-pill.fl-RDC, .leaflet-tooltip.fl-pill.fl-SDC, .leaflet-tooltip.fl-pill.fl-HUB').length, mode: view.mode }));
+  check('Fasilitas DC: kembali dari menu lain, label nama fasilitas di area tampil lagi', d3.mode === 'island' && d3.pills > 0, JSON.stringify(d3));
+  await pd.evaluate(() => { const c = Object.values(COVERAGE[currentBU]).find(x => islandOf(x.pulau) === 'Sumatera' && (x.HUB || x.SDC || x.RDC)); selectKabkota(c); }); await pd.waitForTimeout(1500);
+  const d4 = await pd.evaluate(() => ({ key: !!currentSegKey, menu: document.body.dataset.menu, typed: document.querySelectorAll('.leaflet-tooltip.fl-pill.fl-NDC, .leaflet-tooltip.fl-pill.fl-RDC, .leaflet-tooltip.fl-pill.fl-SDC, .leaflet-tooltip.fl-pill.fl-HUB').length, pills: document.querySelectorAll('.leaflet-tooltip.fl-pill').length }));
+  check('Fasilitas DC: saat rute kab/kota tampil, label fasilitas area diganti label rute (tidak dobel)', d4.key && d4.menu === 'dc' && d4.typed === 0 && d4.pills > 0, JSON.stringify(d4));
   check('Fasilitas DC: tanpa JS error', eD.length === 0, eD.join(' | '));
   await pd.close();
   await browser.close();
