@@ -18,7 +18,7 @@ Konteks produk untuk pekerjaan desain. Sumber kebenaran perilaku & data: `CLAUDE
 2. Area: lihat fasilitas di satu area dan kab/kota yang dilayaninya.
 3. Delivery Segment: untuk satu kab/kota, tampilkan rute (Rute 1, Rute 2, Opsional, Project) di peta + tabel perbandingan lead time + cost per armada + breakdown per segmen + selisih LT.
 4. Export Coverage (CSV) seluruh kab/kota BU terpilih.
-5. Navigasi: sidebar kiri dengan 3 menu — Fasilitas DC (Home peta + daftar area → area = template 3 panel dengan Delivery Segment di kanan), Store (menyusul), Simulasi (menyusul).
+5. Navigasi: sidebar kiri dengan 3 menu — Fasilitas DC (Home peta + daftar area → area = template 3 panel dengan Delivery Segment di kanan), Store (menyusul), Simulasi (simulasi Cost & SLA: pilih tujuan, origin, CBM → rute & armada paling optimal + hitung manual per segmen).
 
 Keberhasilan: pengguna menjawab "berapa lama (Darat/Laut) dan lewat mana ke kab/kota ini?" dalam beberapa detik, dan percaya angkanya.
 

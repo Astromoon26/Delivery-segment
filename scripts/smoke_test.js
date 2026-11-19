@@ -537,6 +537,44 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   const rute1Tot = await p6.$eval('#seg-armada .arm-total', e => e.innerText.replace(/\s+/g, ' '));
   check('project: pilihan Project rute tidak mengubah total Rute 1', /≥Rp 2\.900\.000\*/.test(rute1Tot), rute1Tot);
   await p6.screenshot({ path: path.join(OUT, '10_cost_per_armada.png') });
+  // --- menu Simulasi: tujuan x origin x CBM -> rute optimal + hitung manual per armada (data stub p6: Project rute Jakarta -> Dumai lengkap, Rute 1 belum ada tarif Pekanbaru -> Dumai)
+  await p6.click('.side-item[data-menu="sim"]'); await p6.waitForTimeout(500);
+  const s0 = await p6.evaluate(() => ({ menu: document.body.dataset.menu, form: ['sim-dest', 'sim-origin', 'sim-cbm'].every(i => !!document.getElementById(i)), bu: document.getElementById('sim-bu').textContent, empty: /Pilih tujuan/i.test(document.getElementById('sim-out').textContent), soon: !!document.querySelector('.side-item[data-menu="sim"] .side-soon'), cbm: document.getElementById('sim-cbm').value }));
+  check('Simulasi: form Tujuan / Origin / CBM tampil (CBM awal 20), BU ikut header, empty state mengajak pilih tujuan, badge "Segera" hilang', s0.menu === 'sim' && s0.form && s0.bu === 'BU HCI' && s0.empty && !s0.soon && s0.cbm === '20', JSON.stringify(s0));
+  await p6.fill('#sim-dest', 'Kota Dumai'); await p6.waitForTimeout(400);
+  await p6.click('#sim-ac .autocomplete-item'); await p6.waitForTimeout(600);
+  const simTx = () => p6.$eval('#sim-out', e => e.innerText.replace(/\s+/g, ' '));
+  const s1 = await simTx();
+  check('Simulasi 20 CBM: rekomendasi = Project rute (satu-satunya rute lengkap) termurah & tercepat, armada Langsung: Rp 3.000.000 (20 × 150.000), Rp 150.000/CBM, SLA 6h', /Termurah & tercepat/i.test(s1) && /Project rute/.test(s1) && /Total cost Rp 3\.000\.000/.test(s1) && /Cost \/ CBM Rp 150\.000/.test(s1) && /SLA 6h/.test(s1) && /Langsung · Darat/.test(s1), s1.slice(0, 600));
+  const s2 = await p6.$$eval('#sim-tbl tbody tr', rows => rows.map(r => r.innerText.replace(/\s+/g, ' ')));
+  check('Simulasi: Rute 1 belum lengkap (Pekanbaru → Dumai tanpa tarif) tampil sebagai ≥ … * dan tidak jadi rekomendasi; Project rute ditandai termurah & tercepat', s2.length >= 2 && /≥Rp/.test(s2[0]) && /\*/.test(s2[0]) && !/termurah/.test(s2[0]) && /termurah/.test(s2[s2.length - 1]) && /tercepat/.test(s2[s2.length - 1]), JSON.stringify(s2));
+  const s3 = await p6.evaluate(() => ({ det: [...document.querySelectorAll('.sim-det')].map(d => d.textContent.replace(/\s+/g, ' ')).join(' | '), orig: [...document.querySelectorAll('#sim-origin option')].map(o => o.textContent) }));
+  check('Simulasi: rincian per segmen menyebut armada, jumlah trip, % isi & "belum ada tarif armada" untuk segmen tanpa tarif; origin hanya yang punya rute ke tujuan', /belum ada tarif armada/.test(s3.det) && /1 trip|2 trip/.test(s3.det) && s3.orig.length === 2 && /^Semua origin/.test(s3.orig[0]) && /Jakarta \(NDC\)/.test(s3.orig[1]), JSON.stringify(s3).slice(0, 500));
+  // jumlah trip = ceil(CBM / kapasitas efektif): CDDL 16 x 85% = 13,6 -> 14 CBM = 2 trip, 40 CBM = 3 trip; Cont-20 Laut 25 x 85% = 21,25
+  await p6.fill('#sim-cbm', '14'); await p6.waitForTimeout(600);
+  const trips = async cbm => { await p6.fill('#sim-cbm', String(cbm)); await p6.waitForTimeout(600); return p6.evaluate(() => { const r = SIM.res.routes.find(x => x.x.id === 'Project rute'); return r.rows[0].opts.map(o => o.label + ':' + o.trips + ':' + Math.round(o.total)).join(','); }); };
+  const t14 = await trips(14), t40 = await trips(40);
+  check('Simulasi: jumlah trip = pembulatan ke atas (14 CBM: CDDL 2 trip = 8.000.000; 40 CBM: CDDL 3 trip = 12.000.000, Cont-20 Laut 2 trip = 10.000.000, Langsung 150.000 × 40 = 6.000.000)', /CDDL:2:8000000/.test(t14) && /CDDL:3:12000000/.test(t40) && /Cont-20:2:10000000/.test(t40) && /Langsung:null:6000000/.test(t40), t14 + ' || ' + t40);
+  await p6.fill('#sim-cbm', '20'); await p6.waitForTimeout(600);
+  const man0 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
+  check('Simulasi hitung manual: awal terisi opsi termurah (Project rute, Langsung Rp 3.000.000), tanpa selisih', /Total cost Rp 3\.000\.000/.test(man0) && /sama dengan opsi termurah/.test(man0), man0.slice(0, 400));
+  const cddlKey = await p6.$eval('#sim-man-body .sim-arm-sel', sel => { const o = [...sel.options].find(x => /^CDDL Darat/.test(x.textContent.trim())); return o ? o.value : null; });
+  await p6.selectOption('#sim-man-body .sim-arm-sel', cddlKey); await p6.waitForTimeout(300);
+  const man1 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
+  check('Simulasi hitung manual: pilih CDDL sendiri (20 CBM = 2 trip) -> Rp 8.000.000, Rp 400.000/CBM, SLA 6h, +Rp 5.000.000 (+167%) dibanding termurah', /Total cost Rp 8\.000\.000/.test(man1) && /Cost \/ CBM Rp 400\.000/.test(man1) && /SLA 6h/.test(man1) && /\+Rp 5\.000\.000 \(\+167%\)/.test(man1), man1.slice(0, 500));
+  await p6.click('#sim-fill-clear'); await p6.waitForTimeout(200);
+  const man2 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
+  check('Simulasi hitung manual: Kosongkan -> 0 dari 1 segmen dipilih, total "—"', /0 dari 1/.test(man2) && /Total cost —/.test(man2), man2.slice(0, 300));
+  await p6.click('#sim-fill-fast'); await p6.waitForTimeout(200);
+  check('Simulasi hitung manual: "Isi opsi tercepat" mengisi armada tercepat per segmen (Project rute: Rp 3.000.000, 6h)', /Total cost Rp 3\.000\.000/.test(await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '))), '');
+  await p6.fill('#sim-cbm', '0'); await p6.waitForTimeout(500);
+  check('Simulasi: CBM kosong/0 -> pesan minta isi jumlah CBM (tidak error)', /jumlah CBM/i.test(await simTx()), await simTx());
+  await p6.fill('#sim-cbm', '20'); await p6.waitForTimeout(500);
+  await p6.click('.bu-btn[data-bu="AHI"]'); await p6.waitForTimeout(2500);
+  const sa = await p6.evaluate(() => ({ bu: document.getElementById('sim-bu').textContent, menu: document.body.dataset.menu, out: document.getElementById('sim-out').textContent.length }));
+  check('Simulasi: ganti BU ke AHI tetap di menu Simulasi, badge BU berubah, tanpa error', sa.menu === 'sim' && sa.bu === 'BU AHI' && sa.out > 20, JSON.stringify(sa));
+  await p6.screenshot({ path: path.join(OUT, '20_simulasi.png') });
+  check('Simulasi + armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   check('armada: tanpa JS error', err6.length === 0, err6.join(' | '));
   await ctx6.close();
 
@@ -733,7 +771,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await emptyRouteTabs(pm); await injectDumai(pm);
   await pm.goto(LEG + '&landing=0', { waitUntil: 'networkidle', timeout: 90000 }); await pm.waitForFunction(() => DATA_READY, null, { timeout: 90000 }); await pm.waitForTimeout(600);
   const m1 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, labels: [...document.querySelectorAll('.side-item .side-nm')].map(e => e.textContent), cur: [...document.querySelectorAll('.side-item[aria-current="page"]')].map(e => e.dataset.menu), soon: document.querySelectorAll('.side-soon').length, nav: document.querySelector('nav.side').getAttribute('aria-label'), sideW: Math.round(document.querySelector('.side').getBoundingClientRect().width), mapLeft: Math.round(document.getElementById('map').getBoundingClientRect().left), mode: view.mode }));
-  check('sidebar kiri: 3 menu berurutan (Fasilitas DC, Store, Simulasi; Delivery Segment menyatu di Fasilitas DC), Fasilitas DC aktif (aria-current) di Home, badge "Segera" di Store & Simulasi, peta di kanan sidebar', JSON.stringify(m1.labels) === JSON.stringify(['Fasilitas DC', 'Store', 'Simulasi']) && m1.menu === 'dc' && m1.cur.length === 1 && m1.cur[0] === 'dc' && m1.soon === 2 && m1.nav === 'Menu utama' && m1.sideW >= 180 && m1.mapLeft >= m1.sideW - 2 && m1.mode === 'home', JSON.stringify(m1));
+  check('sidebar kiri: 3 menu berurutan (Fasilitas DC, Store, Simulasi; Delivery Segment menyatu di Fasilitas DC), Fasilitas DC aktif (aria-current) di Home, badge "Segera" hanya di Store, peta di kanan sidebar', JSON.stringify(m1.labels) === JSON.stringify(['Fasilitas DC', 'Store', 'Simulasi']) && m1.menu === 'dc' && m1.cur.length === 1 && m1.cur[0] === 'dc' && m1.soon === 1 && m1.nav === 'Menu utama' && m1.sideW >= 180 && m1.mapLeft >= m1.sideW - 2 && m1.mode === 'home', JSON.stringify(m1));
   await pm.screenshot({ path: path.join(OUT, '10_menu_dc_home.png') });
   await pm.click('.island-chip[data-island="Sumatera"]'); await pm.waitForTimeout(900);
   await pm.screenshot({ path: path.join(OUT, '11_menu_dc_area.png') });
@@ -759,10 +797,10 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('menu Store: halaman "menyusul" tampil (peta disembunyikan), Esc tidak mengubah tampilan peta di belakangnya', m6.menu === 'store' && m6.pane !== 'none' && m6.body === 'none' && m6.h === 'Store' && m6.cur === 'store' && m6.other === 'none' && m6b.mode === 'island' && m6b.menu === 'store', JSON.stringify({ m6, m6b }));
   await pm.screenshot({ path: path.join(OUT, '13_menu_store.png') });
   await pm.click('.side-item[data-menu="sim"]'); await pm.waitForTimeout(300);
-  const m7 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, pane: getComputedStyle(document.getElementById('pane-sim')).display, h: document.querySelector('#pane-sim h2').textContent, store: getComputedStyle(document.getElementById('pane-store')).display }));
-  await pm.click('#pane-sim [data-goto="dc"]'); await pm.waitForTimeout(700);
+  const m7 = await pm.evaluate(() => ({ menu: document.body.dataset.menu, pane: getComputedStyle(document.getElementById('pane-sim')).display, h: document.querySelector('#pane-sim h2').textContent.replace(/\s+/g, ' ').trim(), store: getComputedStyle(document.getElementById('pane-store')).display }));
+  await pm.click('.side-item[data-menu="dc"]'); await pm.waitForTimeout(700);
   const m7b = await pm.evaluate(() => ({ menu: document.body.dataset.menu, mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), tiles: document.querySelectorAll('#map .leaflet-tile-loaded').length, cur: document.querySelector('.side-item[aria-current="page"]').dataset.menu, size: map.getSize().x }));
-  check('menu Simulasi: halaman "menyusul" tampil; tombol "Buka Fasilitas DC" di dalamnya membuka menu itu dan peta ukurannya benar (tidak kosong/terpotong)', m7.menu === 'sim' && m7.pane !== 'none' && m7.h === 'Simulasi' && m7.store === 'none' && m7b.menu === 'dc' && m7b.cur === 'dc' && m7b.mapW >= 300 && Math.abs(m7b.size - m7b.mapW) <= 2 && m7b.tiles > 0, JSON.stringify({ m7, m7b }));
+  check('menu Simulasi: halaman simulasi tampil (judul Simulasi Cost & SLA); kembali ke Fasilitas DC peta ukurannya benar (tidak kosong/terpotong)', m7.menu === 'sim' && m7.pane !== 'none' && /^Simulasi Cost/.test(m7.h) && m7.store === 'none' && m7b.menu === 'dc' && m7b.cur === 'dc' && m7b.mapW >= 300 && Math.abs(m7b.size - m7b.mapW) <= 2 && m7b.tiles > 0, JSON.stringify({ m7, m7b }));
   const m7c = await pm.evaluate(() => ({ cls: document.getElementById('side').classList.contains('collapsed'), w: Math.round(document.getElementById('side').getBoundingClientRect().width), mapW: Math.round(document.getElementById('map').getBoundingClientRect().width), ls: localStorage.getItem('side-pref') }));
   check('area terbuka di Fasilitas DC (template 3 panel): sidebar otomatis jadi rel ikon (≈58px) supaya peta tetap lebar (≥ 500px), tanpa mengubah pilihan tersimpan', m7c.cls && m7c.w <= 62 && m7c.mapW >= 500 && m7c.ls === null, JSON.stringify(m7c));
   await pm.click('#side-toggle'); await pm.waitForTimeout(500);
