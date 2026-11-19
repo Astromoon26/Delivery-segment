@@ -400,6 +400,68 @@ body.landing-on .home-panel{display:none}      /* panel area (kanan) disembunyik
 .menu-pane p{font-size:13px;line-height:1.65;color:var(--muted);text-wrap:pretty}
 .menu-pane-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 body[data-menu="store"] #pane-store,body[data-menu="sim"] #pane-sim{display:flex;animation:fadeup .25s ease-out backwards}
+/* ===== menu Simulasi: hitung cost & SLA per tujuan / origin / CBM ===== */
+.sim-in .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle;flex:none}
+#sim-out{display:flex;flex-direction:column;gap:26px}
+#pane-sim{align-items:flex-start;justify-content:center;overflow-y:auto;padding:22px 24px 48px}
+.sim-in{width:100%;max-width:1080px;display:flex;flex-direction:column;gap:18px}
+.sim-head{display:flex;flex-direction:column;gap:5px}
+.sim-head h2{font-size:22px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sim-head p{font-size:12.5px;line-height:1.6;color:var(--muted);max-width:70ch;text-wrap:pretty}
+.sim-bu{font-family:'DM Mono',monospace;font-size:11px;font-weight:400;color:var(--muted);padding:2px 8px;border:1px solid var(--border2);border-radius:999px}
+.sim-form{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr);gap:12px;align-items:end;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:9px}
+.sim-f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sim-f>span{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sim-f input,.sim-f select,.sim-arm-sel{width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12.5px;font-family:'Sora',sans-serif;outline:none}
+.sim-f .search-wrap input{padding-left:32px}
+.sim-f input:focus-visible,.sim-f select:focus-visible,.sim-arm-sel:focus-visible,.sim-sum summary:focus-visible,.sim-det summary:focus-visible{outline:2px solid #9db4ff;outline-offset:2px}
+.sim-f input[type=number]{font-family:'DM Mono',monospace}
+.sim-unit{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.sim-empty{padding:26px 18px;border:1px dashed var(--border2);border-radius:9px;color:var(--muted);font-size:12.5px;line-height:1.65;text-wrap:pretty}
+.sim-sec{display:flex;flex-direction:column;gap:10px}
+.sim-sec>h3{font-size:15px;font-weight:600}
+.sim-note{font-size:11.5px;line-height:1.6;color:var(--muted);text-wrap:pretty}
+.sim-reco{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.sim-card{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.sim-card .tag{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sim-card .rt{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sim-card .path{font-size:11.5px;color:var(--muted);line-height:1.5}
+.sim-kpis{display:flex;gap:18px;flex-wrap:wrap}
+.sim-kpi{display:flex;flex-direction:column;gap:2px}
+.sim-kpi .l{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.sim-kpi .v{font-family:'DM Mono',monospace;font-size:19px;font-weight:500;font-variant-numeric:tabular-nums}
+.sim-kpi .v.sm{font-size:14px}
+.sim-chips{display:flex;gap:6px;flex-wrap:wrap}
+.sim-chip{font-family:'DM Mono',monospace;font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border2);color:var(--text);white-space:nowrap}
+.sim-chip.laut{border-color:rgba(96,165,250,.55)}
+.sim-badge{font-family:'DM Mono',monospace;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--border2);color:var(--muted)}
+.sim-badge.best{color:#fff;background:#2563eb;border-color:#2563eb}
+.sim-tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:9px}
+.sim-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
+.sim-tbl th{font-family:'DM Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.04em;color:var(--muted);text-align:right;padding:9px 12px;border-bottom:1px solid var(--border2);background:var(--surface);white-space:nowrap}
+.sim-tbl th:first-child,.sim-tbl td:first-child{text-align:left}
+.sim-tbl td{padding:9px 12px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums;vertical-align:top}
+.sim-tbl td:first-child{font-family:'Sora',sans-serif}
+.sim-tbl tr:last-child td{border-bottom:0}
+.sim-tbl tr.best td{background:rgba(37,99,235,.10)}
+.sim-tbl .sub{display:block;font-size:11px;color:var(--muted);margin-top:2px;font-family:'Sora',sans-serif}
+.sim-tbl .na,.sim-card .na{color:var(--muted)}
+.sim-tbl .grp-l{border-left:1px solid var(--border2)}
+.sim-det{border:1px solid var(--border);border-radius:9px;background:var(--surface2)}
+.sim-det>summary,.sim-sum>summary{cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:500;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sim-det>summary::-webkit-details-marker{display:none}
+.sim-det>summary::before{content:'▸';color:var(--muted);transition:transform .15s}
+.sim-det[open]>summary::before{transform:rotate(90deg)}
+.sim-det .sim-tbl-wrap{border:0;border-top:1px solid var(--border);border-radius:0 0 9px 9px}
+.sim-man{display:flex;flex-direction:column;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:9px}
+.sim-man-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.sim-man-bar .sim-f{flex:1 1 260px}
+.sim-arm-sel{font-family:'DM Mono',monospace;font-size:11.5px;min-width:190px;text-align:left}
+.sim-total{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:9px}
+.sim-delta{font-family:'DM Mono',monospace;font-size:12px}
+.sim-delta.up{color:#fca5a5}
+.sim-delta.dn{color:#86efac}
+@media (max-width:900px){#pane-sim{padding:16px 14px 40px}.sim-form{grid-template-columns:1fr}}
 body[data-menu="store"] .shell>.body,body[data-menu="sim"] .shell>.body{display:none}
 body[data-menu="store"] #crumb,body[data-menu="sim"] #crumb,body[data-menu="store"] #export-btn,body[data-menu="sim"] #export-btn,body[data-menu="store"] #back-home,body[data-menu="sim"] #back-home{display:none}
 /* Fasilitas DC = peta + daftar fasilitas (tanpa panel Delivery Segment) */
@@ -473,7 +535,7 @@ body[data-menu="store"] #crumb,body[data-menu="sim"] #crumb,body[data-menu="stor
     <nav class="side" id="side" aria-label="Menu utama">
       <button class="side-item" data-menu="dc" title="Fasilitas DC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9.5L12 4l9 5.5V21"/><path d="M7 21v-7h10v7"/><path d="M7 17.5h10"/></svg><span class="side-nm">Fasilitas DC</span></button>
       <button class="side-item" data-menu="store" title="Store"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0"/><path d="M5 12.5V20h14v-7.5"/><path d="M10 20v-4h4v4"/></svg><span class="side-nm">Store</span><span class="side-soon">Segera</span></button>
-      <button class="side-item" data-menu="sim" title="Simulasi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="side-nm">Simulasi</span><span class="side-soon">Segera</span></button>
+      <button class="side-item" data-menu="sim" title="Simulasi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="side-nm">Simulasi</span></button>
       <div class="side-sp"></div>
       <button class="side-toggle" id="side-toggle" aria-label="Ciutkan menu" aria-expanded="true" title="Ciutkan / lebarkan menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span class="side-tt">Ciutkan</span></button>
     </nav>
@@ -540,10 +602,22 @@ body[data-menu="store"] #crumb,body[data-menu="sim"] #crumb,body[data-menu="stor
     <p>Menu ini belum diisi. Isinya menyusul. Sementara itu, fasilitas DC dan rute pengiriman ke kab/kota (di dalam area) sudah bisa dipakai.</p>
     <div class="menu-pane-act"><button class="btn primary" data-goto="dc">Buka Fasilitas DC</button></div>
   </div></section>
-  <section class="menu-pane" id="pane-sim" aria-labelledby="pane-sim-h"><div class="menu-pane-in">
-    <h2 id="pane-sim-h">Simulasi</h2>
-    <p>Menu ini belum diisi. Isinya menyusul. Sementara itu, fasilitas DC dan rute pengiriman ke kab/kota (di dalam area) sudah bisa dipakai.</p>
-    <div class="menu-pane-act"><button class="btn primary" data-goto="dc">Buka Fasilitas DC</button></div>
+  <section class="menu-pane" id="pane-sim" aria-labelledby="pane-sim-h"><div class="sim-in">
+    <div class="sim-head">
+      <h2 id="pane-sim-h">Simulasi Cost &amp; SLA <span class="sim-bu" id="sim-bu">BU HCI</span></h2>
+      <p>Pilih tujuan (kab/kota Cust / Sto), origin, dan jumlah CBM yang dikirim. Di bawah keluar semua rute yang ada beserta cost dan SLA paling optimal, lalu kamu bisa memilih armada sendiri per segmen (mid mile sampai last mile). Data dari gsheet yang sama (read-only), BU ikut toggle HCI/AHI di header.</p>
+    </div>
+    <div class="sim-form">
+      <label class="sim-f"><span>Tujuan (kab/kota Cust / Sto)</span>
+        <div class="search-wrap" id="sim-dest-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="sim-dest" placeholder="Cari kabupaten/kota..." autocomplete="off"/>
+          <div class="autocomplete-list" id="sim-ac"></div>
+        </div></label>
+      <label class="sim-f"><span>Origin</span><select id="sim-origin"></select></label>
+      <label class="sim-f"><span>Jumlah CBM terkirim</span><input type="number" id="sim-cbm" min="0.1" step="any" value="20" inputmode="decimal"/></label>
+    </div>
+    <div id="sim-out"></div>
   </div></section>
   </div>
 </div>
@@ -2139,6 +2213,33 @@ function totalsOf(segs){
   };
 }
 
+// swatch = gaya garis di peta: Rute solid, Opsional/Project putus-putus
+function swStyle(color, kind){ return 'border-color:'+color+(kind==='rute' ? ';border-top-style:solid' : ''); }
+// segmen per rute: leg antar fasilitas (Cost F2F) + last mile fasilitas terakhir → Cust / Sto (tab Hub/SDC/RDC); direct NDC → Cust / Sto dari tab NDC
+function routeLegs(c, x){
+    const o = [];
+    for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)});
+    if(!isDirectSteps(x.steps)){ const last = x.steps[x.steps.length-1]; o.push({a:last.d.name, b:'Cust / Sto', k:'last|'+last.tier+'|'+normFacName(last.d.name), last:true, d:last.d, tier:last.tier}); }
+    // direct NDC -> Cust / Sto (Project rute): biayanya dari baris kab/kota ini di tab NDC (hanya kalau asalnya NDC project di tab itu)
+    else { const nd = ndcData(c, x.steps[0].d.name); if(nd) o.push({a:x.steps[0].d.name, b:'Cust / Sto', k:'last|NDC|'+normFacName(x.steps[0].d.name), last:true, d:nd, tier:'NDC'}); }
+    return o;
+  }
+  // nilai satu segmen untuk satu kolom: {trip, cbm} (cbm = trip ÷ kapasitas efektif, atau Cost/CBM langsung) atau null
+function legVal(l, col){
+    if(l.last){
+      const raw = (l.d && l.d.raw) || {};
+      if(col.direct){
+        const h = directHdrs(currentBU, l.tier);
+        const t = h.trip ? parseMoney(raw[h.trip]) : null, m = h.cbm ? parseMoney(raw[h.cbm]) : null;
+        return (t==null && m==null) ? null : {trip:t, cbm:m};
+      }
+      const h = col.last[l.tier], v = h ? parseMoney(raw[h]) : null;
+      return v==null ? null : {trip:v, cbm:v/col.ar.eff};
+    }
+    if(col.direct || col.f2f==null) return null;
+    const e = (COST_LEG[currentBU]||{})[l.k], v = e && e.ext ? parseMoney(e.ext[col.f2f]) : null;
+    return v==null ? null : {trip:v, cbm:v/col.ar.eff};
+  }
 function renderCompare(c, routes, projects){
   const el = document.getElementById('seg-compare');
   const {directSeg, routeSegs, projSegs} = buildSegments(c, routes, projects);
@@ -2186,7 +2287,6 @@ function renderCompare(c, routes, projects){
     return `<div class="val">—</div>`;
   };
   const PROJECT_NOTE = 'Note : Pengiriman direct Cust / Sto';
-  const swStyle = (color, kind) => 'border-color:'+color+(kind==='rute' ? ';border-top-style:solid' : '');   // swatch = gaya garis di peta: Rute solid, Opsional/Project putus-putus
   const bdTable = (title, color, segs, T, showTotal, partialLT, note, kind) => {
     const sea = makeSeaCell(T.anySea);
     const rows = segs.map(s=>`<tr><td><div>${escapeHtml(s.label)}</div><div class="sub">${escapeHtml(s.kind)}</div></td><td>${dCell(s)}</td><td>${sea(s)}</td></tr>`).join('');
@@ -2240,30 +2340,7 @@ function renderCompare(c, routes, projects){
   // cost/cbm = cost/trip / (kapasitas x utilisasi). Last mile (tab Hub/SDC/RDC) & direct NDC -> Cust / Sto (tab NDC) ikut per armada.
   const aCols = costColsAll(currentBU);
   // segmen per rute: leg antar fasilitas (Cost F2F) + last mile fasilitas terakhir → Cust / Sto (tab Hub/SDC/RDC); direct NDC belum
-  const armLegs = x => {
-    const o = [];
-    for(let i=0;i<x.steps.length-1;i++) o.push({a:x.steps[i].d.name, b:x.steps[i+1].d.name, k:legKey(x.steps[i].d.name, x.steps[i+1].d.name)});
-    if(!isDirectSteps(x.steps)){ const last = x.steps[x.steps.length-1]; o.push({a:last.d.name, b:'Cust / Sto', k:'last|'+last.tier+'|'+normFacName(last.d.name), last:true, d:last.d, tier:last.tier}); }
-    // direct NDC -> Cust / Sto (Project rute): biayanya dari baris kab/kota ini di tab NDC (hanya kalau asalnya NDC project di tab itu)
-    else { const nd = ndcData(c, x.steps[0].d.name); if(nd) o.push({a:x.steps[0].d.name, b:'Cust / Sto', k:'last|NDC|'+normFacName(x.steps[0].d.name), last:true, d:nd, tier:'NDC'}); }
-    return o;
-  };
-  // nilai satu segmen untuk satu kolom: {trip, cbm} (cbm = trip ÷ kapasitas efektif, atau Cost/CBM langsung) atau null
-  const legVal = (l, col) => {
-    if(l.last){
-      const raw = (l.d && l.d.raw) || {};
-      if(col.direct){
-        const h = directHdrs(currentBU, l.tier);
-        const t = h.trip ? parseMoney(raw[h.trip]) : null, m = h.cbm ? parseMoney(raw[h.cbm]) : null;
-        return (t==null && m==null) ? null : {trip:t, cbm:m};
-      }
-      const h = col.last[l.tier], v = h ? parseMoney(raw[h]) : null;
-      return v==null ? null : {trip:v, cbm:v/col.ar.eff};
-    }
-    if(col.direct || col.f2f==null) return null;
-    const e = (COST_LEG[currentBU]||{})[l.k], v = e && e.ext ? parseMoney(e.ext[col.f2f]) : null;
-    return v==null ? null : {trip:v, cbm:v/col.ar.eff};
-  };
+  const armLegs = x => routeLegs(c, x);
   const selKey = (x, l) => currentBU+'|'+x.id+'|'+l.k;
   const armPick = (x, l) => { const k = SEG_ARM[selKey(x,l)]; return k==null ? null : (aCols.find(c=>c.key===k) || null); };
   const armTotal = x => {
@@ -2391,11 +2468,8 @@ function routeNdcNames(c, hasMid, firstOverride){
   return names;
 }
 
-function renderSegmentRoute(c, opts){
-  opts = opts || {};
-  document.getElementById('seg-empty').style.display = 'none';
-  document.getElementById('seg-route').style.display = 'block';
-
+// Semua rute yang mungkin untuk satu kab/kota (dipakai Delivery Segment & Simulasi): Rute 1.., Opsional rute, Project rute
+function buildRouteSet(c){
   const hasMid = !!(c.RDC || c.SDC || c.HUB);
   const mid = [];
   for(const t of ['RDC','SDC','HUB']){
@@ -2448,6 +2522,15 @@ function renderSegmentRoute(c, opts){
     return {id: projDefs.length>1 ? a.id : 'Project rute', kind:'project', custom:true, color:st.color, dash:st.dash, steps:rr.steps, warn};
   }) : [{id:'Project rute', kind:'project', custom:false, color:DIRECT_COLOR, dash:'8,6', steps:[{tier:'NDC', d:c.NDC}], warn:[]}];
   const hasAlt = alts.length>0 || opsCustom.length>0 || !!r1Res || projDefs.length>0;
+  return {hasMid, routes, projects, hasAlt};
+}
+
+function renderSegmentRoute(c, opts){
+  opts = opts || {};
+  document.getElementById('seg-empty').style.display = 'none';
+  document.getElementById('seg-route').style.display = 'block';
+
+  const {hasMid, routes, projects, hasAlt} = buildRouteSet(c);
 
   document.getElementById('seg-dest-title').textContent = c.kabkota;
   document.getElementById('seg-dest-sub').textContent = `${c.tipe} · ${c.provinsi} · ${c.pulau} · BU ${currentBU}`;
@@ -2678,8 +2761,218 @@ document.querySelectorAll('.bu-btn').forEach(btn=>{
   };
 });
 
+// ============================================================
+// SIMULASI: cost & SLA per tujuan (kab/kota) x origin x jumlah CBM
+// Rute = semua rute yang sama dengan Delivery Segment (buildRouteSet). Tiap segmen (mid mile sampai last mile) punya
+// beberapa opsi armada (kolom cost per armada). Cost segmen = jumlah trip x cost/trip, jumlah trip = ceil(CBM / kapasitas efektif)
+// (kolom "Langsung": Cost/CBM x CBM, atau 1 trip kalau cuma Cost/Trip yang diisi). SLA segmen = LT Darat (armada Darat) atau LT Laut (armada Laut).
+// Optimal: "termurah" = armada cost terkecil per segmen, "tercepat" = armada SLA terkecil per segmen (seri -> cost terkecil).
+// ============================================================
+const SIM = {key:null, origin:'', cbm:20, manual:'', pick:{}, res:null};
+const SIM_FILL_MIN = 0.85, SIM_FILL_MAX = 1;   // syarat Project rute: armada terisi 85%-100% dari kapasitasnya
+const simNum = n => n==null ? '—' : (Math.round(n*10)/10).toLocaleString('id-ID');
+// SLA (hari) satu segmen: {land, sea}; last mile fasilitas = LT darat saja, direct NDC punya Darat & Laut
+function simLegLT(l){
+  if(l.last){
+    const d = l.d || {};
+    return l.tier==='NDC' ? {land:numOrNull(d.slaLand), sea:numOrNull(d.slaSea)} : {land:numOrNull(d.sla), sea:null};
+  }
+  const lt = (LEAD_TIME[currentBU]||{})[l.k];
+  return {land: lt ? numOrNull(lt.land) : null, sea: lt ? numOrNull(lt.sea) : null};
+}
+// satu opsi armada untuk satu segmen (null kalau armada itu tidak punya tarif di segmen ini)
+function simOpt(l, lt, col, Q, proj){
+  const v = legVal(l, col); if(!v) return null;
+  const sea = col.mode==='sea' || (col.mode==='any' && lt.land==null && lt.sea!=null);
+  const days = sea ? lt.sea : lt.land;
+  let trips = null, total = null, note = '';
+  if(col.direct){
+    if(v.cbm!=null) total = v.cbm * Q;
+    else if(v.trip!=null){ total = v.trip; trips = 1; note = 'asumsi 1 trip'; }
+  } else if(proj){
+    // Project rute (direct NDC): muatan fisik per trip = kapasitas penuh armada; layak kalau isi 85%-100%
+    trips = Math.max(1, Math.ceil(Q / col.ar.cap - 1e-9));
+    total = trips * v.trip;
+  } else {
+    trips = Math.max(1, Math.ceil(Q / col.ar.eff - 1e-9));
+    total = trips * v.trip;
+  }
+  if(total==null) return null;
+  const fill = (!col.direct && trips) ? Q/(trips*col.ar.cap) : null;
+  const fits = !proj ? true : (fill!=null && fill >= SIM_FILL_MIN - 1e-9 && fill <= SIM_FILL_MAX + 1e-9);   // Langsung (tanpa kapasitas) tidak bisa dipastikan isinya
+  return {key:col.key, fits, label: col.direct ? 'Langsung' : col.label, mode: sea ? 'sea' : 'land', modeLabel: sea ? 'Laut' : 'Darat',
+          days, trips, total, perCbm: Q>0 ? total/Q : null, trip: v.trip,
+          fill, note};
+}
+const simByCost = (a,b) => a.total-b.total || (a.days==null?1e9:a.days)-(b.days==null?1e9:b.days);
+const simBySpeed = (a,b) => (a.days==null?1e9:a.days)-(b.days==null?1e9:b.days) || a.total-b.total;
+function simSum(picks){
+  let cost = 0, days = 0, dn = 0;
+  picks.forEach(o=>{ if(!o) return; cost += o.total; if(o.days!=null){ days += o.days; dn++; } });
+  const n = picks.filter(Boolean).length;
+  return {cost, days, partialDays: dn<picks.length, complete: picks.length>0 && n===picks.length, n};
+}
+function simCompute(c, Q){
+  const aCols = costColsAll(currentBU);
+  const {routes, projects} = buildRouteSet(c);
+  const all = routes.concat(projects);
+  const out = all.map(x=>{
+    const rows = routeLegs(c, x).map(l=>{
+      const lt = simLegLT(l);
+      return {l, lt, opts: aCols.map(col=>simOpt(l, lt, col, Q, x.kind==='project')).filter(Boolean).sort(simByCost)};
+    });
+    const okOpts = r => r.opts.filter(o=>o.fits);   // Project rute: hanya armada dengan isi 85%-100% yang boleh jadi rekomendasi
+    const cheap = rows.map(r=>okOpts(r).length ? okOpts(r).sort(simByCost)[0] : null);
+    const fast = rows.map(r=>okOpts(r).length ? okOpts(r).sort(simBySpeed)[0] : null);
+    // Project rute yang tidak ada armada berisi 85%-100%: simpan isi terbaik untuk keterangan
+    const blocked = x.kind==='project' && rows.some(r=>r.opts.length && !okOpts(r).length);
+    const bestFill = blocked ? Math.max(...rows.flatMap(r=>r.opts.map(o=>o.fill==null?0:o.fill)), 0) : null;
+    return {x, rows, blocked, bestFill, cheap, fast, sc: simSum(cheap), sf: simSum(fast), start: x.steps[0].d.name, startTier: x.steps[0].tier,
+            path: x.steps.map(s=>s.d.name).join(' → ') + ' → Cust / Sto'};
+  });
+  return {c, aCols, routes: out};
+}
+function simOrigins(c){
+  const names = [];
+  const add = (n, t) => { if(n && !names.some(o=>normFacName(o.name)===normFacName(n))) names.push({name:n, tier:t}); };
+  if(c){ const {routes, projects} = buildRouteSet(c); routes.concat(projects).forEach(x=>add(x.steps[0].d.name, x.steps[0].tier)); }
+  else FACILITIES.filter(f=>(f.type||'').trim().toUpperCase()==='NDC' && (f.bu||'').includes(currentBU)).forEach(f=>add(f.name,'NDC'));
+  return names;
+}
+function simPickRoute(res){
+  if(!res) return null;
+  return res.routes.find(r=>r.x.id===SIM.manual) || null;
+}
+function simChips(picks){
+  return picks.map(o=>o ? `<span class="sim-chip${o.mode==='sea'?' laut':''}">${escapeHtml(o.label)} · ${o.modeLabel}</span>` : `<span class="sim-chip na">—</span>`).join('');
+}
+function simDays(sum){ return sum.n ? (sum.partialDays ? '≥' : '') + fmtD(sum.days) + (sum.partialDays ? '*' : '') : '—'; }
+function simCost(sum){ return sum.n ? (sum.complete ? '' : '≥') + fmtMoney(sum.cost) + (sum.complete ? '' : '*') : '—'; }
+function simCbm(sum, Q){ return sum.n && Q>0 ? (sum.complete ? '' : '≥') + fmtMoney(sum.cost/Q) + (sum.complete ? '' : '*') : '—'; }
+
+function renderSim(){
+  const out = document.getElementById('sim-out'); if(!out) return;
+  document.getElementById('sim-bu').textContent = 'BU ' + currentBU;
+  const c = SIM.key ? COVERAGE[currentBU][SIM.key] : null;
+  if(SIM.key && !c){ SIM.key = null; document.getElementById('sim-dest').value = ''; }
+  // origin: hanya yang punya rute ke tujuan ini
+  const origins = simOrigins(c);
+  if(SIM.origin && !origins.some(o=>normFacName(o.name)===normFacName(SIM.origin))) SIM.origin = '';
+  const sel = document.getElementById('sim-origin');
+  sel.innerHTML = `<option value="">Semua origin${origins.length?` (${origins.length})`:''}</option>` + origins.map(o=>`<option value="${escapeHtml(o.name)}"${normFacName(o.name)===normFacName(SIM.origin)?' selected':''}>${escapeHtml(o.name)} (${o.tier})</option>`).join('');
+  const Q = SIM.cbm;
+  if(!c){ SIM.res = null; out.innerHTML = `<div class="sim-empty">Pilih <b>tujuan</b> dulu untuk melihat rute yang ada. Setelah itu isi origin (atau biarkan "Semua origin") dan jumlah CBM, hasilnya langsung dihitung.</div>`; return; }
+  if(!(Q>0)){ SIM.res = null; out.innerHTML = `<div class="sim-empty">Isi <b>jumlah CBM</b> yang dikirim (lebih dari 0) untuk menghitung cost dan SLA.</div>`; return; }
+  if(!costColsAll(currentBU).length){ SIM.res = null; out.innerHTML = `<div class="sim-empty">Belum ada data cost per armada untuk BU ${currentBU} di gsheet (tab Tarif / Armada), jadi cost belum bisa dihitung.</div>`; return; }
+  const res = simCompute(c, Q), oKey = normFacName(SIM.origin||'');
+  res.routes = res.routes.filter(r=>!oKey || normFacName(r.start)===oKey);
+  SIM.res = res;
+  const ok = res.routes.filter(r=>r.sc.complete);
+  const cheapest = ok.slice().sort((a,b)=>a.sc.cost-b.sc.cost || a.sc.days-b.sc.days)[0] || null;
+  const fastest = ok.slice().sort((a,b)=>(a.sf.days-b.sf.days) || a.sf.cost-b.sf.cost)[0] || null;
+  if(!res.routes.some(r=>r.x.id===SIM.manual)) SIM.manual = (cheapest || res.routes[0] || {x:{id:''}}).x.id;
+
+  const card = (tag, r, mode) => {
+    const picks = mode==='fast' ? r.fast : r.cheap, sum = mode==='fast' ? r.sf : r.sc;
+    return `<div class="sim-card"><div class="tag">${tag}</div>
+      <div class="rt"><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)}<span class="sim-badge">mulai ${escapeHtml(r.start)}</span></div>
+      <div class="path">${escapeHtml(r.path)}</div>
+      <div class="sim-kpis"><div class="sim-kpi"><span class="l">Total cost</span><span class="v">${simCost(sum)}</span></div>
+        <div class="sim-kpi"><span class="l">Cost / CBM</span><span class="v sm">${simCbm(sum,Q)}</span></div>
+        <div class="sim-kpi"><span class="l">SLA</span><span class="v sm">${simDays(sum)}</span></div></div>
+      <div class="sim-chips" title="Armada per segmen, urut dari asal">${simChips(picks)}</div></div>`;
+  };
+  let reco;
+  if(!ok.length) reco = `<div class="sim-empty">Belum ada rute yang datanya lengkap (cost semua segmen) untuk tujuan ini${oKey?' dari origin '+escapeHtml(SIM.origin):''}. Lihat kolom tabel di bawah: tanda <b>≥ … *</b> berarti ada segmen yang belum punya tarif di gsheet.</div>`;
+  else if(cheapest===fastest || (cheapest.sc.cost===fastest.sc.cost && cheapest.sc.days===fastest.sf.days && cheapest.x.id===fastest.x.id)) reco = `<div class="sim-reco">${card('Termurah &amp; tercepat', cheapest, 'cheap')}</div>`;
+  else reco = `<div class="sim-reco">${card('Termurah', cheapest, 'cheap')}${card('Tercepat', fastest, 'fast')}</div>`;
+
+  const badge = r => (r===cheapest ? '<span class="sim-badge best">termurah</span> ' : '') + (r===fastest ? '<span class="sim-badge best">tercepat</span>' : '');
+  const trs = res.routes.map(r=>`<tr class="${r===cheapest||r===fastest?'best':''}">
+      <td><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)} ${badge(r)}<span class="sub">${escapeHtml(r.path)}</span>${r.blocked ? `<span class="sub">tidak memenuhi syarat isi ${Math.round(SIM_FILL_MIN*100)}–${Math.round(SIM_FILL_MAX*100)}% (isi terbaik ${Math.round(r.bestFill*100)}%) → tidak direkomendasikan</span>` : ''}</td>
+      <td class="grp-l">${simCost(r.sc)}</td><td>${simCbm(r.sc,Q)}</td><td>${simDays(r.sc)}</td>
+      <td class="grp-l">${simCost(r.sf)}</td><td>${simCbm(r.sf,Q)}</td><td>${simDays(r.sf)}</td></tr>`).join('');
+  const table = res.routes.length ? `<div class="sim-tbl-wrap"><table class="sim-tbl" id="sim-tbl">
+      <thead><tr><th rowspan="2">Rute</th><th colspan="3" class="grp-l">Opsi termurah</th><th colspan="3" class="grp-l">Opsi tercepat</th></tr>
+      <tr><th class="grp-l">Total cost</th><th>Cost/CBM</th><th>SLA</th><th class="grp-l">Total cost</th><th>Cost/CBM</th><th>SLA</th></tr></thead><tbody>${trs}</tbody></table></div>`
+    : `<div class="sim-empty">Tidak ada rute dari origin ${escapeHtml(SIM.origin)} ke ${escapeHtml(c.kabkota)}. Pilih "Semua origin" untuk melihat yang tersedia.</div>`;
+
+  const detail = res.routes.map(r=>{
+    const body = r.rows.map((row,i)=>{
+      const a = r.cheap[i], b = r.fast[i];
+      const cell = o => o ? `<td>${escapeHtml(o.label)} · ${o.modeLabel}${o.trips!=null?`<span class="sub">${o.trips} trip${o.fill!=null?' · isi '+Math.round(o.fill*100)+'%':''}${o.note?' · '+o.note:''}</span>`:''}</td><td>${fmtMoney(o.total)}</td><td>${o.days==null?'—':fmtD(o.days)}</td>` : `<td colspan="3" class="na">${row.opts.length ? 'tidak ada armada dengan isi 85–100%' : 'belum ada tarif armada'}</td>`;
+      return `<tr><td>${escapeHtml(row.l.a)} → ${escapeHtml(row.l.b)}<span class="sub">${row.l.last ? (row.l.tier==='NDC' ? 'direct NDC (tab NDC)' : 'last mile '+escapeHtml(row.l.tier)) : 'mid mile'}</span></td>${cell(a)}${cell(b)}</tr>`;
+    }).join('');
+    return `<details class="sim-det"${(r===cheapest||r===fastest)?' open':''}><summary><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)} <span class="sim-badge">${r.rows.length} segmen</span> ${badge(r)}</summary>
+      <div class="sim-tbl-wrap"><table class="sim-tbl"><thead><tr><th>Segmen</th><th class="grp-l">Termurah: armada</th><th>Cost</th><th>SLA</th><th class="grp-l">Tercepat: armada</th><th>Cost</th><th>SLA</th></tr></thead><tbody>${body || '<tr><td colspan="7" class="na">Belum ada data segmen/cost untuk rute ini.</td></tr>'}</tbody></table></div></details>`;
+  }).join('');
+
+  out.innerHTML = `<div class="sim-sec"><h3>Rekomendasi optimal</h3>${reco}
+      <div class="sim-note">Cost = jumlah trip × cost/trip armada, jumlah trip = pembulatan ke atas (${simNum(Q)} CBM ÷ kapasitas efektif armada: kapasitas × utilisasi di tab Armada). Pilihan armada dicari per segmen. SLA = jumlah hari tiap segmen (armada Darat memakai LT Darat, armada Laut memakai LT Laut). Cuma rute yang cost semua segmennya terisi yang dihitung sebagai rekomendasi. <b>Project rute</b> (direct NDC) hanya dipakai kalau ada armada yang terisi <b>85–100%</b> dari kapasitasnya (jumlah trip = ${simNum(Q)} CBM ÷ kapasitas penuh, dibulatkan ke atas); tarif Langsung tidak punya kapasitas, jadi tidak bisa jadi rekomendasi Project rute.</div></div>
+    <div class="sim-sec"><h3>Rute yang ada</h3>${table}</div>
+    <div class="sim-sec"><h3>Rincian per segmen</h3>${detail || ''}</div>
+    <div class="sim-sec" id="sim-manual"><h3>Hitung manual (pilih armada sendiri)</h3><div id="sim-man-body"></div></div>`;
+  renderSimManual();
+}
+
+function renderSimManual(){
+  const box = document.getElementById('sim-man-body'); if(!box || !SIM.res) return;
+  const res = SIM.res, Q = SIM.cbm, r = simPickRoute(res);
+  if(!res.routes.length || !r){ box.innerHTML = `<div class="sim-empty">Belum ada rute untuk dihitung manual.</div>`; return; }
+  const pkKey = SIM.key+'|'+currentBU+'|'+r.x.id;
+  if(!SIM.pick[pkKey]){ SIM.pick[pkKey] = {}; r.rows.forEach((row,i)=>{ if(r.cheap[i]) SIM.pick[pkKey][row.l.k] = r.cheap[i].key; }); }   // awal: isi opsi termurah, lalu bebas diganti
+  const pk = SIM.pick[pkKey];
+  const picks = r.rows.map(row=>{ const k = pk[row.l.k]; return k ? (row.opts.find(o=>o.key===k) || null) : null; });
+  const sum = simSum(picks), chosen = picks.filter(Boolean).length;
+  const rows = r.rows.map((row,i)=>{
+    const o = picks[i];
+    const opts = row.opts.map(x=>`<option value="${escapeHtml(x.key)}"${o&&o.key===x.key?' selected':''}>${escapeHtml(x.label)} ${x.modeLabel} — ${fmtMoney(x.total)}${x.days!=null?' · '+fmtD(x.days):''}${x.fill!=null&&r.x.kind==='project'?' · isi '+Math.round(x.fill*100)+'%'+(x.fits?'':' (di luar 85–100%)'):''}</option>`).join('');
+    return `<tr><td>${escapeHtml(row.l.a)} → ${escapeHtml(row.l.b)}<span class="sub">${row.l.last ? (row.l.tier==='NDC' ? 'direct NDC (tab NDC)' : 'last mile '+escapeHtml(row.l.tier)) : 'mid mile'}</span></td>
+      <td>${row.opts.length ? `<select class="sim-arm-sel" data-k="${escapeHtml(row.l.k)}" aria-label="Armada ${escapeHtml(row.l.a)} ke ${escapeHtml(row.l.b)}"><option value="">— pilih armada —</option>${opts}</select>` : '<span class="na">belum ada tarif armada</span>'}</td>
+      <td>${o && o.trips!=null ? o.trips : '—'}${o && o.fill!=null ? `<span class="sub">isi ${Math.round(o.fill*100)}%</span>` : ''}</td>
+      <td>${o ? fmtMoney(o.total) : '—'}</td><td>${o && o.days!=null ? fmtD(o.days) : '—'}</td></tr>`;
+  }).join('');
+  const ref = r.sc;
+  let delta = '';
+  if(chosen===r.rows.length && chosen>0 && ref.complete){
+    const d = sum.cost - ref.cost, pct = ref.cost ? d/ref.cost*100 : 0;
+    delta = Math.abs(d)<1 ? `<span class="sim-delta">sama dengan opsi termurah rute ini</span>` : `<span class="sim-delta ${d>0?'up':'dn'}">${d>0?'+':'−'}${fmtMoney(Math.abs(d))} (${d>0?'+':'−'}${Math.abs(Math.round(pct))}%) dibanding opsi termurah rute ini</span>`;
+  }
+  box.innerHTML = `<div class="sim-man">
+    <div class="sim-man-bar">
+      <label class="sim-f"><span>Rute</span><select id="sim-man-route">${res.routes.map(x=>`<option value="${escapeHtml(x.x.id)}"${x.x.id===r.x.id?' selected':''}>${escapeHtml(x.x.id)} — mulai ${escapeHtml(x.start)}</option>`).join('')}</select></label>
+      <button class="btn" id="sim-fill-cheap" type="button">Isi opsi termurah</button><button class="btn" id="sim-fill-fast" type="button">Isi opsi tercepat</button><button class="btn" id="sim-fill-clear" type="button">Kosongkan</button>
+    </div>
+    <div class="sim-note">${escapeHtml(r.path)}</div>
+    <div class="sim-tbl-wrap"><table class="sim-tbl"><thead><tr><th>Segmen</th><th>Armada</th><th>Trip</th><th>Cost</th><th>SLA</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="na">Belum ada data segmen/cost untuk rute ini.</td></tr>'}</tbody></table></div>
+    <div class="sim-total">
+      <div class="sim-kpi"><span class="l">Total cost</span><span class="v">${simCost(sum)}</span></div>
+      <div class="sim-kpi"><span class="l">Cost / CBM</span><span class="v sm">${simCbm(sum,Q)}</span></div>
+      <div class="sim-kpi"><span class="l">SLA</span><span class="v sm">${simDays(sum)}</span></div>
+      <div class="sim-kpi"><span class="l">Segmen terpilih</span><span class="v sm">${chosen} dari ${r.rows.length}</span></div>
+      ${delta}</div>
+    ${chosen && chosen<r.rows.length ? '<div class="sim-note">≥ … * = baru sebagian segmen yang dipilih armadanya.</div>' : ''}</div>`;
+  box.querySelector('#sim-man-route').onchange = e => { SIM.manual = e.target.value; renderSimManual(); };
+  box.querySelectorAll('.sim-arm-sel').forEach(s=>{ s.onchange = () => { if(s.value) pk[s.dataset.k] = s.value; else delete pk[s.dataset.k]; renderSimManual(); }; });
+  const fill = list => { r.rows.forEach((row,i)=>{ if(list[i]) pk[row.l.k] = list[i].key; else delete pk[row.l.k]; }); renderSimManual(); };
+  box.querySelector('#sim-fill-cheap').onclick = () => fill(r.cheap);
+  box.querySelector('#sim-fill-fast').onclick = () => fill(r.fast);
+  box.querySelector('#sim-fill-clear').onclick = () => fill([]);
+}
+
+function setupSim(){
+  const inp = document.getElementById('sim-dest');
+  buildAutocomplete(document.getElementById('sim-dest-wrap'), inp, document.getElementById('sim-ac'), c=>{
+    SIM.key = c._key; inp.value = c.kabkota; renderSim();
+  });
+  document.getElementById('sim-origin').onchange = e => { SIM.origin = e.target.value; renderSim(); };
+  document.getElementById('sim-cbm').addEventListener('input', debounce(e => { const v = parseFloat(String(e.target.value).replace(',','.')); SIM.cbm = isNaN(v) ? 0 : v; renderSim(); }, 200));
+  renderSim();
+}
+
 function rerenderAll(){
   paintLanding();
+  renderSim();
   buildServed();
   if(view.facKey && !visibleFacilities().some(f=>f._fk===view.facKey)) view.facKey = null;   // fasilitas tidak ada di BU ini
   renderChoropleth();
@@ -2879,6 +3172,7 @@ if(LANDING_ON){ document.querySelector('.app').setAttribute('inert',''); documen
 
 initMap();
 setupSearch();
+setupSim();
 loadAll();
 </script>
 </body>
