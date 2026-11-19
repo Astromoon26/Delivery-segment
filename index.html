@@ -2769,6 +2769,7 @@ document.querySelectorAll('.bu-btn').forEach(btn=>{
 // Optimal: "termurah" = armada cost terkecil per segmen, "tercepat" = armada SLA terkecil per segmen (seri -> cost terkecil).
 // ============================================================
 const SIM = {key:null, origin:'', cbm:20, manual:'', pick:{}, res:null};
+const SIM_FILL_MIN = 0.85, SIM_FILL_MAX = 1;   // syarat Project rute: armada terisi 85%-100% dari kapasitasnya
 const simNum = n => n==null ? '—' : (Math.round(n*10)/10).toLocaleString('id-ID');
 // SLA (hari) satu segmen: {land, sea}; last mile fasilitas = LT darat saja, direct NDC punya Darat & Laut
 function simLegLT(l){
@@ -2780,7 +2781,7 @@ function simLegLT(l){
   return {land: lt ? numOrNull(lt.land) : null, sea: lt ? numOrNull(lt.sea) : null};
 }
 // satu opsi armada untuk satu segmen (null kalau armada itu tidak punya tarif di segmen ini)
-function simOpt(l, lt, col, Q){
+function simOpt(l, lt, col, Q, proj){
   const v = legVal(l, col); if(!v) return null;
   const sea = col.mode==='sea' || (col.mode==='any' && lt.land==null && lt.sea!=null);
   const days = sea ? lt.sea : lt.land;
@@ -2788,14 +2789,20 @@ function simOpt(l, lt, col, Q){
   if(col.direct){
     if(v.cbm!=null) total = v.cbm * Q;
     else if(v.trip!=null){ total = v.trip; trips = 1; note = 'asumsi 1 trip'; }
+  } else if(proj){
+    // Project rute (direct NDC): muatan fisik per trip = kapasitas penuh armada; layak kalau isi 85%-100%
+    trips = Math.max(1, Math.ceil(Q / col.ar.cap - 1e-9));
+    total = trips * v.trip;
   } else {
     trips = Math.max(1, Math.ceil(Q / col.ar.eff - 1e-9));
     total = trips * v.trip;
   }
   if(total==null) return null;
-  return {key:col.key, label: col.direct ? 'Langsung' : col.label, mode: sea ? 'sea' : 'land', modeLabel: sea ? 'Laut' : 'Darat',
+  const fill = (!col.direct && trips) ? Q/(trips*col.ar.cap) : null;
+  const fits = !proj ? true : (fill!=null && fill >= SIM_FILL_MIN - 1e-9 && fill <= SIM_FILL_MAX + 1e-9);   // Langsung (tanpa kapasitas) tidak bisa dipastikan isinya
+  return {key:col.key, fits, label: col.direct ? 'Langsung' : col.label, mode: sea ? 'sea' : 'land', modeLabel: sea ? 'Laut' : 'Darat',
           days, trips, total, perCbm: Q>0 ? total/Q : null, trip: v.trip,
-          fill: (!col.direct && trips) ? Q/(trips*col.ar.cap) : null, note};
+          fill, note};
 }
 const simByCost = (a,b) => a.total-b.total || (a.days==null?1e9:a.days)-(b.days==null?1e9:b.days);
 const simBySpeed = (a,b) => (a.days==null?1e9:a.days)-(b.days==null?1e9:b.days) || a.total-b.total;
@@ -2812,11 +2819,15 @@ function simCompute(c, Q){
   const out = all.map(x=>{
     const rows = routeLegs(c, x).map(l=>{
       const lt = simLegLT(l);
-      return {l, lt, opts: aCols.map(col=>simOpt(l, lt, col, Q)).filter(Boolean).sort(simByCost)};
+      return {l, lt, opts: aCols.map(col=>simOpt(l, lt, col, Q, x.kind==='project')).filter(Boolean).sort(simByCost)};
     });
-    const cheap = rows.map(r=>r.opts.length ? r.opts.slice().sort(simByCost)[0] : null);
-    const fast = rows.map(r=>r.opts.length ? r.opts.slice().sort(simBySpeed)[0] : null);
-    return {x, rows, cheap, fast, sc: simSum(cheap), sf: simSum(fast), start: x.steps[0].d.name, startTier: x.steps[0].tier,
+    const okOpts = r => r.opts.filter(o=>o.fits);   // Project rute: hanya armada dengan isi 85%-100% yang boleh jadi rekomendasi
+    const cheap = rows.map(r=>okOpts(r).length ? okOpts(r).sort(simByCost)[0] : null);
+    const fast = rows.map(r=>okOpts(r).length ? okOpts(r).sort(simBySpeed)[0] : null);
+    // Project rute yang tidak ada armada berisi 85%-100%: simpan isi terbaik untuk keterangan
+    const blocked = x.kind==='project' && rows.some(r=>r.opts.length && !okOpts(r).length);
+    const bestFill = blocked ? Math.max(...rows.flatMap(r=>r.opts.map(o=>o.fill==null?0:o.fill)), 0) : null;
+    return {x, rows, blocked, bestFill, cheap, fast, sc: simSum(cheap), sf: simSum(fast), start: x.steps[0].d.name, startTier: x.steps[0].tier,
             path: x.steps.map(s=>s.d.name).join(' → ') + ' → Cust / Sto'};
   });
   return {c, aCols, routes: out};
@@ -2878,7 +2889,7 @@ function renderSim(){
 
   const badge = r => (r===cheapest ? '<span class="sim-badge best">termurah</span> ' : '') + (r===fastest ? '<span class="sim-badge best">tercepat</span>' : '');
   const trs = res.routes.map(r=>`<tr class="${r===cheapest||r===fastest?'best':''}">
-      <td><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)} ${badge(r)}<span class="sub">${escapeHtml(r.path)}</span></td>
+      <td><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)} ${badge(r)}<span class="sub">${escapeHtml(r.path)}</span>${r.blocked ? `<span class="sub">tidak memenuhi syarat isi ${Math.round(SIM_FILL_MIN*100)}–${Math.round(SIM_FILL_MAX*100)}% (isi terbaik ${Math.round(r.bestFill*100)}%) → tidak direkomendasikan</span>` : ''}</td>
       <td class="grp-l">${simCost(r.sc)}</td><td>${simCbm(r.sc,Q)}</td><td>${simDays(r.sc)}</td>
       <td class="grp-l">${simCost(r.sf)}</td><td>${simCbm(r.sf,Q)}</td><td>${simDays(r.sf)}</td></tr>`).join('');
   const table = res.routes.length ? `<div class="sim-tbl-wrap"><table class="sim-tbl" id="sim-tbl">
@@ -2889,7 +2900,7 @@ function renderSim(){
   const detail = res.routes.map(r=>{
     const body = r.rows.map((row,i)=>{
       const a = r.cheap[i], b = r.fast[i];
-      const cell = o => o ? `<td>${escapeHtml(o.label)} · ${o.modeLabel}${o.trips!=null?`<span class="sub">${o.trips} trip${o.fill!=null?' · isi '+Math.round(o.fill*100)+'%':''}${o.note?' · '+o.note:''}</span>`:''}</td><td>${fmtMoney(o.total)}</td><td>${o.days==null?'—':fmtD(o.days)}</td>` : `<td colspan="3" class="na">belum ada tarif armada</td>`;
+      const cell = o => o ? `<td>${escapeHtml(o.label)} · ${o.modeLabel}${o.trips!=null?`<span class="sub">${o.trips} trip${o.fill!=null?' · isi '+Math.round(o.fill*100)+'%':''}${o.note?' · '+o.note:''}</span>`:''}</td><td>${fmtMoney(o.total)}</td><td>${o.days==null?'—':fmtD(o.days)}</td>` : `<td colspan="3" class="na">${row.opts.length ? 'tidak ada armada dengan isi 85–100%' : 'belum ada tarif armada'}</td>`;
       return `<tr><td>${escapeHtml(row.l.a)} → ${escapeHtml(row.l.b)}<span class="sub">${row.l.last ? (row.l.tier==='NDC' ? 'direct NDC (tab NDC)' : 'last mile '+escapeHtml(row.l.tier)) : 'mid mile'}</span></td>${cell(a)}${cell(b)}</tr>`;
     }).join('');
     return `<details class="sim-det"${(r===cheapest||r===fastest)?' open':''}><summary><span class="sw" style="${swStyle(r.x.color, r.x.kind)}"></span>${escapeHtml(r.x.id)} <span class="sim-badge">${r.rows.length} segmen</span> ${badge(r)}</summary>
@@ -2897,7 +2908,7 @@ function renderSim(){
   }).join('');
 
   out.innerHTML = `<div class="sim-sec"><h3>Rekomendasi optimal</h3>${reco}
-      <div class="sim-note">Cost = jumlah trip × cost/trip armada, jumlah trip = pembulatan ke atas (${simNum(Q)} CBM ÷ kapasitas efektif armada: kapasitas × utilisasi di tab Armada). Pilihan armada dicari per segmen. SLA = jumlah hari tiap segmen (armada Darat memakai LT Darat, armada Laut memakai LT Laut). Cuma rute yang cost semua segmennya terisi yang dihitung sebagai rekomendasi.</div></div>
+      <div class="sim-note">Cost = jumlah trip × cost/trip armada, jumlah trip = pembulatan ke atas (${simNum(Q)} CBM ÷ kapasitas efektif armada: kapasitas × utilisasi di tab Armada). Pilihan armada dicari per segmen. SLA = jumlah hari tiap segmen (armada Darat memakai LT Darat, armada Laut memakai LT Laut). Cuma rute yang cost semua segmennya terisi yang dihitung sebagai rekomendasi. <b>Project rute</b> (direct NDC) hanya dipakai kalau ada armada yang terisi <b>85–100%</b> dari kapasitasnya (jumlah trip = ${simNum(Q)} CBM ÷ kapasitas penuh, dibulatkan ke atas); tarif Langsung tidak punya kapasitas, jadi tidak bisa jadi rekomendasi Project rute.</div></div>
     <div class="sim-sec"><h3>Rute yang ada</h3>${table}</div>
     <div class="sim-sec"><h3>Rincian per segmen</h3>${detail || ''}</div>
     <div class="sim-sec" id="sim-manual"><h3>Hitung manual (pilih armada sendiri)</h3><div id="sim-man-body"></div></div>`;
@@ -2915,7 +2926,7 @@ function renderSimManual(){
   const sum = simSum(picks), chosen = picks.filter(Boolean).length;
   const rows = r.rows.map((row,i)=>{
     const o = picks[i];
-    const opts = row.opts.map(x=>`<option value="${escapeHtml(x.key)}"${o&&o.key===x.key?' selected':''}>${escapeHtml(x.label)} ${x.modeLabel} — ${fmtMoney(x.total)}${x.days!=null?' · '+fmtD(x.days):''}</option>`).join('');
+    const opts = row.opts.map(x=>`<option value="${escapeHtml(x.key)}"${o&&o.key===x.key?' selected':''}>${escapeHtml(x.label)} ${x.modeLabel} — ${fmtMoney(x.total)}${x.days!=null?' · '+fmtD(x.days):''}${x.fill!=null&&r.x.kind==='project'?' · isi '+Math.round(x.fill*100)+'%'+(x.fits?'':' (di luar 85–100%)'):''}</option>`).join('');
     return `<tr><td>${escapeHtml(row.l.a)} → ${escapeHtml(row.l.b)}<span class="sub">${row.l.last ? (row.l.tier==='NDC' ? 'direct NDC (tab NDC)' : 'last mile '+escapeHtml(row.l.tier)) : 'mid mile'}</span></td>
       <td>${row.opts.length ? `<select class="sim-arm-sel" data-k="${escapeHtml(row.l.k)}" aria-label="Armada ${escapeHtml(row.l.a)} ke ${escapeHtml(row.l.b)}"><option value="">— pilih armada —</option>${opts}</select>` : '<span class="na">belum ada tarif armada</span>'}</td>
       <td>${o && o.trips!=null ? o.trips : '—'}${o && o.fill!=null ? `<span class="sub">isi ${Math.round(o.fill*100)}%</span>` : ''}</td>

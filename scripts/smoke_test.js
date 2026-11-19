@@ -545,28 +545,34 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   await p6.click('#sim-ac .autocomplete-item'); await p6.waitForTimeout(600);
   const simTx = () => p6.$eval('#sim-out', e => e.innerText.replace(/\s+/g, ' '));
   const s1 = await simTx();
-  check('Simulasi 20 CBM: rekomendasi = Project rute (satu-satunya rute lengkap) termurah & tercepat, armada Langsung: Rp 3.000.000 (20 × 150.000), Rp 150.000/CBM, SLA 6h', /Termurah & tercepat/i.test(s1) && /Project rute/.test(s1) && /Total cost Rp 3\.000\.000/.test(s1) && /Cost \/ CBM Rp 150\.000/.test(s1) && /SLA 6h/.test(s1) && /Langsung · Darat/.test(s1), s1.slice(0, 600));
+  const setCbm = async v => { await p6.fill('#sim-cbm', String(v)); await p6.waitForTimeout(600); };
+  check('Simulasi 20 CBM: Project rute TIDAK direkomendasikan (isi terbaik Cont-20 = 80% < 85%; CDDL 2 trip = 62,5%; Langsung tanpa kapasitas) & tanda "tidak memenuhi syarat isi 85–100%" tampil', /Belum ada rute yang datanya lengkap/.test(s1) && /tidak memenuhi syarat isi 85–100% \(isi terbaik 80%\)/.test(s1) && !/Termurah/.test(s1.split('Rute yang ada')[0].replace(/Termurah &/, '')) , s1.slice(0, 500));
+  await setCbm(15);
+  const s1b = await simTx();
+  check('Simulasi 15 CBM: Project rute layak (CDDL 16 CBM terisi 93,75%) -> rekomendasi termurah & tercepat Rp 4.000.000 (1 trip), Rp 266.667/CBM, SLA 6h; Cont-20 (60%) dan Langsung tidak dipilih', /Termurah & tercepat/i.test(s1b) && /Project rute/.test(s1b) && /Total cost Rp 4\.000\.000/.test(s1b) && /Cost \/ CBM Rp 266\.667/.test(s1b) && /SLA 6h/.test(s1b) && /CDDL · Darat/.test(s1b) && !/tidak memenuhi syarat/.test(s1b), s1b.slice(0, 600));
   const s2 = await p6.$$eval('#sim-tbl tbody tr', rows => rows.map(r => r.innerText.replace(/\s+/g, ' ')));
   check('Simulasi: Rute 1 belum lengkap (Pekanbaru → Dumai tanpa tarif) tampil sebagai ≥ … * dan tidak jadi rekomendasi; Project rute ditandai termurah & tercepat', s2.length >= 2 && /≥Rp/.test(s2[0]) && /\*/.test(s2[0]) && !/termurah/.test(s2[0]) && /termurah/.test(s2[s2.length - 1]) && /tercepat/.test(s2[s2.length - 1]), JSON.stringify(s2));
   const s3 = await p6.evaluate(() => ({ det: [...document.querySelectorAll('.sim-det')].map(d => d.textContent.replace(/\s+/g, ' ')).join(' | '), orig: [...document.querySelectorAll('#sim-origin option')].map(o => o.textContent) }));
-  check('Simulasi: rincian per segmen menyebut armada, jumlah trip, % isi & "belum ada tarif armada" untuk segmen tanpa tarif; origin hanya yang punya rute ke tujuan', /belum ada tarif armada/.test(s3.det) && /1 trip|2 trip/.test(s3.det) && s3.orig.length === 2 && /^Semua origin/.test(s3.orig[0]) && /Jakarta \(NDC\)/.test(s3.orig[1]), JSON.stringify(s3).slice(0, 500));
-  // jumlah trip = ceil(CBM / kapasitas efektif): CDDL 16 x 85% = 13,6 -> 14 CBM = 2 trip, 40 CBM = 3 trip; Cont-20 Laut 25 x 85% = 21,25
-  await p6.fill('#sim-cbm', '14'); await p6.waitForTimeout(600);
-  const trips = async cbm => { await p6.fill('#sim-cbm', String(cbm)); await p6.waitForTimeout(600); return p6.evaluate(() => { const r = SIM.res.routes.find(x => x.x.id === 'Project rute'); return r.rows[0].opts.map(o => o.label + ':' + o.trips + ':' + Math.round(o.total)).join(','); }); };
-  const t14 = await trips(14), t40 = await trips(40);
-  check('Simulasi: jumlah trip = pembulatan ke atas (14 CBM: CDDL 2 trip = 8.000.000; 40 CBM: CDDL 3 trip = 12.000.000, Cont-20 Laut 2 trip = 10.000.000, Langsung 150.000 × 40 = 6.000.000)', /CDDL:2:8000000/.test(t14) && /CDDL:3:12000000/.test(t40) && /Cont-20:2:10000000/.test(t40) && /Langsung:null:6000000/.test(t40), t14 + ' || ' + t40);
-  await p6.fill('#sim-cbm', '20'); await p6.waitForTimeout(600);
+  check('Simulasi: rincian per segmen menyebut armada, jumlah trip, % isi & "belum ada tarif armada" untuk segmen tanpa tarif; origin hanya yang punya rute ke tujuan', /belum ada tarif armada/.test(s3.det) && /1 trip/.test(s3.det) && /isi 94%/.test(s3.det) && s3.orig.length === 2 && /^Semua origin/.test(s3.orig[0]) && /Jakarta \(NDC\)/.test(s3.orig[1]), JSON.stringify(s3).slice(0, 500));
+  // Project rute: trip = CBM ÷ kapasitas penuh (dibulatkan ke atas), layak bila isi 85–100%. Rute biasa: trip = CBM ÷ kapasitas efektif (kapasitas × utilisasi)
+  const optsOf = async (id, cbm) => { await setCbm(cbm); return p6.evaluate(id => { const r = SIM.res.routes.find(x => x.x.id === id); return r.rows[0].opts.map(o => o.label + ':' + o.trips + ':' + Math.round(o.total) + ':' + o.fits).join(','); }, id); };
+  const t14 = await optsOf('Project rute', 14), t40 = await optsOf('Project rute', 40), r14 = await optsOf('Rute 1', 14);
+  check('Simulasi Project rute: 14 CBM CDDL 1 trip (isi 87,5% layak) = 4.000.000; 40 CBM CDDL 3 trip (83% tidak layak), Cont-20 2 trip (80% tidak layak), Langsung 150.000 × 40 = 6.000.000 (tidak layak, tanpa kapasitas)', /CDDL:1:4000000:true/.test(t14) && /CDDL:3:12000000:false/.test(t40) && /Cont-20:2:10000000:false/.test(t40) && /Langsung:null:6000000:false/.test(t40), t14 + ' || ' + t40);
+  check('Simulasi rute biasa (Rute 1) tidak kena syarat isi: 14 CBM CDDL = 2 trip (kapasitas efektif 13,6), selalu layak', /CDDL:2:20000000:true/.test(r14), r14);
+  await setCbm(15);
+  await p6.selectOption('#sim-man-route', 'Project rute'); await p6.waitForTimeout(300);   // rute manual tetap di pilihan terakhir (di 20 CBM belum ada yang direkomendasikan -> Rute 1)
   const man0 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
-  check('Simulasi hitung manual: awal terisi opsi termurah (Project rute, Langsung Rp 3.000.000), tanpa selisih', /Total cost Rp 3\.000\.000/.test(man0) && /sama dengan opsi termurah/.test(man0), man0.slice(0, 400));
-  const cddlKey = await p6.$eval('#sim-man-body .sim-arm-sel', sel => { const o = [...sel.options].find(x => /^CDDL Darat/.test(x.textContent.trim())); return o ? o.value : null; });
-  await p6.selectOption('#sim-man-body .sim-arm-sel', cddlKey); await p6.waitForTimeout(300);
+  check('Simulasi hitung manual: awal terisi opsi termurah yang layak (Project rute, CDDL Rp 4.000.000), tanpa selisih', /Total cost Rp 4\.000\.000/.test(man0) && /sama dengan opsi termurah/.test(man0), man0.slice(0, 400));
+  const contKey = await p6.$eval('#sim-man-body .sim-arm-sel', sel => { const o = [...sel.options].find(x => /^Cont-20 Laut/.test(x.textContent.trim())); return o ? { v: o.value, t: o.textContent } : null; });
+  check('Simulasi hitung manual: opsi di luar 85–100% tetap bisa dipilih manual tapi diberi tanda (Cont-20 Laut · isi 60% (di luar 85–100%))', contKey && /isi 60% \(di luar 85–100%\)/.test(contKey.t), JSON.stringify(contKey));
+  await p6.selectOption('#sim-man-body .sim-arm-sel', contKey.v); await p6.waitForTimeout(300);
   const man1 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
-  check('Simulasi hitung manual: pilih CDDL sendiri (20 CBM = 2 trip) -> Rp 8.000.000, Rp 400.000/CBM, SLA 6h, +Rp 5.000.000 (+167%) dibanding termurah', /Total cost Rp 8\.000\.000/.test(man1) && /Cost \/ CBM Rp 400\.000/.test(man1) && /SLA 6h/.test(man1) && /\+Rp 5\.000\.000 \(\+167%\)/.test(man1), man1.slice(0, 500));
+  check('Simulasi hitung manual: pilih Cont-20 Laut sendiri (1 trip) -> Rp 5.000.000, Rp 333.333/CBM, +Rp 1.000.000 (+25%) dibanding termurah', /Total cost Rp 5\.000\.000/.test(man1) && /Cost \/ CBM Rp 333\.333/.test(man1) && /\+Rp 1\.000\.000 \(\+25%\)/.test(man1), man1.slice(0, 500));
   await p6.click('#sim-fill-clear'); await p6.waitForTimeout(200);
   const man2 = await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '));
   check('Simulasi hitung manual: Kosongkan -> 0 dari 1 segmen dipilih, total "—"', /0 dari 1/.test(man2) && /Total cost —/.test(man2), man2.slice(0, 300));
   await p6.click('#sim-fill-fast'); await p6.waitForTimeout(200);
-  check('Simulasi hitung manual: "Isi opsi tercepat" mengisi armada tercepat per segmen (Project rute: Rp 3.000.000, 6h)', /Total cost Rp 3\.000\.000/.test(await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '))), '');
+  check('Simulasi hitung manual: "Isi opsi tercepat" mengisi armada tercepat yang layak (Project rute: CDDL Rp 4.000.000, 6h)', /Total cost Rp 4\.000\.000/.test(await p6.$eval('#sim-man-body', e => e.innerText.replace(/\s+/g, ' '))), '');
   await p6.fill('#sim-cbm', '0'); await p6.waitForTimeout(500);
   check('Simulasi: CBM kosong/0 -> pesan minta isi jumlah CBM (tidak error)', /jumlah CBM/i.test(await simTx()), await simTx());
   await p6.fill('#sim-cbm', '20'); await p6.waitForTimeout(500);
