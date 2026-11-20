@@ -2,6 +2,9 @@
 
 Format: tanggal · perubahan · alasan. Entri terbaru di atas. Update tiap kali `index.html` berubah.
 
+## 2026-11-20
+- **Simulasi: Fasilitas DC terdekat dari tujuan** (atas permintaan Apip): begitu tujuan dipilih, muncul bagian **Fasilitas DC terdekat** di atas Rekomendasi optimal: semua fasilitas NDC/RDC/SDC/HUB BU terpilih yang berada di **provinsi yang sama** dengan tujuan (radius 1 provinsi, konstanta `SIM_NEAR_SCOPE`), urut dari yang terdekat, dengan tipe, nama, kab/kota lokasi, jarak garis lurus (`±N km`, dari titik tengah kab/kota tujuan, bukan jarak jalan) dan tanda "melayani tujuan" (dari `SERVED`). Lebih dari 8 fasilitas → tombol "Tampilkan semua (N)". Provinsi tanpa fasilitas → pesan kosong. Fungsi `simNearby`, `renderSimNear`. Pendukung: `buildIslandIndex` kini mengisi `f._key` (kab/kota polygon tempat fasilitas berada → provinsinya); titik di luar polygon hanya dipetakan ke kab/kota terdekat bila ≤ ±0,5° (±55 km), selebihnya `_key = null`. `rerenderAll` memanggil `buildServed()` sebelum `renderSim()` (supaya `SERVED` sesuai BU). Tes: 4 tes baru dengan fasilitas sintetis → 207/207.
+
 ## 2026-11-19 (2)
 - **Simulasi: syarat isi 85–100% untuk Project rute** (atas permintaan Apip): Project rute (direct NDC → Cust / Sto) hanya dipilih/direkomendasikan kalau ada armada yang terisi **85%–100%** dari kapasitasnya (`SIM_FILL_MIN/MAX`). Untuk Project rute, jumlah trip = `ceil(CBM ÷ kapasitas penuh)` dan isi = `CBM ÷ (trip × kapasitas)`; rute lain tetap pakai kapasitas efektif (kapasitas × utilisasi). Opsi di luar 85–100% (termasuk tarif **Langsung**, karena tidak punya kapasitas) tidak ikut termurah/tercepat; tabel "Rute yang ada" menulis "tidak memenuhi syarat isi 85–100% (isi terbaik N%)", rincian per segmen "tidak ada armada dengan isi 85–100%". Di Hitung manual opsi tersebut tetap bisa dipilih dengan tanda "isi N% (di luar 85–100%)". Tes: 5 tes Simulasi disesuaikan/ditambah → 203/203.
 

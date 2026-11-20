@@ -554,6 +554,28 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   check('Simulasi: Rute 1 belum lengkap (Pekanbaru → Dumai tanpa tarif) tampil sebagai ≥ … * dan tidak jadi rekomendasi; Project rute ditandai termurah & tercepat', s2.length >= 2 && /≥Rp/.test(s2[0]) && /\*/.test(s2[0]) && !/termurah/.test(s2[0]) && /termurah/.test(s2[s2.length - 1]) && /tercepat/.test(s2[s2.length - 1]), JSON.stringify(s2));
   const s3 = await p6.evaluate(() => ({ det: [...document.querySelectorAll('.sim-det')].map(d => d.textContent.replace(/\s+/g, ' ')).join(' | '), orig: [...document.querySelectorAll('#sim-origin option')].map(o => o.textContent) }));
   check('Simulasi: rincian per segmen menyebut armada, jumlah trip, % isi & "belum ada tarif armada" untuk segmen tanpa tarif; origin hanya yang punya rute ke tujuan', /belum ada tarif armada/.test(s3.det) && /1 trip/.test(s3.det) && /isi 94%/.test(s3.det) && s3.orig.length === 2 && /^Semua origin/.test(s3.orig[0]) && /Jakarta \(NDC\)/.test(s3.orig[1]), JSON.stringify(s3).slice(0, 500));
+  // --- Fasilitas DC terdekat (radius 1 provinsi): fasilitas sintetis supaya tidak bergantung isi tab Name of Facility live
+  const nearRun = async facs => p6.evaluate(facs => {
+    window.__facBak = window.__facBak || FACILITIES;
+    FACILITIES = facs.map(f => Object.assign({ bu: 'HCI' }, f));
+    buildIslandIndex(); buildServed(); renderSim();
+    const box = document.getElementById('sim-near');
+    return { tx: box.innerText.replace(/\s+/g, ' '), rows: [...box.querySelectorAll('tbody tr')].map(r => r.innerText.replace(/\s+/g, ' ')), more: !!document.getElementById('sim-near-more') };
+  }, facs);
+  const nr1 = await nearRun([
+    { type: 'HUB', name: 'Dumai', lat: 1.67, lon: 101.45 }, { type: 'RDC', name: 'ZZ Riau Selatan', lat: 1.45, lon: 101.35 },
+    { type: 'NDC', name: 'ZZ Medan', lat: 3.59, lon: 98.67 }, { type: 'SDC', name: 'ZZ Jambi', lat: -1.6, lon: 103.6 }]);
+  check('Simulasi: tujuan dipilih -> bagian "Fasilitas DC terdekat" tampil, hanya fasilitas se-provinsi (Riau): Dumai & ZZ Riau Selatan; Medan (Sumatera Utara) & Jambi tidak', /Fasilitas DC terdekat/.test(nr1.tx) && nr1.rows.length === 2 && /Dumai/.test(nr1.rows[0]) && /ZZ Riau Selatan/.test(nr1.rows[1]) && !/ZZ Medan|ZZ Jambi/.test(nr1.tx), JSON.stringify(nr1));
+  check('Simulasi fasilitas terdekat: urut dari yang terdekat (km naik), ada tipe & jarak "±N km", HUB Dumai bertanda "melayani tujuan", catatan radius 1 provinsi (Riau)', (() => { const km = nr1.rows.map(r => +(r.match(/±([\d.]+) km/) || [])[1].replace(/\./g, '')); return km.length === 2 && km[0] < km[1] && km[0] < 60 && km[1] < 120; })() && /^HUB/.test(nr1.rows[0]) && /^RDC/.test(nr1.rows[1]) && /melayani tujuan/.test(nr1.rows[0]) && !/melayani tujuan/.test(nr1.rows[1]) && /Radius: 1 provinsi \(Riau\)/.test(nr1.tx), JSON.stringify(nr1.rows) + nr1.tx.slice(-220));
+  const many = []; for (let i = 0; i < 11; i++) many.push({ type: 'HUB', name: 'ZZ Riau ' + i, lat: 1.5 + i * 0.02, lon: 101.4 });
+  const nr2 = await nearRun(many);
+  await p6.click('#sim-near-more'); await p6.waitForTimeout(200);
+  const nr2b = await p6.$$eval('#sim-near tbody tr', r => r.length);
+  check('Simulasi fasilitas terdekat: >8 fasilitas -> tampil 8 + tombol "Tampilkan semua (11)"; klik -> semua 11 baris', nr2.rows.length === 8 && nr2.more && nr2b === 11, JSON.stringify([nr2.rows.length, nr2.more, nr2b]));
+  const nr3 = await nearRun([{ type: 'NDC', name: 'ZZ Medan', lat: 3.59, lon: 98.67 }]);
+  check('Simulasi fasilitas terdekat: provinsi tanpa fasilitas -> pesan "Belum ada fasilitas DC … di provinsi Riau"', /Belum ada fasilitas DC .* di provinsi Riau/.test(nr3.tx) && nr3.rows.length === 0, nr3.tx);
+  await p6.evaluate(() => { FACILITIES = window.__facBak; window.__facBak = null; buildIslandIndex(); buildServed(); renderSim(); });
+  await p6.waitForTimeout(300);
   // Project rute: trip = CBM ÷ kapasitas penuh (dibulatkan ke atas), layak bila isi 85–100%. Rute biasa: trip = CBM ÷ kapasitas efektif (kapasitas × utilisasi)
   const optsOf = async (id, cbm) => { await setCbm(cbm); return p6.evaluate(id => { const r = SIM.res.routes.find(x => x.x.id === id); return r.rows[0].opts.map(o => o.label + ':' + o.trips + ':' + Math.round(o.total) + ':' + o.fits).join(','); }, id); };
   const t14 = await optsOf('Project rute', 14), t40 = await optsOf('Project rute', 40), r14 = await optsOf('Rute 1', 14);

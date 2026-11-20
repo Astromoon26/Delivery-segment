@@ -403,6 +403,12 @@ body[data-menu="store"] #pane-store,body[data-menu="sim"] #pane-sim{display:flex
 /* ===== menu Simulasi: hitung cost & SLA per tujuan / origin / CBM ===== */
 .sim-in .sw{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle;flex:none}
 #sim-out{display:flex;flex-direction:column;gap:26px}
+#sim-near:empty{display:none}
+.sim-near .sim-tbl{min-width:600px}
+.sim-near .sim-tbl td:nth-child(2),.sim-near .sim-tbl th:nth-child(2){text-align:left}
+.sim-near .tdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:baseline}
+.sim-near .sim-badge.serve{color:var(--text);border-color:var(--text)}
+.sim-more{align-self:flex-start}
 #pane-sim{align-items:flex-start;justify-content:center;overflow-y:auto;padding:22px 24px 48px}
 .sim-in{width:100%;max-width:1080px;display:flex;flex-direction:column;gap:18px}
 .sim-head{display:flex;flex-direction:column;gap:5px}
@@ -617,6 +623,8 @@ body[data-menu="store"] #crumb,body[data-menu="sim"] #crumb,body[data-menu="stor
       <label class="sim-f"><span>Origin</span><select id="sim-origin"></select></label>
       <label class="sim-f"><span>Jumlah CBM terkirim</span><input type="number" id="sim-cbm" min="0.1" step="any" value="20" inputmode="decimal"/></label>
     </div>
+    <div id="sim-near" class="sim-sec"></div>
+    <div id="sim-near" class="sim-sec"></div>
     <div id="sim-out"></div>
   </div></section>
   </div>
@@ -1652,10 +1660,13 @@ function buildIslandIndex(){
   }
   for(const f of FACILITIES){
     let hit = ISL_FEATS.find(x=>f.lon>=x.bb[0] && f.lon<=x.bb[2] && f.lat>=x.bb[1] && f.lat<=x.bb[3] && featHas(x.f, f.lon, f.lat));
+    let near = true;
     if(!hit){        // titik di pesisir / di luar polygon: ambil kab/kota terdekat
       let best=1e9; for(const x of ISL_FEATS){ const d=(x.cx-f.lon)**2+(x.cy-f.lat)**2; if(d<best){ best=d; hit=x; } }
+      near = best <= 0.5*0.5;         // > ±0,5° (±55 km) dari kab/kota manapun: jangan dipaksa masuk provinsi tetangga
     }
     f._island = hit ? hit.isl : null;
+    f._key = hit && near ? hit.key : null;   // kab/kota tempat fasilitas berada (untuk provinsi / fasilitas terdekat)
     grow(f._island, f.lon, f.lat, f.lon, f.lat);
   }
 }
@@ -2839,6 +2850,40 @@ function simOrigins(c){
   else FACILITIES.filter(f=>(f.type||'').trim().toUpperCase()==='NDC' && (f.bu||'').includes(currentBU)).forEach(f=>add(f.name,'NDC'));
   return names;
 }
+// Fasilitas DC terdekat dari tujuan. Radius saat ini = 1 provinsi (SIM_NEAR_SCOPE); jarak = garis lurus dari pusat kab/kota tujuan.
+const SIM_NEAR_SCOPE = 'provinsi', SIM_NEAR_SHOW = 8;
+function simNearby(c){
+  const prov = normName(c.provinsi, false);
+  const dest = ISL_FEATS.find(x=>x.key===c._key);
+  const rows = [];
+  for(const f of visibleFacilities()){
+    const k = f._key && COVERAGE.HCI[f._key]; if(!k) continue;
+    if(SIM_NEAR_SCOPE==='provinsi' && normName(k.provinsi, false)!==prov) continue;
+    const km = dest ? L.latLng(dest.cy, dest.cx).distanceTo([f.lat, f.lon])/1000 : null;
+    rows.push({f, km, loc:k.kabkota, serves: !!(SERVED[f._fk] && SERVED[f._fk].has(c._key))});
+  }
+  rows.sort((a,b)=>(a.km==null?1e9:a.km)-(b.km==null?1e9:b.km) || TIER_ORDER.indexOf((a.f.type||'').toUpperCase())-TIER_ORDER.indexOf((b.f.type||'').toUpperCase()));
+  return rows;
+}
+function renderSimNear(c){
+  const box = document.getElementById('sim-near'); if(!box) return;
+  if(!c){ box.innerHTML = ''; return; }
+  const rows = simNearby(c), more = rows.length > SIM_NEAR_SHOW && !SIM.nearAll;
+  const shown = more ? rows.slice(0, SIM_NEAR_SHOW) : rows;
+  const tr = shown.map(r=>{
+    const t = (r.f.type||'').toUpperCase();
+    return `<tr><td><span class="tdot" style="background:${TYPE_COLOR[t]||'var(--muted)'}"></span>${escapeHtml(t)}</td>
+      <td>${escapeHtml(r.f.name)}${r.serves ? ' <span class="sim-badge serve">melayani tujuan</span>' : ''}<span class="sub">${escapeHtml(r.loc)}</span></td>
+      <td>${r.km==null ? '—' : '±' + Math.round(r.km).toLocaleString('id-ID') + ' km'}</td></tr>`;
+  }).join('');
+  box.className = 'sim-sec sim-near';
+  box.innerHTML = `<h3>Fasilitas DC terdekat</h3>` + (rows.length
+    ? `<div class="sim-tbl-wrap"><table class="sim-tbl" id="sim-near-tbl"><thead><tr><th>Tipe</th><th>Fasilitas</th><th>Jarak</th></tr></thead><tbody>${tr}</tbody></table></div>
+       ${more ? `<button class="btn sim-more" id="sim-near-more" type="button">Tampilkan semua (${rows.length})</button>` : ''}`
+    : `<div class="sim-empty">Belum ada fasilitas DC (NDC/RDC/SDC/HUB) di provinsi ${escapeHtml(c.provinsi)} untuk BU ${currentBU}.</div>`)
+    + `<div class="sim-note">Radius: 1 provinsi (${escapeHtml(c.provinsi)}), BU ${currentBU} · ${rows.length} fasilitas, urut dari yang terdekat. Jarak = garis lurus dari titik tengah ${escapeHtml(c.kabkota)} ke lokasi fasilitas, bukan jarak jalan.</div>`;
+  const b = document.getElementById('sim-near-more'); if(b) b.onclick = () => { SIM.nearAll = true; renderSimNear(c); };
+}
 function simPickRoute(res){
   if(!res) return null;
   return res.routes.find(r=>r.x.id===SIM.manual) || null;
@@ -2855,6 +2900,8 @@ function renderSim(){
   document.getElementById('sim-bu').textContent = 'BU ' + currentBU;
   const c = SIM.key ? COVERAGE[currentBU][SIM.key] : null;
   if(SIM.key && !c){ SIM.key = null; document.getElementById('sim-dest').value = ''; }
+  if(SIM.nearKey !== SIM.key){ SIM.nearKey = SIM.key; SIM.nearAll = false; }
+  renderSimNear(c);
   // origin: hanya yang punya rute ke tujuan ini
   const origins = simOrigins(c);
   if(SIM.origin && !origins.some(o=>normFacName(o.name)===normFacName(SIM.origin))) SIM.origin = '';
@@ -2972,8 +3019,8 @@ function setupSim(){
 
 function rerenderAll(){
   paintLanding();
-  renderSim();
   buildServed();
+  renderSim();
   if(view.facKey && !visibleFacilities().some(f=>f._fk===view.facKey)) view.facKey = null;   // fasilitas tidak ada di BU ini
   renderChoropleth();
   renderSummary();
